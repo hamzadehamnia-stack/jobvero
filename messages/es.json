@@ -1,0 +1,283 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "pricing": "Precios",
+    "legal": "Avisos legales",
+    "getStarted": "Empezar"
+  },
+  "hero": {
+    "badge": "Búsqueda de empleo con IA",
+    "headline": "Consigue el trabajo de tus sueños,",
+    "headlineAccent": "Más rápido que nunca",
+    "subheadline": "Jobvero utiliza IA avanzada para conectarte con las mejores oportunidades, crear candidaturas personalizadas y hacer seguimiento de tu progreso — todo en un solo lugar.",
+    "ctaPrimary": "Empezar gratis",
+    "ctaSecondary": "Cómo funciona",
+    "socialProof": "Con la confianza de más de 27M de candidatos en 4 idiomas",
+    "statsJobSeekers": "Candidatos ayudados",
+    "statsSuccessRate": "Tasa de coincidencia",
+    "statsFasterHiring": "Idiomas disponibles"
+  },
+  "features": {
+    "sectionBadge": "Funcionalidades",
+    "headline": "Todo lo que necesitas para que te contraten",
+    "subheadline": "Jobvero combina inteligencia artificial con una experiencia fluida para darte una ventaja real en tu búsqueda de empleo.",
+    "items": [
+      {
+        "title": "Matching de empleos con IA",
+        "description": "Nuestra IA analiza tus habilidades y experiencia para encontrar las oportunidades más relevantes entre miles de ofertas."
+      },
+      {
+        "title": "Creador de CV inteligente",
+        "description": "Genera currículums personalizados para cada candidatura en segundos. Optimizado para ATS y aprobado por reclutadores."
+      },
+      {
+        "title": "Generador de carta de presentación",
+        "description": "Cartas de presentación personalizadas que responden directamente a los requisitos del puesto — sin más bloqueo del escritor."
+      },
+      {
+        "title": "Seguimiento de candidaturas",
+        "description": "Mantente organizado con un pipeline visual que rastrea cada candidatura, entrevista y seguimiento."
+      },
+      {
+        "title": "Preparación de entrevistas",
+        "description": "Preguntas y respuestas generadas por IA adaptadas al puesto y empresa específicos a los que aplicas."
+      },
+      {
+        "title": "Información salarial",
+        "description": "Conoce tu valor. Obtén datos salariales en tiempo real para cualquier puesto, ubicación y nivel de experiencia."
+      }
+    ]
+  },
+  "howItWorks": {
+    "sectionBadge": "Cómo funciona",
+    "headline": "Consigue empleo en 3 sencillos pasos",
+    "steps": [
+      {
+        "number": "01",
+        "title": "Crea tu perfil",
+        "description": "Sube tu CV o rellena tu perfil. Nuestra IA extrae tus habilidades, experiencia y objetivos en menos de 2 minutos."
+      },
+      {
+        "number": "02",
+        "title": "Descubre oportunidades",
+        "description": "Explora ofertas seleccionadas por IA actualizadas diariamente. Filtra por ubicación, salario, sector y más."
+      },
+      {
+        "number": "03",
+        "title": "Aplica con confianza",
+        "description": "Usa candidaturas elaboradas con IA y sigue cada paso de tu camino hasta conseguir la oferta."
+      }
+    ]
+  },
+  "homeFaq": {
+    "sectionBadge": "FAQ",
+    "headline": "Preguntas frecuentes",
+    "items": [
+      {
+        "q": "¿Jobvero es gratuito?",
+        "a": "¡Sí! Jobvero ofrece un plan gratuito permanente con funciones esenciales de búsqueda de empleo. Actualiza al plan Pro o Premium en cualquier momento para desbloquear matching ilimitado, cartas de presentación, preparación de entrevistas y mucho más."
+      },
+      {
+        "q": "¿Qué idiomas admite Jobvero?",
+        "a": "Jobvero está completamente disponible en inglés, francés, español y portugués, con más idiomas en el camino."
+      },
+      {
+        "q": "¿Cómo funciona el matching de empleos con IA?",
+        "a": "Nuestra IA analiza tu CV, habilidades y preferencias de empleo para puntuar y clasificar miles de ofertas, mostrándote solo las oportunidades más relevantes para que pases menos tiempo buscando y más tiempo aplicando."
+      },
+      {
+        "q": "¿Están seguros mis datos personales?",
+        "a": "Absolutamente. Tus datos están cifrados de extremo a extremo y nunca se venden a terceros. Jobvero cumple plenamente con el RGPD y puedes eliminar tu cuenta en cualquier momento."
+      },
+      {
+        "q": "¿Puedo usar Jobvero si estoy cambiando de carrera?",
+        "a": "¡Sí! Jobvero está diseñado para cambios de carrera. Nuestra IA identifica tus habilidades transferibles y destaca los puestos donde tu trayectoria se convierte en una ventaja competitiva, incluso en un nuevo sector."
+      }
+    ]
+  },
+  "cta": {
+    "headline": "¿Listo para transformar tu búsqueda de empleo?",
+    "subheadline": "Únete a miles de profesionales que encontraron su próximo puesto con Jobvero.",
+    "ctaPrimary": "Empezar gratis hoy",
+    "ctaSecondary": "Ver precios",
+    "disclaimer": "No se requiere tarjeta de crédito. Plan gratuito disponible para siempre."
+  },
+  "pricing": {
+    "sectionBadge": "Precios",
+    "headline": "Precios simples y transparentes",
+    "subheadline": "Elige el plan que se adapta a tu búsqueda de empleo. Mejora o cancela en cualquier momento.",
+    "plans": [
+      {
+        "name": "Gratis",
+        "price": "0",
+        "currency": "€",
+        "period": "/mes",
+        "description": "Perfecto para comenzar tu búsqueda de empleo.",
+        "cta": "Empezar gratis",
+        "popular": false,
+        "features": [
+          "5 coincidencias de empleo por IA al día",
+          "1 plantilla de CV",
+          "3 cartas de presentación al mes",
+          "Seguimiento básico de candidaturas",
+          "Soporte por correo electrónico"
+        ]
+      },
+      {
+        "name": "Pro",
+        "price": "19.99",
+        "currency": "€",
+        "period": "/mes",
+        "description": "Para candidatos serios que quieren una ventaja real.",
+        "cta": "Probar Pro",
+        "popular": true,
+        "features": [
+          "Coincidencias ilimitadas por IA",
+          "10 plantillas de CV",
+          "Cartas de presentación ilimitadas",
+          "Seguimiento avanzado de candidaturas",
+          "Suite de preparación de entrevistas",
+          "Información salarial",
+          "Soporte prioritario por correo electrónico"
+        ]
+      },
+      {
+        "name": "Premium",
+        "price": "29.99",
+        "currency": "€",
+        "period": "/mes",
+        "description": "Toda la potencia para cambios de carrera y profesionales ambiciosos.",
+        "cta": "Probar Premium",
+        "popular": false,
+        "features": [
+          "Todo lo incluido en Pro",
+          "1 sesión de coaching profesional/mes",
+          "Optimización del perfil de LinkedIn",
+          "Estrategia personalizada de búsqueda de empleo",
+          "Gestor de cuenta dedicado",
+          "Acceso a API",
+          "Soporte prioritario 24/7"
+        ]
+      }
+    ],
+    "faq": {
+      "headline": "Preguntas frecuentes",
+      "items": [
+        {
+          "q": "¿Puedo cancelar en cualquier momento?",
+          "a": "Sí. Puedes cancelar tu suscripción en cualquier momento desde la configuración de tu cuenta. Mantendrás el acceso hasta el final de tu período de facturación."
+        },
+        {
+          "q": "¿Hay una prueba gratuita para los planes de pago?",
+          "a": "Sí, todos los planes de pago incluyen una prueba gratuita de 7 días. No se requiere tarjeta de crédito para empezar."
+        },
+        {
+          "q": "¿Qué métodos de pago aceptáis?",
+          "a": "Aceptamos todas las principales tarjetas de crédito (Visa, Mastercard, Amex) y PayPal."
+        },
+        {
+          "q": "¿Ofrecéis reembolsos?",
+          "a": "Ofrecemos una garantía de devolución de dinero de 14 días en todos los planes de pago, sin preguntas."
+        }
+      ]
+    }
+  },
+  "legal": {
+    "headline": "Avisos legales",
+    "lastUpdated": "Última actualización: marzo de 2026",
+    "sections": [
+      {
+        "title": "1. Información de la empresa",
+        "content": "Jobvero es operado por MELNZ LLC, una sociedad de responsabilidad limitada. Sitio web: getjobvero.com. Para cualquier consulta, contáctenos en legal@getjobvero.com."
+      },
+      {
+        "title": "2. Propiedad intelectual",
+        "content": "Todo el contenido de este sitio web, incluidos, entre otros, textos, gráficos, logotipos y software, es propiedad de MELNZ LLC y está protegido por las leyes de propiedad intelectual aplicables. Queda estrictamente prohibida la reproducción o distribución no autorizada."
+      },
+      {
+        "title": "3. Limitación de responsabilidad",
+        "content": "MELNZ LLC no será responsable de ningún daño indirecto, incidental, especial o consecuente que surja del uso de este sitio web o sus servicios. La información proporcionada es solo para fines generales y no constituye asesoramiento profesional."
+      },
+      {
+        "title": "4. Privacidad y datos",
+        "content": "Estamos comprometidos a proteger su privacidad. Recopilamos y procesamos datos personales de acuerdo con las leyes de protección de datos aplicables, incluido el RGPD. Para obtener más detalles, consulte nuestra Política de privacidad."
+      },
+      {
+        "title": "5. Ley aplicable",
+        "content": "Estos avisos legales se rigen por la ley aplicable. Cualquier disputa relacionada con este sitio web estará sujeta a la jurisdicción exclusiva de los tribunales competentes."
+      },
+      {
+        "title": "6. Contacto",
+        "content": "MELNZ LLC — legal@getjobvero.com — getjobvero.com"
+      }
+    ]
+  },
+  "logosBar": {
+    "label": "Utilizado por profesionales de empresas de primer nivel"
+  },
+  "testimonials": {
+    "sectionBadge": "Testimonios",
+    "headline": "Amado por candidatos de todo el mundo",
+    "subheadline": "Resultados reales de personas reales que transformaron su búsqueda de empleo con Jobvero.",
+    "items": [
+      {
+        "quote": "Jobvero me ayudó a conseguir el trabajo de mis sueños en una empresa tecnológica en solo 3 semanas. El matching de empleos con IA es increíblemente preciso.",
+        "name": "Sarah M.",
+        "role": "Ingeniera de Software",
+        "tag": "Contratada en una top tech"
+      },
+      {
+        "quote": "Era escéptico con las herramientas de IA, pero el generador de cartas me ahorró horas cada semana. Conseguí 3 entrevistas en mis primeros 10 días.",
+        "name": "Marcus T.",
+        "role": "Product Manager",
+        "tag": "3 entrevistas en 10 días"
+      },
+      {
+        "quote": "Como cambio de carrera, no sabía cómo adaptar mi CV. Jobvero reconstruyó todo mi perfil y me permitió entrar en un sector completamente nuevo.",
+        "name": "Léa D.",
+        "role": "UX Designer",
+        "tag": "Cambio de carrera exitoso"
+      },
+      {
+        "quote": "La preparación para entrevistas es increíble. Entré sabiendo exactamente qué preguntarían. Acepté una oferta un 30% por encima de mi salario anterior.",
+        "name": "James K.",
+        "role": "Analista de Datos",
+        "tag": "+30% de aumento salarial"
+      },
+      {
+        "quote": "Jobvero encontró oportunidades que yo nunca habría descubierto. El seguimiento de candidaturas me mantuvo organizado con más de 15 solicitudes activas.",
+        "name": "Aisha B.",
+        "role": "Responsable de Marketing",
+        "tag": "Oportunidades ocultas encontradas"
+      },
+      {
+        "quote": "Limpio, rápido y genuinamente útil. He probado todas las apps de búsqueda de empleo — Jobvero es la primera que realmente trabaja para mí.",
+        "name": "Tomás R.",
+        "role": "Desarrollador Backend",
+        "tag": "Contratado en 2 semanas"
+      }
+    ]
+  },
+  "pricingCard": {
+    "mostPopular": "Más popular"
+  },
+  "footer": {
+    "tagline": "Búsqueda de empleo con IA para profesionales modernos.",
+    "product": "Producto",
+    "company": "Empresa",
+    "legal": "Legal",
+    "followUs": "Síguenos",
+    "links": {
+      "features": "Funcionalidades",
+      "pricing": "Precios",
+      "changelog": "Novedades",
+      "about": "Acerca de",
+      "blog": "Blog",
+      "careers": "Empleo",
+      "legalMentions": "Avisos legales",
+      "privacy": "Política de privacidad",
+      "terms": "Términos de servicio"
+    },
+    "copyright": "© 2026 MELNZ LLC. Todos los derechos reservados."
+  }
+}

@@ -1,0 +1,283 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "pricing": "Tarifs",
+    "legal": "Mentions légales",
+    "getStarted": "Commencer"
+  },
+  "hero": {
+    "badge": "Recherche d'emploi par IA",
+    "headline": "Décrochez l'emploi de vos rêves,",
+    "headlineAccent": "Plus vite que jamais",
+    "subheadline": "Jobvero utilise une IA avancée pour vous mettre en relation avec les meilleures opportunités, rédiger des candidatures personnalisées et suivre vos démarches — tout en un seul endroit.",
+    "ctaPrimary": "Commencer gratuitement",
+    "ctaSecondary": "Voir comment ça marche",
+    "socialProof": "Utilisé par plus de 27M de candidats dans 4 langues",
+    "statsJobSeekers": "Candidats accompagnés",
+    "statsSuccessRate": "Taux de correspondance",
+    "statsFasterHiring": "Langues disponibles"
+  },
+  "features": {
+    "sectionBadge": "Fonctionnalités",
+    "headline": "Tout ce dont vous avez besoin pour être recruté",
+    "subheadline": "Jobvero combine intelligence artificielle et expérience fluide pour vous donner un véritable avantage dans votre recherche d'emploi.",
+    "items": [
+      {
+        "title": "Matching d'offres par IA",
+        "description": "Notre IA analyse vos compétences et votre expérience pour faire remonter les opportunités les plus pertinentes parmi des milliers d'annonces."
+      },
+      {
+        "title": "Générateur de CV intelligent",
+        "description": "Créez des CV personnalisés pour chaque candidature en quelques secondes. Optimisé ATS et approuvé par les recruteurs."
+      },
+      {
+        "title": "Générateur de lettre de motivation",
+        "description": "Des lettres de motivation personnalisées qui répondent directement aux exigences du poste — fini le syndrome de la page blanche."
+      },
+      {
+        "title": "Suivi de candidatures",
+        "description": "Restez organisé avec un pipeline visuel qui suit chaque candidature, entretien et relance."
+      },
+      {
+        "title": "Préparation aux entretiens",
+        "description": "Questions et réponses générées par l'IA, adaptées au poste et à l'entreprise visés."
+      },
+      {
+        "title": "Informations salariales",
+        "description": "Connaissez votre valeur. Obtenez des données salariales en temps réel pour n'importe quel poste, lieu et niveau d'expérience."
+      }
+    ]
+  },
+  "howItWorks": {
+    "sectionBadge": "Comment ça marche",
+    "headline": "Soyez recruté en 3 étapes simples",
+    "steps": [
+      {
+        "number": "01",
+        "title": "Créez votre profil",
+        "description": "Importez votre CV ou remplissez votre profil. Notre IA extrait vos compétences, votre expérience et vos objectifs en moins de 2 minutes."
+      },
+      {
+        "number": "02",
+        "title": "Découvrez des opportunités",
+        "description": "Parcourez des offres sélectionnées par l'IA et mises à jour quotidiennement. Filtrez par lieu, salaire, secteur et plus encore."
+      },
+      {
+        "number": "03",
+        "title": "Postulez en toute confiance",
+        "description": "Utilisez des candidatures rédigées par l'IA et suivez chaque étape de votre parcours jusqu'à l'offre."
+      }
+    ]
+  },
+  "homeFaq": {
+    "sectionBadge": "FAQ",
+    "headline": "Questions fréquentes",
+    "items": [
+      {
+        "q": "Jobvero est-il gratuit ?",
+        "a": "Oui ! Jobvero propose un plan gratuit permanent avec les fonctionnalités essentielles. Passez au plan Pro ou Premium à tout moment pour débloquer le matching illimité, les lettres de motivation, la préparation aux entretiens et bien plus encore."
+      },
+      {
+        "q": "Quelles langues Jobvero supporte-t-il ?",
+        "a": "Jobvero est entièrement disponible en anglais, français, espagnol et portugais — d'autres langues sont prévues."
+      },
+      {
+        "q": "Comment fonctionne le matching d'emplois par IA ?",
+        "a": "Notre IA analyse votre CV, vos compétences et vos préférences pour noter et classer des milliers d'offres — ne vous affichant que les opportunités les plus pertinentes afin que vous passiez moins de temps à chercher et plus de temps à postuler."
+      },
+      {
+        "q": "Mes données personnelles sont-elles sécurisées ?",
+        "a": "Absolument. Vos données sont chiffrées de bout en bout et ne sont jamais vendues à des tiers. Jobvero est entièrement conforme au RGPD et vous pouvez supprimer votre compte à tout moment."
+      },
+      {
+        "q": "Puis-je utiliser Jobvero si je change de carrière ?",
+        "a": "Oui ! Jobvero est conçu pour les reconversions professionnelles. Notre IA identifie vos compétences transférables et met en avant les postes où votre parcours devient un avantage concurrentiel, même dans un nouveau secteur."
+      }
+    ]
+  },
+  "cta": {
+    "headline": "Prêt à transformer votre recherche d'emploi ?",
+    "subheadline": "Rejoignez des milliers de professionnels qui ont trouvé leur prochain poste avec Jobvero.",
+    "ctaPrimary": "Commencer gratuitement",
+    "ctaSecondary": "Voir les tarifs",
+    "disclaimer": "Aucune carte de crédit requise. Plan gratuit disponible pour toujours."
+  },
+  "pricing": {
+    "sectionBadge": "Tarifs",
+    "headline": "Des tarifs simples et transparents",
+    "subheadline": "Choisissez le plan adapté à votre recherche d'emploi. Passez à un niveau supérieur ou annulez à tout moment.",
+    "plans": [
+      {
+        "name": "Gratuit",
+        "price": "0",
+        "currency": "€",
+        "period": "/mois",
+        "description": "Parfait pour commencer votre recherche d'emploi.",
+        "cta": "Commencer gratuitement",
+        "popular": false,
+        "features": [
+          "5 offres correspondantes par jour",
+          "1 modèle de CV",
+          "3 lettres de motivation par mois",
+          "Suivi de candidatures basique",
+          "Support par e-mail"
+        ]
+      },
+      {
+        "name": "Pro",
+        "price": "19.99",
+        "currency": "€",
+        "period": "/mois",
+        "description": "Pour les candidats sérieux qui veulent un vrai avantage.",
+        "cta": "Essayer Pro",
+        "popular": true,
+        "features": [
+          "Offres illimitées par IA",
+          "10 modèles de CV",
+          "Lettres de motivation illimitées",
+          "Suivi de candidatures avancé",
+          "Suite de préparation aux entretiens",
+          "Informations salariales",
+          "Support e-mail prioritaire"
+        ]
+      },
+      {
+        "name": "Premium",
+        "price": "29.99",
+        "currency": "€",
+        "period": "/mois",
+        "description": "La puissance totale pour les reconversions et les ambitieux.",
+        "cta": "Essayer Premium",
+        "popular": false,
+        "features": [
+          "Tout ce qui est inclus dans Pro",
+          "1 session de coaching carrière/mois",
+          "Optimisation du profil LinkedIn",
+          "Stratégie de recherche d'emploi personnalisée",
+          "Gestionnaire de compte dédié",
+          "Accès API",
+          "Support prioritaire 24/7"
+        ]
+      }
+    ],
+    "faq": {
+      "headline": "Questions fréquentes",
+      "items": [
+        {
+          "q": "Puis-je annuler à tout moment ?",
+          "a": "Oui. Vous pouvez annuler votre abonnement à tout moment depuis les paramètres de votre compte. Vous conserverez l'accès jusqu'à la fin de votre période de facturation."
+        },
+        {
+          "q": "Y a-t-il un essai gratuit pour les plans payants ?",
+          "a": "Oui, tous les plans payants incluent un essai gratuit de 7 jours. Aucune carte de crédit requise pour commencer."
+        },
+        {
+          "q": "Quels modes de paiement acceptez-vous ?",
+          "a": "Nous acceptons toutes les principales cartes de crédit (Visa, Mastercard, Amex) et PayPal."
+        },
+        {
+          "q": "Proposez-vous des remboursements ?",
+          "a": "Nous offrons une garantie de remboursement de 14 jours sur tous les plans payants, sans questions."
+        }
+      ]
+    }
+  },
+  "legal": {
+    "headline": "Mentions légales",
+    "lastUpdated": "Dernière mise à jour : mars 2026",
+    "sections": [
+      {
+        "title": "1. Informations sur la société",
+        "content": "Jobvero est exploité par MELNZ LLC, une société à responsabilité limitée. Site web : getjobvero.com. Pour toute demande, veuillez nous contacter à l'adresse legal@getjobvero.com."
+      },
+      {
+        "title": "2. Propriété intellectuelle",
+        "content": "Tout le contenu de ce site, y compris mais sans s'y limiter les textes, graphiques, logos et logiciels, est la propriété de MELNZ LLC et est protégé par les lois applicables en matière de propriété intellectuelle. Toute reproduction ou distribution non autorisée est strictement interdite."
+      },
+      {
+        "title": "3. Limitation de responsabilité",
+        "content": "MELNZ LLC ne saurait être tenue responsable des dommages indirects, accessoires, spéciaux ou consécutifs découlant de l'utilisation de ce site ou de ses services. Les informations fournies le sont à titre général et ne constituent pas un conseil professionnel."
+      },
+      {
+        "title": "4. Confidentialité et données",
+        "content": "Nous nous engageons à protéger votre vie privée. Nous collectons et traitons les données personnelles conformément aux lois applicables en matière de protection des données, y compris le RGPD. Pour plus de détails, veuillez consulter notre Politique de confidentialité."
+      },
+      {
+        "title": "5. Droit applicable",
+        "content": "Ces mentions légales sont régies par le droit applicable. Tout litige lié à ce site sera soumis à la juridiction exclusive des tribunaux compétents."
+      },
+      {
+        "title": "6. Contact",
+        "content": "MELNZ LLC — legal@getjobvero.com — getjobvero.com"
+      }
+    ]
+  },
+  "logosBar": {
+    "label": "Utilisé par des professionnels de grandes entreprises mondiales"
+  },
+  "testimonials": {
+    "sectionBadge": "Témoignages",
+    "headline": "Apprécié par des candidats du monde entier",
+    "subheadline": "Des résultats concrets de vraies personnes qui ont transformé leur recherche d'emploi avec Jobvero.",
+    "items": [
+      {
+        "quote": "Jobvero m'a aidé à décrocher le poste de mes rêves dans une entreprise tech en seulement 3 semaines. Le matching par IA est incroyablement précis.",
+        "name": "Sarah M.",
+        "role": "Ingénieure logicielle",
+        "tag": "Recrutée dans une top tech"
+      },
+      {
+        "quote": "J'étais sceptique, mais le générateur de lettre de motivation m'a économisé des heures chaque semaine. J'ai obtenu 3 entretiens dans mes 10 premiers jours.",
+        "name": "Marcus T.",
+        "role": "Product Manager",
+        "tag": "3 entretiens en 10 jours"
+      },
+      {
+        "quote": "En tant que reconverti, je ne savais pas comment adapter mon CV. Jobvero a tout reconstruit et m'a permis d'intégrer un secteur complètement nouveau.",
+        "name": "Léa D.",
+        "role": "UX Designer",
+        "tag": "Reconversion réussie"
+      },
+      {
+        "quote": "La préparation aux entretiens est incroyable. Je savais exactement quelles questions allaient être posées. J'ai accepté une offre 30% au-dessus de mon ancien salaire.",
+        "name": "James K.",
+        "role": "Analyste de données",
+        "tag": "+30% d'augmentation salariale"
+      },
+      {
+        "quote": "Jobvero m'a trouvé des opportunités que je n'aurais jamais découvertes seul. Le suivi de candidatures m'a gardé organisé avec plus de 15 candidatures en cours.",
+        "name": "Aisha B.",
+        "role": "Responsable Marketing",
+        "tag": "Opportunités cachées trouvées"
+      },
+      {
+        "quote": "Propre, rapide et vraiment utile. J'ai testé toutes les applis de recherche d'emploi — Jobvero est la première qui travaille vraiment pour moi.",
+        "name": "Tomás R.",
+        "role": "Développeur Backend",
+        "tag": "Embauché en 2 semaines"
+      }
+    ]
+  },
+  "pricingCard": {
+    "mostPopular": "Le plus populaire"
+  },
+  "footer": {
+    "tagline": "Recherche d'emploi par IA pour les professionnels modernes.",
+    "product": "Produit",
+    "company": "Entreprise",
+    "legal": "Légal",
+    "followUs": "Nous suivre",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "changelog": "Nouveautés",
+      "about": "À propos",
+      "blog": "Blog",
+      "careers": "Carrières",
+      "legalMentions": "Mentions légales",
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation"
+    },
+    "copyright": "© 2026 MELNZ LLC. Tous droits réservés."
+  }
+}
