@@ -124,7 +124,10 @@
       "Bash(Test-Path \"c:\\\\Users\\\\Hamza\\\\Desktop\\\\Jobvero\\\\src\\\\app\\\\api\\\\webhooks\\\\resend\\\\route.ts\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\Users\\\\Hamza\\\\Desktop\\\\Jobvero\\\\src\\\\content\\\\legal\")",
       "Bash(mkdir -p \"c:/Users/Hamza/Desktop/Jobvero/src/app/[locale]/\\(auth\\)/auth/reset-password\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git check-ignore *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hamza\\Desktop\\Jobvero\\src\\app\\[locale]\\(auth)\\auth"

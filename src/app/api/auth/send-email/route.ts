@@ -72,7 +72,8 @@ export async function POST(request: Request) {
   const locale = detectLocale(redirect_to, user?.user_metadata);
 
   // ---- 2. Build confirmation link ----
-  const confirmLink = `${site_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(redirect_to ?? site_url)}`;
+  const supabaseBaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, '');
+  const confirmLink = `${supabaseBaseUrl}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(redirect_to ?? site_url)}`;
 
   // ---- 3. Route to the right template ----
   let emailComponent: React.ReactElement;
