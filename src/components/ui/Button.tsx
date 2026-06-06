@@ -14,13 +14,14 @@ const getClasses = (
   className?: string
 ) =>
   cn(
-    'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-gray-950',
+    'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950',
     {
-      'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-lg shadow-violet-900/30':
+      'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-lg shadow-violet-500/20':
         variant === 'primary',
-      'bg-gray-800 text-gray-100 border border-gray-700 hover:bg-gray-700 hover:border-gray-600':
+      'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-600':
         variant === 'secondary',
-      'text-gray-400 hover:text-white': variant === 'ghost',
+      'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white':
+        variant === 'ghost',
     },
     {
       'px-3 py-1.5 text-sm': size === 'sm',

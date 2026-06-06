@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import PricingCard from './PricingCard';
 import Badge from '@/components/ui/Badge';
 
@@ -9,17 +10,16 @@ type Plan = {
   period: string;
   description: string;
   cta: string;
+  disabled: boolean;
   popular: boolean;
   features: string[];
 };
 
 type FaqItem = { q: string; a: string };
 
-// Map plan index to a sign-up href (free → no card, paid → checkout)
-const PLAN_HREFS = ['#get-started', '#pro', '#premium'];
-
 export default function PricingTable() {
   const t = useTranslations('pricing');
+  const locale = useLocale();
   const plans = t.raw('plans') as Plan[];
   const faqItems = t.raw('faq.items') as FaqItem[];
 
@@ -28,8 +28,8 @@ export default function PricingTable() {
       {/* Header */}
       <div className="text-center mb-16">
         <Badge className="mb-4">{t('sectionBadge')}</Badge>
-        <h1 className="text-5xl font-bold text-white mb-4">{t('headline')}</h1>
-        <p className="text-gray-400 text-lg">{t('subheadline')}</p>
+        <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{t('headline')}</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-lg">{t('subheadline')}</p>
       </div>
 
       {/* Pricing cards */}
@@ -38,29 +38,29 @@ export default function PricingTable() {
           <PricingCard
             key={plan.name}
             {...plan}
-            ctaHref={PLAN_HREFS[i] ?? '#'}
+            ctaHref={`/${locale}/auth/register`}
           />
         ))}
       </div>
 
       {/* FAQ */}
       <div className="max-w-2xl mx-auto px-4">
-        <h2 className="text-3xl font-bold text-white text-center mb-10">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-10">
           {t('faq.headline')}
         </h2>
         <div className="space-y-4">
           {faqItems.map((item, i) => (
             <details
               key={i}
-              className="group bg-gray-900 border border-gray-800 rounded-xl px-6 py-4 cursor-pointer"
+              className="group bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-4 cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 transition-colors duration-200"
             >
-              <summary className="flex justify-between items-center list-none font-medium text-white select-none">
+              <summary className="flex justify-between items-center list-none font-medium text-gray-900 dark:text-white select-none">
                 {item.q}
-                <span className="text-gray-500 group-open:rotate-45 transition-transform duration-200 text-xl leading-none ml-4">
+                <span className="text-gray-400 dark:text-gray-500 group-open:rotate-45 transition-transform duration-200 text-xl leading-none ml-4">
                   +
                 </span>
               </summary>
-              <p className="mt-3 text-gray-400 text-sm leading-relaxed">{item.a}</p>
+              <p className="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{item.a}</p>
             </details>
           ))}
         </div>

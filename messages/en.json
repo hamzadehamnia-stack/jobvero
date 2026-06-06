@@ -1,8 +1,44 @@
 {
+  "cookies": {
+    "banner": {
+      "title": "We value your privacy",
+      "description": "Jobvero uses cookies to provide essential features (authentication, session management), measure how our service is used, and improve your experience. You can accept all cookies, reject non-essential ones, or customize your preferences.",
+      "acceptAll": "Accept all",
+      "rejectAll": "Reject all",
+      "customize": "Customize"
+    },
+    "preferences": {
+      "title": "Cookie preferences",
+      "acceptAll": "Accept all",
+      "rejectAll": "Reject all",
+      "savePreferences": "Save preferences",
+      "close": "Close"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Strictly necessary cookies",
+        "description": "These cookies are essential for the website to function properly. They enable core functionality such as authentication, session management, and security. They cannot be disabled."
+      },
+      "functional": {
+        "title": "Functional cookies",
+        "description": "These cookies enable enhanced functionality and personalization, such as remembering your language preference and theme (light/dark mode)."
+      },
+      "analytics": {
+        "title": "Analytics cookies",
+        "description": "These cookies help us understand how visitors interact with Jobvero by collecting anonymous information. This data helps us improve the service."
+      },
+      "marketing": {
+        "title": "Marketing cookies",
+        "description": "These cookies are used to deliver advertisements that may be more relevant to you, and to measure the effectiveness of advertising campaigns."
+      }
+    }
+  },
   "nav": {
-    "home": "Home",
+    "signIn": "Sign In",
     "pricing": "Pricing",
-    "legal": "Legal",
+    "features": "Features",
+    "about": "About",
+    "contact": "Contact",
     "getStarted": "Get Started"
   },
   "hero": {
@@ -96,11 +132,10 @@
     ]
   },
   "cta": {
-    "headline": "Ready to Transform Your Job Search?",
-    "subheadline": "Join thousands of professionals who found their next role with Jobvero.",
-    "ctaPrimary": "Start Free Today",
-    "ctaSecondary": "View Pricing",
-    "disclaimer": "No credit card required. Free plan available forever."
+    "headline": "Ready to land your dream job?",
+    "subheadline": "Try Jobvero free for 7 days — no credit card required.",
+    "ctaPrimary": "Start your free trial →",
+    "disclaimer": "After 7 days, choose the plan that suits you."
   },
   "pricing": {
     "sectionBadge": "Pricing",
@@ -108,17 +143,18 @@
     "subheadline": "Choose the plan that fits your job search. Upgrade or cancel anytime.",
     "plans": [
       {
-        "name": "Free",
+        "name": "Free Trial",
         "price": "0",
-        "currency": "€",
-        "period": "/month",
-        "description": "Perfect for getting started with your job search.",
-        "cta": "Get Started Free",
+        "currency": "",
+        "period": "7 days free",
+        "description": "No credit card required. Get started in seconds.",
+        "cta": "Get Started",
+        "disabled": false,
         "popular": false,
         "features": [
           "5 AI job matches per day",
           "1 resume template",
-          "3 cover letters per month",
+          "3 cover letters",
           "Basic application tracker",
           "Email support"
         ]
@@ -126,10 +162,11 @@
       {
         "name": "Pro",
         "price": "19.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/month",
         "description": "For serious job seekers who want a real advantage.",
-        "cta": "Start Pro Trial",
+        "cta": "Get Started",
+        "disabled": false,
         "popular": true,
         "features": [
           "Unlimited AI job matches",
@@ -144,14 +181,15 @@
       {
         "name": "Premium",
         "price": "29.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/month",
         "description": "Full power for career changers and ambitious professionals.",
-        "cta": "Start Premium Trial",
+        "cta": "Get Started",
+        "disabled": false,
         "popular": false,
         "features": [
           "Everything in Pro",
-          "1-on-1 career coaching session/month",
+          "1-on-1 career coaching / month",
           "LinkedIn profile optimization",
           "Personal job search strategy",
           "Dedicated account manager",
@@ -261,23 +299,418 @@
   "pricingCard": {
     "mostPopular": "Most Popular"
   },
+  "waitlist": {
+    "title": "Be Among the First",
+    "subtitle": "Join the waitlist and get 3 months Pro free at launch.",
+    "placeholder": "Your email address",
+    "cta": "Join the waitlist",
+    "success": "Thank you! You'll be notified at launch 🎉",
+    "errorInvalid": "Please enter a valid email address.",
+    "errorDuplicate": "This email is already on the list!",
+    "errorServer": "Something went wrong. Please try again."
+  },
   "footer": {
     "tagline": "AI-powered job search for modern professionals.",
     "product": "Product",
-    "company": "Company",
-    "legal": "Legal",
-    "followUs": "Follow Us",
+    "support": "Support",
+    "languages": "Languages",
     "links": {
       "features": "Features",
       "pricing": "Pricing",
-      "changelog": "Changelog",
       "about": "About",
-      "blog": "Blog",
-      "careers": "Careers",
+      "contact": "Contact",
+      "faq": "FAQ",
       "legalMentions": "Legal Mentions",
-      "privacy": "Privacy Policy",
-      "terms": "Terms of Service"
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy"
     },
-    "copyright": "© 2026 MELNZ LLC. All rights reserved."
+    "copyright": "© 2026 MELNZ LLC — All rights reserved"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in to Jobvero",
+      "subtitle": "Welcome back! Enter your credentials to continue.",
+      "email": "Email address",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign in",
+      "googleButton": "Sign in with Google",
+      "divider": "or",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up",
+      "errorInvalid": "Invalid email or password.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "errorNoAccount": "No Jobvero account found for this email. Please sign up first.",
+      "errorOauthFailed": "Something went wrong with Google sign-in. Please try again.",
+      "createAccountCta": "Create an account"
+    },
+    "register": {
+      "title": "Create your account",
+      "subtitle": "Start your AI-powered job search today.",
+      "name": "Full name",
+      "email": "Email address",
+      "password": "Password",
+      "passwordHint": "Minimum 8 characters",
+      "submit": "Create account",
+      "googleButton": "Sign up with Google",
+      "divider": "or",
+      "hasAccount": "Already have an account?",
+      "signInLink": "Sign in",
+      "errorGeneric": "Registration failed. Please try again.",
+      "successCheck": "Check your email to confirm your account."
+    },
+    "forgotPassword": {
+      "title": "Reset your password",
+      "subtitle": "We'll send you a reset link.",
+      "email": "Email address",
+      "submit": "Send reset link",
+      "successTitle": "Email sent!",
+      "successMessage": "Check your inbox for the password reset link.",
+      "backToLogin": "Back to sign in",
+      "errorGeneric": "Something went wrong. Please try again."
+    },
+    "resetPassword": {
+      "title": "Set a new password",
+      "subtitle": "Choose a strong password to secure your account.",
+      "newPasswordLabel": "New password",
+      "confirmPasswordLabel": "Confirm new password",
+      "passwordPlaceholder": "Min. 8 characters",
+      "confirmPasswordPlaceholder": "Repeat password",
+      "updatePassword": "Update password",
+      "updating": "Updating...",
+      "loading": "Verifying link...",
+      "errorTooShort": "Password must be at least 8 characters.",
+      "errorMismatch": "Passwords do not match.",
+      "errorTitle": "Invalid or expired link",
+      "errorInvalidLink": "This password reset link is invalid or has expired. Please request a new one.",
+      "requestNewLink": "Request a new link",
+      "successTitle": "Password updated!",
+      "successMessage": "You'll be redirected to sign in shortly..."
+    }
+  },
+  "jobTracker": {
+    "dates": {
+      "appliedOn": "Applied on",
+      "interviewDate": "Interview date",
+      "followUpDate": "Follow-up date",
+      "appliedToday": "Applied today",
+      "appliedAgo": "Applied {n} days ago",
+      "interviewToday": "Interview today",
+      "interviewIn": "Interview in {n} days",
+      "followUpOverdue": "Follow up overdue"
+    }
+  },
+  "datePicker": {
+    "month": "Month",
+    "year": "Year",
+    "present": "Present",
+    "currentPosition": "Currently here",
+    "currentlyStudying": "Currently studying",
+    "startBeforeEnd": "Start date must be before end date",
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ]
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back",
+    "logout": "Sign out",
+    "nav": {
+      "overview": "Overview",
+      "applications": "Applications",
+      "resume": "Resume",
+      "settings": "Settings"
+    },
+    "overview": {
+      "title": "Overview",
+      "jobMatches": "AI Job Matches",
+      "applications": "Applications sent",
+      "interviews": "Interviews",
+      "comingSoon": "Coming soon"
+    },
+    "credits": {
+      "title": "AI Credits",
+      "remaining": "remaining",
+      "unlimited": "Unlimited",
+      "resetOn": "Resets on",
+      "daysLeft": "days left in trial",
+      "trialExpired": "Trial expired — upgrade to continue using AI features",
+      "upgrade": "Upgrade Plan",
+      "viewPlans": "View Plans",
+      "lowCredits": "Running low on credits",
+      "tier": {
+        "trial": "Trial",
+        "free": "Free",
+        "pro": "Pro",
+        "premium": "Premium"
+      }
+    }
+  },
+  "coverLetter": {
+    "title": "Cover Letter Generator",
+    "powered": "Powered by Claude AI",
+    "jobTitle": "Job Title",
+    "jobTitlePlaceholder": "e.g. Full Stack Developer",
+    "companyName": "Company Name",
+    "companyNamePlaceholder": "e.g. Google",
+    "jobDescription": "Job Description",
+    "jobDescriptionHint": "paste the full job offer here",
+    "jobDescriptionPlaceholder": "Paste the job description here. The more detail, the more tailored your letter will be...",
+    "characters": "characters",
+    "tone": "Tone",
+    "tones": {
+      "Professional": "Professional",
+      "Friendly": "Friendly",
+      "Formal": "Formal",
+      "ProfessionalDesc": "Confident & results-driven",
+      "FriendlyDesc": "Warm & approachable",
+      "FormalDesc": "Structured & authoritative"
+    },
+    "language": "Language",
+    "generate": "Generate Cover Letter",
+    "generating": "Generating…",
+    "fillRequired": "Fill in Job Title, Company and Job Description to continue",
+    "previewTitle": "Cover Letter Preview",
+    "copyText": "Copy text",
+    "copied": "Copied!",
+    "save": "Save",
+    "saved": "Saved!",
+    "downloadPDF": "Download PDF",
+    "generatingPDF": "Generating…",
+    "emptyTitle": "Your cover letter will appear here",
+    "emptyDesc": "Fill in the details on the left and click \"Generate Cover Letter\" to create a tailored letter in seconds.",
+    "writingTitle": "Claude is writing your cover letter…",
+    "writingDesc": "Tailoring it for {company} · {tone} tone",
+    "proTip": "Pro tip",
+    "proTipText": "Paste the full job description for best results — Claude will mirror the company's language and highlight your matching skills.",
+    "limitError": "You have reached your cover letter limit. Upgrade to generate more.",
+    "backToForm": "← Back to form",
+    "checklistJobTitle": "Job Title",
+    "checklistCompany": "Company Name",
+    "checklistDescription": "Job Description"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Stay updated with your job search activity",
+    "markAllRead": "Mark all read",
+    "seeAll": "See all notifications",
+    "empty": "No notifications yet",
+    "emptyDesc": "We'll notify you about job matches, saved CVs, and more.",
+    "noUnread": "All caught up!",
+    "noUnreadDesc": "No unread notifications at the moment.",
+    "markRead": "Mark as read",
+    "deleteNotification": "Delete",
+    "footerHint": "Notifications are kept for 30 days",
+    "tabs": {
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read"
+    },
+    "types": {
+      "job_match": {
+        "title": "New job match found",
+        "message": "A new job matching your profile is available. Check it out!"
+      },
+      "application_sent": {
+        "title": "Application sent",
+        "message": "Your application was submitted successfully."
+      },
+      "cv_saved": {
+        "title": "CV saved",
+        "message": "Your CV has been saved and is ready to download."
+      },
+      "cover_letter": {
+        "title": "Cover letter ready",
+        "message": "Your cover letter has been generated successfully."
+      },
+      "credits_low": {
+        "title": "AI credits running low",
+        "message": "You have less than 3 AI credits remaining. Upgrade to continue."
+      },
+      "welcome": {
+        "title": "Welcome to Jobvero! 🎉",
+        "message": "Start by building your CV or exploring job matches."
+      }
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your profile, preferences, and account",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved!",
+    "errorRetry": "Error — retry",
+    "saveFailed": "Save failed",
+    "profile": {
+      "title": "Profile",
+      "changePhoto": "Change photo",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Jane Doe",
+      "email": "Email Address",
+      "emailNote": "Email address cannot be changed",
+      "phone": "Phone Number",
+      "phonePlaceholder": "+1 555 000 0000",
+      "location": "Location",
+      "locationPlaceholder": "Paris, France",
+      "jobTitle": "Current Position",
+      "jobTitlePlaceholder": "Software Engineer",
+      "linkedin": "LinkedIn URL",
+      "linkedinPlaceholder": "linkedin.com/in/your-profile",
+      "portfolio": "Portfolio / Website",
+      "portfolioPlaceholder": "yourwebsite.com"
+    },
+    "preferences": {
+      "title": "Job Preferences",
+      "targetTitle": "Target Job Title",
+      "targetTitlePlaceholder": "e.g. Software Engineer, Nurse, Teacher...",
+      "targetCountries": "Target Countries",
+      "salaryRange": "Salary Range (annual)",
+      "salaryMin": "Minimum",
+      "salaryMinPlaceholder": "50,000",
+      "salaryMax": "Maximum",
+      "salaryMaxPlaceholder": "80,000",
+      "workType": "Work Type",
+      "remote": "Remote",
+      "hybrid": "Hybrid",
+      "onsite": "On-site",
+      "availableFrom": "Available From"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "emailAlerts": "Email Alerts",
+      "emailAlertsDesc": "Receive important updates and reminders to your inbox",
+      "jobAlerts": "New Job Alerts",
+      "jobAlertsDesc": "Get notified when new jobs matching your profile are available",
+      "weeklyReport": "Weekly Report",
+      "weeklyReportDesc": "Receive a weekly summary of your job search activity and new matches"
+    },
+    "account": {
+      "title": "Account",
+      "changePassword": "Change Password",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "Min. 8 characters",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Repeat password",
+      "pwMinLength": "Password must be at least 8 characters",
+      "pwNoMatch": "Passwords do not match",
+      "currentPlan": "Current Plan",
+      "upgrade": "Upgrade",
+      "planDescTrial": "3 days full Pro access · 60 auto-apply/mo · 2 interview sessions",
+      "planDescFree": "3 CVs · 3 Cover Letters · Basic features",
+      "planDescPro": "Unlimited CVs · All AI features · Priority support",
+      "planDescPremium": "Everything in Pro + exclusive AI tools",
+      "deleteAccount": "Delete account",
+      "deleteDesc": "Permanently delete your account and all your data. This cannot be undone.",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Are you absolutely sure?",
+      "deleteConfirmDesc": "This will permanently delete your account, all your CVs, cover letters, and job applications. This action cannot be undone.",
+      "cancel": "Cancel",
+      "noRefundNotice": "Note: Deleting your account does not entitle you to any refund. By creating your account, you accepted our <link>Terms of Service</link> which include a no-refund policy.",
+      "deleteConfirmBtn": "Yes, delete my account",
+      "deleting": "Deleting…",
+      "sendCode": "Yes, send me a verification code",
+      "codeSentTitle": "Verification code sent",
+      "codeSentDescription": "Enter the 8-digit code we sent to your email.",
+      "codeInputLabel": "Verification code",
+      "codeExpiresIn": "Code expires in {time}",
+      "codeExpired": "Code expired",
+      "resendCode": "Resend code",
+      "confirmDeletion": "Confirm deletion"
+    }
+  },
+  "atsScore": {
+    "title": "ATS Score",
+    "subtitle": "Check how well your CV matches a job offer",
+    "creditsLeft": "credits remaining",
+    "credits": "credits",
+    "sectionCV": "Your CV",
+    "sectionJob": "Job Offer",
+    "tabSaved": "Saved CV",
+    "tabPaste": "Paste Text",
+    "selectCVPlaceholder": "Select a saved CV…",
+    "noCVsSaved": "No saved CVs yet.",
+    "buildOne": "Build one",
+    "cvTextPlaceholder": "Paste your CV text here…",
+    "jobPlaceholder": "Paste the full job description here. Include required skills, responsibilities, and qualifications for the best analysis…",
+    "characters": "characters",
+    "analyze": "Analyze ATS Score",
+    "analyzing": "Analyzing…",
+    "analyzingDesc": "Claude is analyzing your CV against the job description…",
+    "errorNoCv": "Please select a CV or paste your CV text.",
+    "errorNoJob": "Please paste the job description.",
+    "errorNoCredits": "You have no AI credits remaining. Upgrade your plan to continue.",
+    "errorGeneric": "Analysis failed. Please try again.",
+    "emptyTitle": "Your ATS score will appear here",
+    "emptyDesc": "Select your CV and paste a job description, then click Analyze ATS Score.",
+    "newAnalysis": "New analysis",
+    "labelGood": "Good Match",
+    "labelAverage": "Average Match",
+    "labelPoor": "Poor Match",
+    "breakdown": "Score Breakdown",
+    "keywordsScore": "Keywords Match",
+    "skillsScore": "Skills Match",
+    "experienceScore": "Experience Match",
+    "educationScore": "Education Match",
+    "missingKeywords": "Missing Keywords",
+    "strongPoints": "Strong Points",
+    "recommendations": "AI Recommendations",
+    "improveCV": "Improve CV with AI"
+  },
+  "jobs": {
+    "title": "Job Search",
+    "subtitle": "Find your next opportunity",
+    "creditsLeft": "{n} AI credits remaining",
+    "searchPlaceholder": "Job title, keywords…",
+    "locationPlaceholder": "City, region…",
+    "country": "Country",
+    "remoteOnly": "Remote only",
+    "search": "Search",
+    "searching": "Searching…",
+    "loadMore": "Load more jobs",
+    "jobsFound": "{n} jobs found",
+    "noResults": "No jobs found",
+    "noResultsTip": "Try different keywords or location",
+    "searchHint": "Enter keywords and click Search to find jobs",
+    "save": "Save",
+    "saved": "Saved",
+    "applyWithAI": "Apply with AI",
+    "applying": "Applying…",
+    "viewDetails": "View details",
+    "viewOnIndeed": "View on Indeed",
+    "filters": "Filters",
+    "datePosted": "Date posted",
+    "jobType": "Job type",
+    "experience": "Experience",
+    "anyTime": "Any time",
+    "last24h": "Last 24 hours",
+    "last3days": "Last 3 days",
+    "lastWeek": "Last week",
+    "lastMonth": "Last month",
+    "fullTime": "Full-time",
+    "partTime": "Part-time",
+    "contract": "Contract",
+    "remote": "Remote",
+    "anyLevel": "Any level",
+    "entryLevel": "Entry level",
+    "midLevel": "Mid level",
+    "seniorLevel": "Senior level",
+    "clearFilters": "Clear all filters",
+    "aboutRole": "About this role",
+    "applySuccess": "Application sent! Check your Job Tracker",
+    "saveSuccess": "Job saved to your tracker",
+    "applyError": "Application failed. Please try again.",
+    "saveError": "Failed to save job",
+    "noCredits": "No AI credits remaining. Upgrade to continue."
   }
 }

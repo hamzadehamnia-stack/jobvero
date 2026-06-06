@@ -1,56 +1,92 @@
 {
+  "cookies": {
+    "banner": {
+      "title": "Nous respectons ta vie privée",
+      "description": "Jobvero utilise des cookies pour assurer les fonctionnalités essentielles (authentification, gestion de session), mesurer l'utilisation du service, et améliorer ton expérience. Tu peux tout accepter, refuser les non-essentiels, ou personnaliser tes préférences.",
+      "acceptAll": "Tout accepter",
+      "rejectAll": "Tout refuser",
+      "customize": "Personnaliser"
+    },
+    "preferences": {
+      "title": "Préférences cookies",
+      "acceptAll": "Tout accepter",
+      "rejectAll": "Tout refuser",
+      "savePreferences": "Enregistrer les préférences",
+      "close": "Fermer"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Cookies strictement nécessaires",
+        "description": "Ces cookies sont essentiels au bon fonctionnement du site. Ils activent les fonctionnalités de base comme l'authentification, la gestion de session et la sécurité. Ils ne peuvent pas être désactivés."
+      },
+      "functional": {
+        "title": "Cookies fonctionnels",
+        "description": "Ces cookies activent des fonctionnalités avancées et la personnalisation, comme le rappel de ta préférence de langue et de thème (clair/sombre)."
+      },
+      "analytics": {
+        "title": "Cookies analytiques",
+        "description": "Ces cookies nous aident à comprendre comment les visiteurs interagissent avec Jobvero en collectant des informations anonymes. Ces données nous aident à améliorer le service."
+      },
+      "marketing": {
+        "title": "Cookies marketing",
+        "description": "Ces cookies sont utilisés pour diffuser des publicités potentiellement pertinentes pour toi, et mesurer l'efficacité des campagnes publicitaires."
+      }
+    }
+  },
   "nav": {
-    "home": "Accueil",
+    "signIn": "Connexion",
     "pricing": "Tarifs",
-    "legal": "Mentions légales",
+    "features": "Fonctionnalités",
+    "about": "À propos",
+    "contact": "Contact",
     "getStarted": "Commencer"
   },
   "hero": {
     "badge": "Recherche d'emploi par IA",
-    "headline": "Décrochez l'emploi de vos rêves,",
+    "headline": "Décrochez le poste de vos rêves,",
     "headlineAccent": "Plus vite que jamais",
-    "subheadline": "Jobvero utilise une IA avancée pour vous mettre en relation avec les meilleures opportunités, rédiger des candidatures personnalisées et suivre vos démarches — tout en un seul endroit.",
+    "subheadline": "Jobvero utilise l'IA avancée pour vous mettre en relation avec les meilleures opportunités, rédiger des candidatures personnalisées et suivre votre progression — le tout en un seul endroit.",
     "ctaPrimary": "Commencer gratuitement",
     "ctaSecondary": "Voir comment ça marche",
-    "socialProof": "Utilisé par plus de 27M de candidats dans 4 langues",
-    "statsJobSeekers": "Candidats accompagnés",
+    "socialProof": "Approuvé par 27M+ chercheurs d'emploi dans 4 langues",
+    "statsJobSeekers": "Chercheurs d'emploi aidés",
     "statsSuccessRate": "Taux de correspondance",
-    "statsFasterHiring": "Langues disponibles"
+    "statsFasterHiring": "Langues supportées"
   },
   "features": {
     "sectionBadge": "Fonctionnalités",
-    "headline": "Tout ce dont vous avez besoin pour être recruté",
-    "subheadline": "Jobvero combine intelligence artificielle et expérience fluide pour vous donner un véritable avantage dans votre recherche d'emploi.",
+    "headline": "Tout ce dont vous avez besoin pour être embauché",
+    "subheadline": "Jobvero combine l'intelligence artificielle avec une expérience fluide pour vous donner un vrai avantage dans votre recherche d'emploi.",
     "items": [
       {
-        "title": "Matching d'offres par IA",
-        "description": "Notre IA analyse vos compétences et votre expérience pour faire remonter les opportunités les plus pertinentes parmi des milliers d'annonces."
+        "title": "Correspondance IA",
+        "description": "Notre IA analyse vos compétences et votre expérience pour faire remonter les opportunités les plus pertinentes parmi des milliers d'offres."
       },
       {
-        "title": "Générateur de CV intelligent",
-        "description": "Créez des CV personnalisés pour chaque candidature en quelques secondes. Optimisé ATS et approuvé par les recruteurs."
+        "title": "Créateur de CV intelligent",
+        "description": "Générez des CV adaptés à chaque candidature en quelques secondes. Optimisé pour les ATS et approuvé par les recruteurs."
       },
       {
-        "title": "Générateur de lettre de motivation",
-        "description": "Des lettres de motivation personnalisées qui répondent directement aux exigences du poste — fini le syndrome de la page blanche."
+        "title": "Générateur de lettres de motivation",
+        "description": "Des lettres de motivation personnalisées qui répondent directement aux exigences du poste — plus jamais la page blanche."
       },
       {
-        "title": "Suivi de candidatures",
+        "title": "Suivi des candidatures",
         "description": "Restez organisé avec un pipeline visuel qui suit chaque candidature, entretien et relance."
       },
       {
         "title": "Préparation aux entretiens",
-        "description": "Questions et réponses générées par l'IA, adaptées au poste et à l'entreprise visés."
+        "description": "Questions et réponses générées par l'IA, adaptées au poste et à l'entreprise pour lesquels vous postulez."
       },
       {
-        "title": "Informations salariales",
-        "description": "Connaissez votre valeur. Obtenez des données salariales en temps réel pour n'importe quel poste, lieu et niveau d'expérience."
+        "title": "Analyse des salaires",
+        "description": "Connaissez votre valeur. Obtenez des données salariales en temps réel pour tout poste, lieu et niveau d'expérience."
       }
     ]
   },
   "howItWorks": {
     "sectionBadge": "Comment ça marche",
-    "headline": "Soyez recruté en 3 étapes simples",
+    "headline": "Soyez embauché en 3 étapes simples",
     "steps": [
       {
         "number": "01",
@@ -60,12 +96,12 @@
       {
         "number": "02",
         "title": "Découvrez des opportunités",
-        "description": "Parcourez des offres sélectionnées par l'IA et mises à jour quotidiennement. Filtrez par lieu, salaire, secteur et plus encore."
+        "description": "Parcourez des offres d'emploi sélectionnées par l'IA et mises à jour quotidiennement. Filtrez par lieu, salaire, secteur et bien plus."
       },
       {
         "number": "03",
         "title": "Postulez en toute confiance",
-        "description": "Utilisez des candidatures rédigées par l'IA et suivez chaque étape de votre parcours jusqu'à l'offre."
+        "description": "Utilisez des candidatures rédigées par l'IA et suivez chaque étape de votre parcours jusqu'à l'offre d'emploi."
       }
     ]
   },
@@ -75,15 +111,15 @@
     "items": [
       {
         "q": "Jobvero est-il gratuit ?",
-        "a": "Oui ! Jobvero propose un plan gratuit permanent avec les fonctionnalités essentielles. Passez au plan Pro ou Premium à tout moment pour débloquer le matching illimité, les lettres de motivation, la préparation aux entretiens et bien plus encore."
+        "a": "Oui ! Jobvero propose un plan gratuit à vie avec les fonctionnalités essentielles de recherche d'emploi. Passez au Pro ou Premium à tout moment pour débloquer les correspondances IA illimitées, les lettres de motivation, la préparation aux entretiens et bien plus."
       },
       {
         "q": "Quelles langues Jobvero supporte-t-il ?",
-        "a": "Jobvero est entièrement disponible en anglais, français, espagnol et portugais — d'autres langues sont prévues."
+        "a": "Jobvero est entièrement disponible en anglais, français, espagnol et portugais — avec d'autres langues prévues dans la feuille de route."
       },
       {
-        "q": "Comment fonctionne le matching d'emplois par IA ?",
-        "a": "Notre IA analyse votre CV, vos compétences et vos préférences pour noter et classer des milliers d'offres — ne vous affichant que les opportunités les plus pertinentes afin que vous passiez moins de temps à chercher et plus de temps à postuler."
+        "q": "Comment fonctionne la correspondance IA ?",
+        "a": "Notre IA analyse votre CV, vos compétences et vos préférences professionnelles pour noter et classer des milliers d'offres — ne remontant que les opportunités les plus pertinentes afin que vous passiez moins de temps à chercher et plus de temps à postuler."
       },
       {
         "q": "Mes données personnelles sont-elles sécurisées ?",
@@ -91,34 +127,34 @@
       },
       {
         "q": "Puis-je utiliser Jobvero si je change de carrière ?",
-        "a": "Oui ! Jobvero est conçu pour les reconversions professionnelles. Notre IA identifie vos compétences transférables et met en avant les postes où votre parcours devient un avantage concurrentiel, même dans un nouveau secteur."
+        "a": "Oui ! Jobvero est conçu pour les personnes en reconversion. Notre IA identifie vos compétences transférables et met en valeur les postes où votre profil devient un avantage concurrentiel, même dans un nouveau domaine."
       }
     ]
   },
   "cta": {
-    "headline": "Prêt à transformer votre recherche d'emploi ?",
-    "subheadline": "Rejoignez des milliers de professionnels qui ont trouvé leur prochain poste avec Jobvero.",
-    "ctaPrimary": "Commencer gratuitement",
-    "ctaSecondary": "Voir les tarifs",
-    "disclaimer": "Aucune carte de crédit requise. Plan gratuit disponible pour toujours."
+    "headline": "Prêt à décrocher le poste de vos rêves ?",
+    "subheadline": "Essayez Jobvero gratuitement pendant 7 jours — aucune carte bancaire requise.",
+    "ctaPrimary": "Démarrer votre essai gratuit →",
+    "disclaimer": "Après 7 jours, choisissez le plan qui vous convient."
   },
   "pricing": {
     "sectionBadge": "Tarifs",
-    "headline": "Des tarifs simples et transparents",
-    "subheadline": "Choisissez le plan adapté à votre recherche d'emploi. Passez à un niveau supérieur ou annulez à tout moment.",
+    "headline": "Tarifs simples et transparents",
+    "subheadline": "Choisissez le plan adapté à votre recherche d'emploi. Changez ou annulez à tout moment.",
     "plans": [
       {
-        "name": "Gratuit",
+        "name": "Essai gratuit",
         "price": "0",
-        "currency": "€",
-        "period": "/mois",
-        "description": "Parfait pour commencer votre recherche d'emploi.",
-        "cta": "Commencer gratuitement",
+        "currency": "",
+        "period": "7 jours gratuits",
+        "description": "Aucune carte bancaire requise. Commencez en quelques secondes.",
+        "cta": "Commencer",
+        "disabled": false,
         "popular": false,
         "features": [
-          "5 offres correspondantes par jour",
+          "5 correspondances IA par jour",
           "1 modèle de CV",
-          "3 lettres de motivation par mois",
+          "3 lettres de motivation",
           "Suivi de candidatures basique",
           "Support par e-mail"
         ]
@@ -126,42 +162,44 @@
       {
         "name": "Pro",
         "price": "19.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/mois",
         "description": "Pour les candidats sérieux qui veulent un vrai avantage.",
-        "cta": "Essayer Pro",
+        "cta": "Commencer",
+        "disabled": false,
         "popular": true,
         "features": [
-          "Offres illimitées par IA",
+          "Correspondances IA illimitées",
           "10 modèles de CV",
           "Lettres de motivation illimitées",
           "Suivi de candidatures avancé",
           "Suite de préparation aux entretiens",
-          "Informations salariales",
-          "Support e-mail prioritaire"
+          "Analyse des salaires",
+          "Support prioritaire par e-mail"
         ]
       },
       {
         "name": "Premium",
         "price": "29.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/mois",
-        "description": "La puissance totale pour les reconversions et les ambitieux.",
-        "cta": "Essayer Premium",
+        "description": "Puissance maximale pour les personnes en reconversion et les professionnels ambitieux.",
+        "cta": "Commencer",
+        "disabled": false,
         "popular": false,
         "features": [
           "Tout ce qui est inclus dans Pro",
-          "1 session de coaching carrière/mois",
+          "1 coaching carrière individuel / mois",
           "Optimisation du profil LinkedIn",
-          "Stratégie de recherche d'emploi personnalisée",
+          "Stratégie personnalisée de recherche d'emploi",
           "Gestionnaire de compte dédié",
           "Accès API",
-          "Support prioritaire 24/7"
+          "Support prioritaire 24h/24 7j/7"
         ]
       }
     ],
     "faq": {
-      "headline": "Questions fréquentes",
+      "headline": "Questions fréquemment posées",
       "items": [
         {
           "q": "Puis-je annuler à tout moment ?",
@@ -169,15 +207,15 @@
         },
         {
           "q": "Y a-t-il un essai gratuit pour les plans payants ?",
-          "a": "Oui, tous les plans payants incluent un essai gratuit de 7 jours. Aucune carte de crédit requise pour commencer."
+          "a": "Oui, tous les plans payants incluent un essai gratuit de 7 jours. Aucune carte bancaire requise pour commencer."
         },
         {
-          "q": "Quels modes de paiement acceptez-vous ?",
+          "q": "Quels moyens de paiement acceptez-vous ?",
           "a": "Nous acceptons toutes les principales cartes de crédit (Visa, Mastercard, Amex) et PayPal."
         },
         {
           "q": "Proposez-vous des remboursements ?",
-          "a": "Nous offrons une garantie de remboursement de 14 jours sur tous les plans payants, sans questions."
+          "a": "Nous offrons une garantie de remboursement de 14 jours sur tous les plans payants, sans questions posées."
         }
       ]
     }
@@ -188,19 +226,19 @@
     "sections": [
       {
         "title": "1. Informations sur la société",
-        "content": "Jobvero est exploité par MELNZ LLC, une société à responsabilité limitée. Site web : getjobvero.com. Pour toute demande, veuillez nous contacter à l'adresse legal@getjobvero.com."
+        "content": "Jobvero est exploité par MELNZ LLC, une société à responsabilité limitée. Site web : getjobvero.com. Pour toute demande, veuillez nous contacter à legal@getjobvero.com."
       },
       {
         "title": "2. Propriété intellectuelle",
-        "content": "Tout le contenu de ce site, y compris mais sans s'y limiter les textes, graphiques, logos et logiciels, est la propriété de MELNZ LLC et est protégé par les lois applicables en matière de propriété intellectuelle. Toute reproduction ou distribution non autorisée est strictement interdite."
+        "content": "Tout le contenu de ce site, y compris mais sans s'y limiter les textes, graphiques, logos et logiciels, est la propriété de MELNZ LLC et est protégé par les lois applicables en matière de propriété intellectuelle. La reproduction ou la distribution non autorisée est strictement interdite."
       },
       {
         "title": "3. Limitation de responsabilité",
-        "content": "MELNZ LLC ne saurait être tenue responsable des dommages indirects, accessoires, spéciaux ou consécutifs découlant de l'utilisation de ce site ou de ses services. Les informations fournies le sont à titre général et ne constituent pas un conseil professionnel."
+        "content": "MELNZ LLC ne saurait être tenue responsable de tout dommage indirect, accessoire, spécial ou consécutif découlant de l'utilisation de ce site ou de ses services. Les informations fournies sont à titre général uniquement et ne constituent pas un conseil professionnel."
       },
       {
         "title": "4. Confidentialité et données",
-        "content": "Nous nous engageons à protéger votre vie privée. Nous collectons et traitons les données personnelles conformément aux lois applicables en matière de protection des données, y compris le RGPD. Pour plus de détails, veuillez consulter notre Politique de confidentialité."
+        "content": "Nous nous engageons à protéger votre vie privée. Nous collectons et traitons les données personnelles conformément aux lois applicables en matière de protection des données, y compris le RGPD. Pour plus de détails, veuillez consulter notre politique de confidentialité."
       },
       {
         "title": "5. Droit applicable",
@@ -213,47 +251,47 @@
     ]
   },
   "logosBar": {
-    "label": "Utilisé par des professionnels de grandes entreprises mondiales"
+    "label": "Approuvé par des professionnels des meilleures entreprises mondiales"
   },
   "testimonials": {
     "sectionBadge": "Témoignages",
-    "headline": "Apprécié par des candidats du monde entier",
+    "headline": "Apprécié par les chercheurs d'emploi du monde entier",
     "subheadline": "Des résultats concrets de vraies personnes qui ont transformé leur recherche d'emploi avec Jobvero.",
     "items": [
       {
-        "quote": "Jobvero m'a aidé à décrocher le poste de mes rêves dans une entreprise tech en seulement 3 semaines. Le matching par IA est incroyablement précis.",
+        "quote": "Jobvero m'a aidé à décrocher le poste de mes rêves dans une grande entreprise tech en seulement 3 semaines. La correspondance IA est incroyablement précise — elle ne m'a montré que des emplois qui m'intéressaient vraiment.",
         "name": "Sarah M.",
         "role": "Ingénieure logicielle",
-        "tag": "Recrutée dans une top tech"
+        "tag": "Embauchée dans une grande entreprise tech"
       },
       {
-        "quote": "J'étais sceptique, mais le générateur de lettre de motivation m'a économisé des heures chaque semaine. J'ai obtenu 3 entretiens dans mes 10 premiers jours.",
+        "quote": "J'étais sceptique vis-à-vis des outils IA pour l'emploi, mais le générateur de lettres de motivation seul m'a économisé des heures chaque semaine. J'ai obtenu 3 entretiens dans mes 10 premiers jours.",
         "name": "Marcus T.",
-        "role": "Product Manager",
+        "role": "Chef de produit",
         "tag": "3 entretiens en 10 jours"
       },
       {
-        "quote": "En tant que reconverti, je ne savais pas comment adapter mon CV. Jobvero a tout reconstruit et m'a permis d'intégrer un secteur complètement nouveau.",
+        "quote": "En tant que personne en reconversion, je ne savais pas comment adapter mon CV. Jobvero a entièrement reconstruit mon profil et m'a permis d'entrer dans un secteur complètement nouveau.",
         "name": "Léa D.",
-        "role": "UX Designer",
+        "role": "Designer UX",
         "tag": "Reconversion réussie"
       },
       {
-        "quote": "La préparation aux entretiens est incroyable. Je savais exactement quelles questions allaient être posées. J'ai accepté une offre 30% au-dessus de mon ancien salaire.",
+        "quote": "La fonctionnalité de préparation aux entretiens est incroyable. Je suis entré dans chaque entretien en sachant exactement ce qu'ils allaient demander. J'ai accepté une offre 30 % au-dessus de mon salaire précédent.",
         "name": "James K.",
         "role": "Analyste de données",
-        "tag": "+30% d'augmentation salariale"
+        "tag": "+30 % d'augmentation de salaire"
       },
       {
-        "quote": "Jobvero m'a trouvé des opportunités que je n'aurais jamais découvertes seul. Le suivi de candidatures m'a gardé organisé avec plus de 15 candidatures en cours.",
+        "quote": "Jobvero a trouvé des opportunités que je n'aurais pas découvertes par moi-même. Le suivi des candidatures m'a gardé organisé tout en jonglant avec plus de 15 candidatures simultanées.",
         "name": "Aisha B.",
-        "role": "Responsable Marketing",
-        "tag": "Opportunités cachées trouvées"
+        "role": "Responsable marketing",
+        "tag": "Opportunités cachées découvertes"
       },
       {
-        "quote": "Propre, rapide et vraiment utile. J'ai testé toutes les applis de recherche d'emploi — Jobvero est la première qui travaille vraiment pour moi.",
+        "quote": "Épuré, rapide et vraiment utile. J'ai essayé toutes les applications d'emploi — Jobvero est la première qui m'a semblé vraiment travailler pour moi.",
         "name": "Tomás R.",
-        "role": "Développeur Backend",
+        "role": "Développeur backend",
         "tag": "Embauché en 2 semaines"
       }
     ]
@@ -261,23 +299,418 @@
   "pricingCard": {
     "mostPopular": "Le plus populaire"
   },
+  "waitlist": {
+    "title": "Soyez parmi les premiers",
+    "subtitle": "Rejoignez la liste d'attente et obtenez 3 mois Pro gratuits au lancement.",
+    "placeholder": "Votre adresse e-mail",
+    "cta": "Rejoindre la liste d'attente",
+    "success": "Merci ! Vous serez notifié au lancement 🎉",
+    "errorInvalid": "Veuillez entrer une adresse e-mail valide.",
+    "errorDuplicate": "Cet e-mail est déjà sur la liste !",
+    "errorServer": "Une erreur s'est produite. Veuillez réessayer."
+  },
   "footer": {
-    "tagline": "Recherche d'emploi par IA pour les professionnels modernes.",
+    "tagline": "Recherche d'emploi propulsée par l'IA pour les professionnels modernes.",
     "product": "Produit",
-    "company": "Entreprise",
-    "legal": "Légal",
-    "followUs": "Nous suivre",
+    "support": "Support",
+    "languages": "Langues",
     "links": {
       "features": "Fonctionnalités",
       "pricing": "Tarifs",
-      "changelog": "Nouveautés",
       "about": "À propos",
-      "blog": "Blog",
-      "careers": "Carrières",
+      "contact": "Contact",
+      "faq": "FAQ",
       "legalMentions": "Mentions légales",
-      "privacy": "Politique de confidentialité",
-      "terms": "Conditions d'utilisation"
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité"
     },
-    "copyright": "© 2026 MELNZ LLC. Tous droits réservés."
+    "copyright": "© 2026 MELNZ LLC — Tous droits réservés"
+  },
+  "auth": {
+    "login": {
+      "title": "Connexion à Jobvero",
+      "subtitle": "Bon retour ! Entrez vos identifiants pour continuer.",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "googleButton": "Se connecter avec Google",
+      "divider": "ou",
+      "noAccount": "Vous n'avez pas de compte ?",
+      "signUpLink": "S'inscrire",
+      "errorInvalid": "E-mail ou mot de passe invalide.",
+      "errorGeneric": "Une erreur s'est produite. Veuillez réessayer.",
+      "errorNoAccount": "Aucun compte Jobvero trouvé pour cet email. Veuillez d'abord créer un compte.",
+      "errorOauthFailed": "Une erreur s'est produite lors de la connexion Google. Veuillez réessayer.",
+      "createAccountCta": "Créer un compte"
+    },
+    "register": {
+      "title": "Créer votre compte",
+      "subtitle": "Démarrez votre recherche d'emploi par IA aujourd'hui.",
+      "name": "Nom complet",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "passwordHint": "Minimum 8 caractères",
+      "submit": "Créer un compte",
+      "googleButton": "S'inscrire avec Google",
+      "divider": "ou",
+      "hasAccount": "Vous avez déjà un compte ?",
+      "signInLink": "Se connecter",
+      "errorGeneric": "Échec de l'inscription. Veuillez réessayer.",
+      "successCheck": "Vérifiez votre e-mail pour confirmer votre compte."
+    },
+    "forgotPassword": {
+      "title": "Réinitialiser votre mot de passe",
+      "subtitle": "Nous vous enverrons un lien de réinitialisation.",
+      "email": "Adresse e-mail",
+      "submit": "Envoyer le lien de réinitialisation",
+      "successTitle": "E-mail envoyé !",
+      "successMessage": "Vérifiez votre boîte de réception pour le lien de réinitialisation.",
+      "backToLogin": "Retour à la connexion",
+      "errorGeneric": "Une erreur s'est produite. Veuillez réessayer."
+    },
+    "resetPassword": {
+      "title": "Définir un nouveau mot de passe",
+      "subtitle": "Choisis un mot de passe fort pour sécuriser ton compte.",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "confirmPasswordLabel": "Confirmer le mot de passe",
+      "passwordPlaceholder": "Min. 8 caractères",
+      "confirmPasswordPlaceholder": "Répéter le mot de passe",
+      "updatePassword": "Mettre à jour le mot de passe",
+      "updating": "Mise à jour...",
+      "loading": "Vérification du lien...",
+      "errorTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+      "errorMismatch": "Les mots de passe ne correspondent pas.",
+      "errorTitle": "Lien invalide ou expiré",
+      "errorInvalidLink": "Ce lien de réinitialisation est invalide ou a expiré. Demande un nouveau lien.",
+      "requestNewLink": "Demander un nouveau lien",
+      "successTitle": "Mot de passe mis à jour !",
+      "successMessage": "Tu seras redirigé vers la page de connexion sous peu..."
+    }
+  },
+  "jobTracker": {
+    "dates": {
+      "appliedOn": "Date de candidature",
+      "interviewDate": "Date d'entretien",
+      "followUpDate": "Date de relance",
+      "appliedToday": "Postulé aujourd'hui",
+      "appliedAgo": "Postulé il y a {n} jours",
+      "interviewToday": "Entretien aujourd'hui",
+      "interviewIn": "Entretien dans {n} jours",
+      "followUpOverdue": "Relance à faire"
+    }
+  },
+  "datePicker": {
+    "month": "Mois",
+    "year": "Année",
+    "present": "Présent",
+    "currentPosition": "Poste actuel",
+    "currentlyStudying": "En cours",
+    "startBeforeEnd": "La date de début doit être antérieure à la date de fin",
+    "months": [
+      "Janvier",
+      "Février",
+      "Mars",
+      "Avril",
+      "Mai",
+      "Juin",
+      "Juillet",
+      "Août",
+      "Septembre",
+      "Octobre",
+      "Novembre",
+      "Décembre"
+    ]
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bon retour",
+    "logout": "Se déconnecter",
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "applications": "Candidatures",
+      "resume": "CV",
+      "settings": "Paramètres"
+    },
+    "overview": {
+      "title": "Vue d'ensemble",
+      "jobMatches": "Correspondances IA",
+      "applications": "Candidatures envoyées",
+      "interviews": "Entretiens",
+      "comingSoon": "Bientôt disponible"
+    },
+    "credits": {
+      "title": "Crédits IA",
+      "remaining": "restants",
+      "unlimited": "Illimité",
+      "resetOn": "Recharge le",
+      "daysLeft": "jours d'essai restants",
+      "trialExpired": "Essai expiré — améliorez pour continuer",
+      "upgrade": "Améliorer le plan",
+      "viewPlans": "Voir les plans",
+      "lowCredits": "Crédits bientôt épuisés",
+      "tier": {
+        "trial": "Essai",
+        "free": "Gratuit",
+        "pro": "Pro",
+        "premium": "Premium"
+      }
+    }
+  },
+  "coverLetter": {
+    "title": "Générateur de Lettre de Motivation",
+    "powered": "Propulsé par Claude AI",
+    "jobTitle": "Intitulé du Poste",
+    "jobTitlePlaceholder": "ex. Développeur Full Stack",
+    "companyName": "Nom de l'Entreprise",
+    "companyNamePlaceholder": "ex. Google France",
+    "jobDescription": "Description du Poste",
+    "jobDescriptionHint": "collez l'offre d'emploi ici",
+    "jobDescriptionPlaceholder": "Collez la description du poste ici. Plus vous donnez de détails, plus la lettre sera personnalisée...",
+    "characters": "caractères",
+    "tone": "Ton",
+    "tones": {
+      "Professional": "Professionnel",
+      "Friendly": "Amical",
+      "Formal": "Formel",
+      "ProfessionalDesc": "Confiant & axé résultats",
+      "FriendlyDesc": "Chaleureux & accessible",
+      "FormalDesc": "Structuré & autoritaire"
+    },
+    "language": "Langue",
+    "generate": "Générer la Lettre de Motivation",
+    "generating": "Génération…",
+    "fillRequired": "Remplissez le titre, l'entreprise et la description pour continuer",
+    "previewTitle": "Aperçu de la Lettre",
+    "copyText": "Copier le texte",
+    "copied": "Copié !",
+    "save": "Enregistrer",
+    "saved": "Enregistré !",
+    "downloadPDF": "Télécharger PDF",
+    "generatingPDF": "Génération…",
+    "emptyTitle": "Votre lettre de motivation apparaîtra ici",
+    "emptyDesc": "Remplissez les champs à gauche et cliquez sur \"Générer la Lettre de Motivation\" pour créer une lettre en quelques secondes.",
+    "writingTitle": "Claude rédige votre lettre de motivation…",
+    "writingDesc": "Personnalisée pour {company} · ton {tone}",
+    "proTip": "Conseil pro",
+    "proTipText": "Collez la description complète pour de meilleurs résultats — Claude utilisera le vocabulaire de l'entreprise et mettra en avant vos compétences clés.",
+    "limitError": "Vous avez atteint votre limite de lettres de motivation. Passez à un forfait supérieur.",
+    "backToForm": "← Retour au formulaire",
+    "checklistJobTitle": "Intitulé du Poste",
+    "checklistCompany": "Nom de l'Entreprise",
+    "checklistDescription": "Description du Poste"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Restez informé de votre recherche d'emploi",
+    "markAllRead": "Tout marquer comme lu",
+    "seeAll": "Voir toutes les notifications",
+    "empty": "Aucune notification pour l'instant",
+    "emptyDesc": "Nous vous informerons des nouvelles offres, CV enregistrés, et plus encore.",
+    "noUnread": "Vous êtes à jour !",
+    "noUnreadDesc": "Aucune notification non lue pour le moment.",
+    "markRead": "Marquer comme lu",
+    "deleteNotification": "Supprimer",
+    "footerHint": "Les notifications sont conservées 30 jours",
+    "tabs": {
+      "all": "Toutes",
+      "unread": "Non lues",
+      "read": "Lues"
+    },
+    "types": {
+      "job_match": {
+        "title": "Nouvelle offre correspondante",
+        "message": "Une offre correspondant à votre profil est disponible. Consultez-la !"
+      },
+      "application_sent": {
+        "title": "Candidature envoyée",
+        "message": "Votre candidature a été soumise avec succès."
+      },
+      "cv_saved": {
+        "title": "CV enregistré",
+        "message": "Votre CV a été sauvegardé et est prêt à télécharger."
+      },
+      "cover_letter": {
+        "title": "Lettre de motivation prête",
+        "message": "Votre lettre de motivation a été générée avec succès."
+      },
+      "credits_low": {
+        "title": "Crédits IA presque épuisés",
+        "message": "Il vous reste moins de 3 crédits IA. Passez à Pro pour continuer."
+      },
+      "welcome": {
+        "title": "Bienvenue sur Jobvero ! 🎉",
+        "message": "Commencez par créer votre CV ou explorer les offres."
+      }
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez votre profil, vos préférences et votre compte",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré !",
+    "errorRetry": "Erreur — réessayer",
+    "saveFailed": "Échec de l'enregistrement",
+    "profile": {
+      "title": "Profil",
+      "changePhoto": "Changer la photo",
+      "fullName": "Nom complet",
+      "fullNamePlaceholder": "Jean Dupont",
+      "email": "Adresse e-mail",
+      "emailNote": "L'adresse e-mail ne peut pas être modifiée",
+      "phone": "Numéro de téléphone",
+      "phonePlaceholder": "+33 6 00 00 00 00",
+      "location": "Localisation",
+      "locationPlaceholder": "Paris, France",
+      "jobTitle": "Poste actuel",
+      "jobTitlePlaceholder": "Ingénieur logiciel",
+      "linkedin": "Profil LinkedIn",
+      "linkedinPlaceholder": "linkedin.com/in/votre-profil",
+      "portfolio": "Portfolio / Site web",
+      "portfolioPlaceholder": "votresite.com"
+    },
+    "preferences": {
+      "title": "Préférences professionnelles",
+      "targetTitle": "Poste recherché",
+      "targetTitlePlaceholder": "ex. Développeur, Infirmier, Enseignant...",
+      "targetCountries": "Pays cibles",
+      "salaryRange": "Fourchette salariale (annuelle)",
+      "salaryMin": "Minimum",
+      "salaryMinPlaceholder": "50 000",
+      "salaryMax": "Maximum",
+      "salaryMaxPlaceholder": "80 000",
+      "workType": "Type de travail",
+      "remote": "Télétravail",
+      "hybrid": "Hybride",
+      "onsite": "Présentiel",
+      "availableFrom": "Disponible à partir du"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "emailAlerts": "Alertes e-mail",
+      "emailAlertsDesc": "Recevez des mises à jour importantes et des rappels dans votre boîte mail",
+      "jobAlerts": "Nouvelles offres d'emploi",
+      "jobAlertsDesc": "Soyez notifié lorsque de nouvelles offres correspondent à votre profil",
+      "weeklyReport": "Rapport hebdomadaire",
+      "weeklyReportDesc": "Recevez un résumé hebdomadaire de votre recherche d'emploi et des nouvelles correspondances"
+    },
+    "account": {
+      "title": "Compte",
+      "changePassword": "Changer le mot de passe",
+      "newPassword": "Nouveau mot de passe",
+      "newPasswordPlaceholder": "Min. 8 caractères",
+      "confirmPassword": "Confirmer le mot de passe",
+      "confirmPasswordPlaceholder": "Répétez le mot de passe",
+      "pwMinLength": "Le mot de passe doit comporter au moins 8 caractères",
+      "pwNoMatch": "Les mots de passe ne correspondent pas",
+      "currentPlan": "Abonnement actuel",
+      "upgrade": "Améliorer",
+      "planDescTrial": "3 jours accès Pro complet · 60 candidatures/mois · 2 sessions d'entretien",
+      "planDescFree": "3 CV · 3 lettres · Fonctionnalités de base",
+      "planDescPro": "CV illimités · Toutes les IA · Support prioritaire",
+      "planDescPremium": "Tout Pro + outils IA exclusifs",
+      "deleteAccount": "Supprimer le compte",
+      "deleteDesc": "Supprimez définitivement votre compte et toutes vos données. Cette action est irréversible.",
+      "delete": "Supprimer",
+      "deleteConfirmTitle": "Êtes-vous absolument sûr ?",
+      "deleteConfirmDesc": "Cette action supprimera définitivement votre compte, tous vos CV, lettres de motivation et candidatures. Impossible d'annuler.",
+      "cancel": "Annuler",
+      "noRefundNotice": "Note : la suppression de ton compte ne donne droit à aucun remboursement. En créant ton compte, tu as accepté nos <link>Conditions d'utilisation</link> qui incluent une politique de non-remboursement.",
+      "deleteConfirmBtn": "Oui, supprimer mon compte",
+      "deleting": "Suppression…",
+      "sendCode": "Oui, envoie-moi un code de vérification",
+      "codeSentTitle": "Code de vérification envoyé",
+      "codeSentDescription": "Saisis le code à 8 chiffres que nous t'avons envoyé par email.",
+      "codeInputLabel": "Code de vérification",
+      "codeExpiresIn": "Le code expire dans {time}",
+      "codeExpired": "Code expiré",
+      "resendCode": "Renvoyer le code",
+      "confirmDeletion": "Confirmer la suppression"
+    }
+  },
+  "atsScore": {
+    "title": "Score ATS",
+    "subtitle": "Vérifiez si votre CV correspond à une offre d'emploi",
+    "creditsLeft": "crédits restants",
+    "credits": "crédits",
+    "sectionCV": "Votre CV",
+    "sectionJob": "Offre d'emploi",
+    "tabSaved": "CV sauvegardé",
+    "tabPaste": "Coller le texte",
+    "selectCVPlaceholder": "Sélectionner un CV…",
+    "noCVsSaved": "Aucun CV sauvegardé.",
+    "buildOne": "En créer un",
+    "cvTextPlaceholder": "Collez votre CV ici…",
+    "jobPlaceholder": "Collez la description de poste complète ici. Incluez les compétences requises, les responsabilités et les qualifications…",
+    "characters": "caractères",
+    "analyze": "Analyser le score ATS",
+    "analyzing": "Analyse en cours…",
+    "analyzingDesc": "Claude analyse votre CV par rapport à la description du poste…",
+    "errorNoCv": "Veuillez sélectionner un CV ou coller votre texte.",
+    "errorNoJob": "Veuillez coller la description du poste.",
+    "errorNoCredits": "Vous n'avez plus de crédits IA. Passez à un plan supérieur pour continuer.",
+    "errorGeneric": "L'analyse a échoué. Veuillez réessayer.",
+    "emptyTitle": "Votre score ATS apparaîtra ici",
+    "emptyDesc": "Sélectionnez votre CV et collez une description de poste, puis cliquez sur Analyser.",
+    "newAnalysis": "Nouvelle analyse",
+    "labelGood": "Bonne correspondance",
+    "labelAverage": "Correspondance moyenne",
+    "labelPoor": "Faible correspondance",
+    "breakdown": "Détail du score",
+    "keywordsScore": "Mots-clés",
+    "skillsScore": "Compétences",
+    "experienceScore": "Expérience",
+    "educationScore": "Formation",
+    "missingKeywords": "Mots-clés manquants",
+    "strongPoints": "Points forts",
+    "recommendations": "Recommandations IA",
+    "improveCV": "Améliorer le CV avec l'IA"
+  },
+  "jobs": {
+    "title": "Recherche d'emploi",
+    "subtitle": "Trouvez votre prochaine opportunité",
+    "creditsLeft": "{n} crédits IA restants",
+    "searchPlaceholder": "Intitulé du poste, mots-clés…",
+    "locationPlaceholder": "Ville, région…",
+    "country": "Pays",
+    "remoteOnly": "Télétravail uniquement",
+    "search": "Rechercher",
+    "searching": "Recherche…",
+    "loadMore": "Charger plus d'offres",
+    "jobsFound": "{n} offres trouvées",
+    "noResults": "Aucun emploi trouvé",
+    "noResultsTip": "Essayez d'autres mots-clés ou lieu",
+    "searchHint": "Entrez des mots-clés et cliquez sur Rechercher",
+    "save": "Sauvegarder",
+    "saved": "Sauvegardé",
+    "applyWithAI": "Postuler avec IA",
+    "applying": "En cours…",
+    "viewDetails": "Voir les détails",
+    "viewOnIndeed": "Voir sur Indeed",
+    "filters": "Filtres",
+    "datePosted": "Date de publication",
+    "jobType": "Type de contrat",
+    "experience": "Expérience",
+    "anyTime": "Toutes dates",
+    "last24h": "Dernières 24h",
+    "last3days": "3 derniers jours",
+    "lastWeek": "Dernière semaine",
+    "lastMonth": "Dernier mois",
+    "fullTime": "Temps plein",
+    "partTime": "Temps partiel",
+    "contract": "Contrat",
+    "remote": "Télétravail",
+    "anyLevel": "Tous niveaux",
+    "entryLevel": "Débutant",
+    "midLevel": "Confirmé",
+    "seniorLevel": "Senior",
+    "clearFilters": "Effacer les filtres",
+    "aboutRole": "À propos du poste",
+    "applySuccess": "Candidature envoyée ! Consultez votre suivi de candidatures",
+    "saveSuccess": "Offre sauvegardée dans votre suivi",
+    "applyError": "Échec de la candidature. Veuillez réessayer.",
+    "saveError": "Impossible de sauvegarder l'offre",
+    "noCredits": "Plus de crédits IA. Mettez à niveau pour continuer."
   }
 }

@@ -1,0 +1,352 @@
+{
+    "nav":  {
+                "signIn":  "Se connecter",
+                "pricing":  "Tarification",
+                "features":  "Fonctionnalités",
+                "about":  "À propos",
+                "contact":  "Contact",
+                "getStarted":  "Commencer"
+            },
+    "hero":  {
+                 "badge":  "Recherche d\u0027emploi par IA",
+                 "headline":  "Décrochez l\u0027emploi de vos rêves,",
+                 "headlineAccent":  "Plus vite que jamais",
+                 "subheadline":  "Jobvero utilise une IA avancée pour vous connecter aux meilleures opportunités, créer des candidatures personnalisées et suivre vos progrès.",
+                 "ctaPrimary":  "Commencer gratuitement",
+                 "ctaSecondary":  "Voir comment ça marche",
+                 "socialProof":  "Utilisé par 27M+ chercheurs d\u0027emploi dans 4 langues",
+                 "statsJobSeekers":  "Candidats aidés",
+                 "statsSuccessRate":  "Taux de correspondance",
+                 "statsFasterHiring":  "Langues disponibles"
+             },
+    "features":  {
+                     "sectionBadge":  "Features",
+                     "headline":  "Everything You Need to Get Hired",
+                     "subheadline":  "Jobvero combines AI intelligence with a seamless experience to give you a real edge in your job search.",
+                     "items":  [
+                                   {
+                                       "title":  "AI Job Matching",
+                                       "description":  "Our AI analyzes your skills and experience to surface the most relevant opportunities from thousands of listings."
+                                   },
+                                   {
+                                       "title":  "Smart Resume Builder",
+                                       "description":  "Generate tailored resumes for each application in seconds. ATS-optimized and recruiter-approved."
+                                   },
+                                   {
+                                       "title":  "Cover Letter Generator",
+                                       "description":  "Personalized cover letters that speak directly to the job requirements â€” no more blank page syndrome."
+                                   },
+                                   {
+                                       "title":  "Application Tracker",
+                                       "description":  "Stay organized with a visual pipeline that tracks every application, interview, and follow-up."
+                                   },
+                                   {
+                                       "title":  "Interview Prep",
+                                       "description":  "AI-generated questions and answers tailored to the specific role and company you are applying for."
+                                   },
+                                   {
+                                       "title":  "Salary Insights",
+                                       "description":  "Know your worth. Get real-time salary data for any role, location, and experience level."
+                                   }
+                               ]
+                 },
+    "howItWorks":  {
+                       "sectionBadge":  "How It Works",
+                       "headline":  "Get Hired in 3 Simple Steps",
+                       "steps":  [
+                                     {
+                                         "number":  "01",
+                                         "title":  "Create Your Profile",
+                                         "description":  "Upload your resume or fill in your profile. Our AI extracts your skills, experience, and goals in under 2 minutes."
+                                     },
+                                     {
+                                         "number":  "02",
+                                         "title":  "Discover Opportunities",
+                                         "description":  "Browse AI-curated job matches updated daily. Filter by location, salary, industry, and more."
+                                     },
+                                     {
+                                         "number":  "03",
+                                         "title":  "Apply with Confidence",
+                                         "description":  "Use AI-crafted applications and track every step of your journey until you land the offer."
+                                     }
+                                 ]
+                   },
+    "homeFaq":  {
+                    "sectionBadge":  "FAQ",
+                    "headline":  "Common Questions",
+                    "items":  [
+                                  {
+                                      "q":  "Is Jobvero free to use?",
+                                      "a":  "Yes! Jobvero offers a forever-free plan with essential job search features. Upgrade to Pro or Premium anytime to unlock unlimited AI matching, cover letters, interview prep, and more."
+                                  },
+                                  {
+                                      "q":  "What languages does Jobvero support?",
+                                      "a":  "Jobvero is fully available in English, French, Spanish, and Portuguese â€” with more languages on the roadmap."
+                                  },
+                                  {
+                                      "q":  "How does AI job matching work?",
+                                      "a":  "Our AI analyzes your resume, skills, and job preferences to score and rank thousands of listings â€” surfacing only the most relevant opportunities so you spend less time searching and more time applying."
+                                  },
+                                  {
+                                      "q":  "Is my personal data secure?",
+                                      "a":  "Absolutely. Your data is encrypted end-to-end and is never sold to third parties. Jobvero is fully GDPR-compliant and you can delete your account at any time."
+                                  },
+                                  {
+                                      "q":  "Can I use Jobvero if I\u0027m changing careers?",
+                                      "a":  "Yes! Jobvero is built for career changers. Our AI identifies your transferable skills and highlights roles where your background becomes a competitive advantage, even in a new field."
+                                  }
+                              ]
+                },
+    "cta":  {
+                "headline":  "Ready to land your dream job?",
+                "subheadline":  "Try Jobvero free for 7 days â€” no credit card required.",
+                "ctaPrimary":  "Start your free trial â†’",
+                "disclaimer":  "After 7 days, choose the plan that suits you."
+            },
+    "pricing":  {
+                    "sectionBadge":  "Pricing",
+                    "headline":  "Simple, Transparent Pricing",
+                    "subheadline":  "Choose the plan that fits your job search. Upgrade or cancel anytime.",
+                    "plans":  [
+                                  {
+                                      "name":  "Free Trial",
+                                      "price":  "0",
+                                      "currency":  "",
+                                      "period":  "7 days free",
+                                      "description":  "No credit card required. Get started in seconds.",
+                                      "cta":  "Get Started",
+                                      "disabled":  false,
+                                      "popular":  false,
+                                      "features":  [
+                                                       "5 AI job matches per day",
+                                                       "1 resume template",
+                                                       "3 cover letters",
+                                                       "Basic application tracker",
+                                                       "Email support"
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Pro",
+                                      "price":  "19.99",
+                                      "currency":  "$",
+                                      "period":  "/month",
+                                      "description":  "For serious job seekers who want a real advantage.",
+                                      "cta":  "Get Started",
+                                      "disabled":  false,
+                                      "popular":  true,
+                                      "features":  [
+                                                       "Unlimited AI job matches",
+                                                       "10 resume templates",
+                                                       "Unlimited cover letters",
+                                                       "Advanced application tracker",
+                                                       "Interview preparation suite",
+                                                       "Salary insights",
+                                                       "Priority email support"
+                                                   ]
+                                  },
+                                  {
+                                      "name":  "Premium",
+                                      "price":  "29.99",
+                                      "currency":  "$",
+                                      "period":  "/month",
+                                      "description":  "Full power for career changers and ambitious professionals.",
+                                      "cta":  "Get Started",
+                                      "disabled":  false,
+                                      "popular":  false,
+                                      "features":  [
+                                                       "Everything in Pro",
+                                                       "1-on-1 career coaching / month",
+                                                       "LinkedIn profile optimization",
+                                                       "Personal job search strategy",
+                                                       "Dedicated account manager",
+                                                       "API access",
+                                                       "24/7 priority support"
+                                                   ]
+                                  }
+                              ],
+                    "faq":  {
+                                "headline":  "Frequently Asked Questions",
+                                "items":  [
+                                              {
+                                                  "q":  "Can I cancel anytime?",
+                                                  "a":  "Yes. You can cancel your subscription at any time from your account settings. You will retain access until the end of your billing period."
+                                              },
+                                              {
+                                                  "q":  "Is there a free trial for paid plans?",
+                                                  "a":  "Yes, all paid plans include a 7-day free trial. No credit card required to start."
+                                              },
+                                              {
+                                                  "q":  "What payment methods do you accept?",
+                                                  "a":  "We accept all major credit cards (Visa, Mastercard, Amex) and PayPal."
+                                              },
+                                              {
+                                                  "q":  "Do you offer refunds?",
+                                                  "a":  "We offer a 14-day money-back guarantee on all paid plans, no questions asked."
+                                              }
+                                          ]
+                            }
+                },
+    "legal":  {
+                  "headline":  "Legal Mentions",
+                  "lastUpdated":  "Last updated: March 2026",
+                  "sections":  [
+                                   {
+                                       "title":  "1. Company Information",
+                                       "content":  "Jobvero is operated by MELNZ LLC, a limited liability company. Website: getjobvero.com. For any inquiries, please contact us at legal@getjobvero.com."
+                                   },
+                                   {
+                                       "title":  "2. Intellectual Property",
+                                       "content":  "All content on this website, including but not limited to text, graphics, logos, and software, is the property of MELNZ LLC and is protected by applicable intellectual property laws. Unauthorized reproduction or distribution is strictly prohibited."
+                                   },
+                                   {
+                                       "title":  "3. Limitation of Liability",
+                                       "content":  "MELNZ LLC shall not be liable for any indirect, incidental, special, or consequential damages arising from the use of this website or its services. The information provided is for general purposes only and does not constitute professional advice."
+                                   },
+                                   {
+                                       "title":  "4. Privacy \u0026 Data",
+                                       "content":  "We are committed to protecting your privacy. We collect and process personal data in accordance with applicable data protection laws including GDPR. For full details, please review our Privacy Policy."
+                                   },
+                                   {
+                                       "title":  "5. Governing Law",
+                                       "content":  "These legal mentions are governed by applicable law. Any disputes arising in connection with this website shall be subject to the exclusive jurisdiction of the competent courts."
+                                   },
+                                   {
+                                       "title":  "6. Contact",
+                                       "content":  "MELNZ LLC â€” legal@getjobvero.com â€” getjobvero.com"
+                                   }
+                               ]
+              },
+    "logosBar":  {
+                     "label":  "Trusted by professionals from world-class companies"
+                 },
+    "testimonials":  {
+                         "sectionBadge":  "Testimonials",
+                         "headline":  "Loved by Job Seekers Worldwide",
+                         "subheadline":  "Real results from real people who transformed their job search with Jobvero.",
+                         "items":  [
+                                       {
+                                           "quote":  "Jobvero helped me land my dream role at a top tech company in just 3 weeks. The AI job matching is incredibly accurate â€” it only showed me jobs I actually wanted.",
+                                           "name":  "Sarah M.",
+                                           "role":  "Software Engineer",
+                                           "tag":  "Hired at a top tech company"
+                                       },
+                                       {
+                                           "quote":  "I was skeptical about AI job tools, but the cover letter generator alone saved me hours every week. I got 3 interviews in my first 10 days.",
+                                           "name":  "Marcus T.",
+                                           "role":  "Product Manager",
+                                           "tag":  "3 interviews in 10 days"
+                                       },
+                                       {
+                                           "quote":  "As a career changer, I had no idea how to tailor my resume. Jobvero rebuilt my entire profile and got me into a completely new industry.",
+                                           "name":  "LÃ©a D.",
+                                           "role":  "UX Designer",
+                                           "tag":  "Successful career change"
+                                       },
+                                       {
+                                           "quote":  "The interview prep feature is incredible. I walked into every interview knowing exactly what they\u0027d ask. I accepted an offer 30% above my previous salary.",
+                                           "name":  "James K.",
+                                           "role":  "Data Analyst",
+                                           "tag":  "+30% salary increase"
+                                       },
+                                       {
+                                           "quote":  "Jobvero found opportunities I wouldn\u0027t have discovered on my own. The application tracker kept me sane while juggling 15+ applications at once.",
+                                           "name":  "Aisha B.",
+                                           "role":  "Marketing Lead",
+                                           "tag":  "Found hidden opportunities"
+                                       },
+                                       {
+                                           "quote":  "Clean, fast, and genuinely useful. I\u0027ve tried every job app out there â€” Jobvero is the first one that felt like it was actually working for me.",
+                                           "name":  "TomÃ¡s R.",
+                                           "role":  "Backend Developer",
+                                           "tag":  "Hired in 2 weeks"
+                                       }
+                                   ]
+                     },
+    "pricingCard":  {
+                        "mostPopular":  "Most Popular"
+                    },
+    "waitlist":  {
+                     "title":  "Be Among the First",
+                     "subtitle":  "Join the waitlist and get 3 months Pro free at launch.",
+                     "placeholder":  "Your email address",
+                     "cta":  "Join the waitlist",
+                     "success":  "Thank you! You\u0027ll be notified at launch ðŸŽ‰",
+                     "errorInvalid":  "Please enter a valid email address.",
+                     "errorDuplicate":  "This email is already on the list!",
+                     "errorServer":  "Something went wrong. Please try again."
+                 },
+    "footer":  {
+                   "tagline":  "AI-powered job search for modern professionals.",
+                   "product":  "Product",
+                   "support":  "Support",
+                   "languages":  "Languages",
+                   "links":  {
+                                 "features":  "Features",
+                                 "pricing":  "Pricing",
+                                 "about":  "About",
+                                 "contact":  "Contact",
+                                 "faq":  "FAQ",
+                                 "legalMentions":  "Legal Mentions"
+                             },
+                   "copyright":  "Â© 2026 MELNZ LLC â€” All rights reserved"
+               },
+    "auth":  {
+                 "login":  {
+                               "title":  "Sign in to Jobvero",
+                               "subtitle":  "Welcome back! Enter your credentials to continue.",
+                               "email":  "Email address",
+                               "password":  "Password",
+                               "forgotPassword":  "Forgot password?",
+                               "submit":  "Sign in",
+                               "googleButton":  "Sign in with Google",
+                               "divider":  "or",
+                               "noAccount":  "Don\u0027t have an account?",
+                               "signUpLink":  "Sign up",
+                               "errorInvalid":  "Invalid email or password.",
+                               "errorGeneric":  "Something went wrong. Please try again."
+                           },
+                 "register":  {
+                                  "title":  "Create your account",
+                                  "subtitle":  "Start your AI-powered job search today.",
+                                  "name":  "Full name",
+                                  "email":  "Email address",
+                                  "password":  "Password",
+                                  "passwordHint":  "Minimum 8 characters",
+                                  "submit":  "Create account",
+                                  "googleButton":  "Sign up with Google",
+                                  "divider":  "or",
+                                  "hasAccount":  "Already have an account?",
+                                  "signInLink":  "Sign in",
+                                  "errorGeneric":  "Registration failed. Please try again.",
+                                  "successCheck":  "Check your email to confirm your account."
+                              },
+                 "forgotPassword":  {
+                                        "title":  "Reset your password",
+                                        "subtitle":  "We\u0027ll send you a reset link.",
+                                        "email":  "Email address",
+                                        "submit":  "Send reset link",
+                                        "successTitle":  "Email sent!",
+                                        "successMessage":  "Check your inbox for the password reset link.",
+                                        "backToLogin":  "Back to sign in",
+                                        "errorGeneric":  "Something went wrong. Please try again."
+                                    }
+             },
+    "dashboard":  {
+                      "title":  "Dashboard",
+                      "welcome":  "Welcome back",
+                      "logout":  "Sign out",
+                      "nav":  {
+                                  "overview":  "Overview",
+                                  "applications":  "Applications",
+                                  "resume":  "Resume",
+                                  "settings":  "Settings"
+                              },
+                      "overview":  {
+                                       "title":  "Overview",
+                                       "jobMatches":  "AI Job Matches",
+                                       "applications":  "Applications sent",
+                                       "interviews":  "Interviews",
+                                       "comingSoon":  "Coming soon"
+                                   }
+                  }
+}

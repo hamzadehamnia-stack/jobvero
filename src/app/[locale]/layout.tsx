@@ -3,9 +3,9 @@ import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { locales } from '@/i18n/config';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
 import LangSetter from '@/components/LangSetter';
+import ScrollReveal from '@/components/ui/ScrollReveal';
+import CookieBanner from '@/components/CookieBanner';
 
 interface LocaleLayoutProps {
   children: React.ReactNode;
@@ -27,10 +27,7 @@ export async function generateMetadata({
     },
     description: t('subheadline'),
     metadataBase: new URL('https://getjobvero.com'),
-    openGraph: {
-      siteName: 'Jobvero',
-      type: 'website',
-    },
+    openGraph: { siteName: 'Jobvero', type: 'website' },
   };
 }
 
@@ -40,16 +37,14 @@ export default async function LocaleLayout({
 }: LocaleLayoutProps) {
   if (!locales.includes(locale as any)) notFound();
 
-  const messages = await getMessages();
+  const messages = await getMessages({ locale });
 
   return (
     <NextIntlClientProvider messages={messages}>
       <LangSetter />
-      <div className="min-h-screen flex flex-col bg-gray-950">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-      </div>
+      <ScrollReveal />
+      {children}
+      <CookieBanner />
     </NextIntlClientProvider>
   );
 }

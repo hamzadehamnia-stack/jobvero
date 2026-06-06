@@ -1,8 +1,44 @@
 {
+  "cookies": {
+    "banner": {
+      "title": "Valorizamos sua privacidade",
+      "description": "O Jobvero utiliza cookies para fornecer funcionalidades essenciais (autenticação, gestão de sessão), medir o uso do serviço e melhorar sua experiência. Você pode aceitar todos, rejeitar os não essenciais ou personalizar suas preferências.",
+      "acceptAll": "Aceitar tudo",
+      "rejectAll": "Rejeitar tudo",
+      "customize": "Personalizar"
+    },
+    "preferences": {
+      "title": "Preferências de cookies",
+      "acceptAll": "Aceitar tudo",
+      "rejectAll": "Rejeitar tudo",
+      "savePreferences": "Salvar preferências",
+      "close": "Fechar"
+    },
+    "categories": {
+      "necessary": {
+        "title": "Cookies estritamente necessários",
+        "description": "Esses cookies são essenciais para o funcionamento do site. Habilitam funcionalidades básicas como autenticação, gestão de sessão e segurança. Não podem ser desativados."
+      },
+      "functional": {
+        "title": "Cookies funcionais",
+        "description": "Esses cookies habilitam funcionalidades avançadas e personalização, como lembrar seu idioma e tema (claro/escuro)."
+      },
+      "analytics": {
+        "title": "Cookies analíticos",
+        "description": "Esses cookies nos ajudam a entender como os visitantes interagem com o Jobvero coletando informações anônimas. Esses dados nos ajudam a melhorar o serviço."
+      },
+      "marketing": {
+        "title": "Cookies de marketing",
+        "description": "Esses cookies são usados para exibir publicidade que pode ser mais relevante para você e medir a eficácia de campanhas publicitárias."
+      }
+    }
+  },
   "nav": {
-    "home": "Início",
+    "signIn": "Entrar",
     "pricing": "Preços",
-    "legal": "Aviso legal",
+    "features": "Funcionalidades",
+    "about": "Sobre",
+    "contact": "Contacto",
     "getStarted": "Começar"
   },
   "hero": {
@@ -96,11 +132,10 @@
     ]
   },
   "cta": {
-    "headline": "Pronto para transformar sua busca de emprego?",
-    "subheadline": "Junte-se a milhares de profissionais que encontraram seu próximo cargo com o Jobvero.",
-    "ctaPrimary": "Comece gratuitamente hoje",
-    "ctaSecondary": "Ver preços",
-    "disclaimer": "Não é necessário cartão de crédito. Plano gratuito disponível para sempre."
+    "headline": "Pronto para conseguir o emprego dos seus sonhos?",
+    "subheadline": "Experimente o Jobvero gratuitamente por 7 dias — sem cartão de crédito.",
+    "ctaPrimary": "Iniciar teste gratuito →",
+    "disclaimer": "Após 7 dias, escolha o plano que mais lhe convém."
   },
   "pricing": {
     "sectionBadge": "Preços",
@@ -108,54 +143,57 @@
     "subheadline": "Escolha o plano que se adapta à sua busca de emprego. Faça upgrade ou cancele a qualquer momento.",
     "plans": [
       {
-        "name": "Grátis",
+        "name": "Teste gratuito",
         "price": "0",
-        "currency": "€",
-        "period": "/mês",
-        "description": "Perfeito para começar sua busca de emprego.",
-        "cta": "Começar grátis",
+        "currency": "",
+        "period": "7 dias grátis",
+        "description": "Sem cartão de crédito. Comece em segundos.",
+        "cta": "Começar",
+        "disabled": false,
         "popular": false,
         "features": [
-          "5 vagas combinadas por IA por dia",
+          "5 vagas IA por dia",
           "1 modelo de currículo",
-          "3 cartas de apresentação por mês",
-          "Acompanhamento básico de candidaturas",
+          "3 cartas de apresentação",
+          "Rastreamento básico de candidaturas",
           "Suporte por e-mail"
         ]
       },
       {
         "name": "Pro",
         "price": "19.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/mês",
         "description": "Para candidatos sérios que querem uma vantagem real.",
-        "cta": "Experimentar o Pro",
+        "cta": "Começar",
+        "disabled": false,
         "popular": true,
         "features": [
-          "Vagas ilimitadas por IA",
+          "Vagas IA ilimitadas",
           "10 modelos de currículo",
           "Cartas de apresentação ilimitadas",
-          "Acompanhamento avançado de candidaturas",
-          "Suite de preparação para entrevistas",
-          "Informações salariais",
+          "Rastreamento avançado de candidaturas",
+          "Preparação para entrevistas",
+          "Dados salariais",
           "Suporte prioritário por e-mail"
         ]
       },
       {
         "name": "Premium",
         "price": "29.99",
-        "currency": "€",
+        "currency": "$",
         "period": "/mês",
-        "description": "Poder total para mudanças de carreira e profissionais ambiciosos.",
-        "cta": "Experimentar o Premium",
+        "description": "Todo o poder para mudanças de carreira e profissionais ambiciosos.",
+        "cta": "Começar",
+        "disabled": false,
         "popular": false,
         "features": [
-          "Tudo incluído no Pro",
-          "1 sessão de coaching de carreira/mês",
-          "Otimização do perfil do LinkedIn",
-          "Estratégia personalizada de busca de emprego",
+          "Tudo do Pro",
+          "Coaching de carreira 1-1 / mês",
+          "Otimização de perfil LinkedIn",
+          "Estratégia personalizada de busca",
           "Gerente de conta dedicado",
-          "Acesso à API",
+          "Acesso API",
           "Suporte prioritário 24/7"
         ]
       }
@@ -261,23 +299,418 @@
   "pricingCard": {
     "mostPopular": "Mais popular"
   },
+  "waitlist": {
+    "title": "Seja dos primeiros",
+    "subtitle": "Junte-se à lista de espera e ganhe 3 meses Pro grátis no lançamento.",
+    "placeholder": "O seu endereço de e-mail",
+    "cta": "Entrar na lista",
+    "success": "Obrigado! Será notificado no lançamento 🎉",
+    "errorInvalid": "Por favor, insira um endereço de e-mail válido.",
+    "errorDuplicate": "Este e-mail já está na lista!",
+    "errorServer": "Algo correu mal. Por favor, tente novamente."
+  },
   "footer": {
     "tagline": "Busca de emprego com IA para profissionais modernos.",
     "product": "Produto",
-    "company": "Empresa",
-    "legal": "Legal",
-    "followUs": "Siga-nos",
+    "support": "Suporte",
+    "languages": "Idiomas",
     "links": {
       "features": "Funcionalidades",
       "pricing": "Preços",
-      "changelog": "Novidades",
       "about": "Sobre",
-      "blog": "Blog",
-      "careers": "Carreiras",
+      "contact": "Contacto",
+      "faq": "FAQ",
       "legalMentions": "Aviso legal",
-      "privacy": "Política de privacidade",
-      "terms": "Termos de serviço"
+      "terms": "Termos de serviço",
+      "privacy": "Política de privacidade"
     },
-    "copyright": "© 2026 MELNZ LLC. Todos os direitos reservados."
+    "copyright": "© 2026 MELNZ LLC — Todos os direitos reservados"
+  },
+  "auth": {
+    "login": {
+      "title": "Entrar no Jobvero",
+      "subtitle": "Bem-vindo de volta! Insira suas credenciais.",
+      "email": "Endereço de e-mail",
+      "password": "Senha",
+      "forgotPassword": "Esqueceu a senha?",
+      "submit": "Entrar",
+      "googleButton": "Entrar com Google",
+      "divider": "ou",
+      "noAccount": "Não tem uma conta?",
+      "signUpLink": "Cadastre-se",
+      "errorInvalid": "E-mail ou senha incorretos.",
+      "errorGeneric": "Algo deu errado. Tente novamente.",
+      "errorNoAccount": "Nenhuma conta Jobvero encontrada para este email. Por favor cadastre-se primeiro.",
+      "errorOauthFailed": "Algo deu errado ao fazer login com Google. Por favor tente novamente.",
+      "createAccountCta": "Criar uma conta"
+    },
+    "register": {
+      "title": "Criar sua conta",
+      "subtitle": "Comece sua busca de emprego com IA hoje.",
+      "name": "Nome completo",
+      "email": "Endereço de e-mail",
+      "password": "Senha",
+      "passwordHint": "Mínimo 8 caracteres",
+      "submit": "Criar conta",
+      "googleButton": "Cadastrar com Google",
+      "divider": "ou",
+      "hasAccount": "Já tem uma conta?",
+      "signInLink": "Entrar",
+      "errorGeneric": "Falha no cadastro. Tente novamente.",
+      "successCheck": "Verifique seu e-mail para confirmar sua conta."
+    },
+    "forgotPassword": {
+      "title": "Redefinir senha",
+      "subtitle": "Insira seu e-mail e enviaremos um link.",
+      "email": "Endereço de e-mail",
+      "submit": "Enviar link",
+      "successTitle": "E-mail enviado!",
+      "successMessage": "Verifique sua caixa de entrada para o link.",
+      "backToLogin": "Voltar para entrar",
+      "errorGeneric": "Algo deu errado. Tente novamente."
+    },
+    "resetPassword": {
+      "title": "Defina uma nova senha",
+      "subtitle": "Escolha uma senha forte para proteger sua conta.",
+      "newPasswordLabel": "Nova senha",
+      "confirmPasswordLabel": "Confirmar senha",
+      "passwordPlaceholder": "Mín. 8 caracteres",
+      "confirmPasswordPlaceholder": "Repetir senha",
+      "updatePassword": "Atualizar senha",
+      "updating": "Atualizando...",
+      "loading": "Verificando link...",
+      "errorTooShort": "A senha deve ter pelo menos 8 caracteres.",
+      "errorMismatch": "As senhas não coincidem.",
+      "errorTitle": "Link inválido ou expirado",
+      "errorInvalidLink": "Este link de redefinição é inválido ou expirou. Solicite um novo.",
+      "requestNewLink": "Solicitar novo link",
+      "successTitle": "Senha atualizada!",
+      "successMessage": "Você será redirecionado para o login em breve..."
+    }
+  },
+  "jobTracker": {
+    "dates": {
+      "appliedOn": "Data de candidatura",
+      "interviewDate": "Data da entrevista",
+      "followUpDate": "Data de acompanhamento",
+      "appliedToday": "Candidatou hoje",
+      "appliedAgo": "Candidatou há {n} dias",
+      "interviewToday": "Entrevista hoje",
+      "interviewIn": "Entrevista em {n} dias",
+      "followUpOverdue": "Acompanhamento pendente"
+    }
+  },
+  "datePicker": {
+    "month": "Mês",
+    "year": "Ano",
+    "present": "Presente",
+    "currentPosition": "Cargo atual",
+    "currentlyStudying": "Estudando atualmente",
+    "startBeforeEnd": "A data de início deve ser anterior à data de fim",
+    "months": [
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro"
+    ]
+  },
+  "dashboard": {
+    "title": "Painel",
+    "welcome": "Bem-vindo de volta",
+    "logout": "Sair",
+    "nav": {
+      "overview": "Visão geral",
+      "applications": "Candidaturas",
+      "resume": "Currículo",
+      "settings": "Configurações"
+    },
+    "overview": {
+      "title": "Visão geral",
+      "jobMatches": "Vagas IA compatíveis",
+      "applications": "Candidaturas enviadas",
+      "interviews": "Entrevistas",
+      "comingSoon": "Em breve"
+    },
+    "credits": {
+      "title": "Créditos IA",
+      "remaining": "restantes",
+      "unlimited": "Ilimitado",
+      "resetOn": "Recarrega em",
+      "daysLeft": "dias de teste restantes",
+      "trialExpired": "Teste expirado — melhore para continuar",
+      "upgrade": "Melhorar plano",
+      "viewPlans": "Ver planos",
+      "lowCredits": "Poucos créditos restantes",
+      "tier": {
+        "trial": "Teste",
+        "free": "Grátis",
+        "pro": "Pro",
+        "premium": "Premium"
+      }
+    }
+  },
+  "coverLetter": {
+    "title": "Gerador de Carta de Apresentação",
+    "powered": "Desenvolvido por Claude AI",
+    "jobTitle": "Título do Cargo",
+    "jobTitlePlaceholder": "ex. Desenvolvedor Full Stack",
+    "companyName": "Nome da Empresa",
+    "companyNamePlaceholder": "ex. Google Brasil",
+    "jobDescription": "Descrição da Vaga",
+    "jobDescriptionHint": "cole a oferta de emprego aqui",
+    "jobDescriptionPlaceholder": "Cole a descrição da vaga aqui. Quanto mais detalhes, mais personalizada será sua carta...",
+    "characters": "caracteres",
+    "tone": "Tom",
+    "tones": {
+      "Professional": "Profissional",
+      "Friendly": "Amigável",
+      "Formal": "Formal",
+      "ProfessionalDesc": "Confiante & orientado a resultados",
+      "FriendlyDesc": "Caloroso & acessível",
+      "FormalDesc": "Estruturado & autoritativo"
+    },
+    "language": "Idioma",
+    "generate": "Gerar Carta de Apresentação",
+    "generating": "Gerando…",
+    "fillRequired": "Preencha o título, empresa e descrição para continuar",
+    "previewTitle": "Prévia da Carta",
+    "copyText": "Copiar texto",
+    "copied": "Copiado!",
+    "save": "Salvar",
+    "saved": "Salvo!",
+    "downloadPDF": "Baixar PDF",
+    "generatingPDF": "Gerando…",
+    "emptyTitle": "Sua carta de apresentação aparecerá aqui",
+    "emptyDesc": "Preencha os campos à esquerda e clique em \"Gerar Carta de Apresentação\" para criar uma carta personalizada em segundos.",
+    "writingTitle": "Claude está escrevendo sua carta…",
+    "writingDesc": "Personalizando para {company} · tom {tone}",
+    "proTip": "Dica pro",
+    "proTipText": "Cole a descrição completa para melhores resultados — Claude usará a linguagem da empresa e destacará suas habilidades.",
+    "limitError": "Você atingiu seu limite de cartas de apresentação. Faça upgrade para gerar mais.",
+    "backToForm": "← Voltar ao formulário",
+    "checklistJobTitle": "Título do Cargo",
+    "checklistCompany": "Nome da Empresa",
+    "checklistDescription": "Descrição da Vaga"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "subtitle": "Fique atualizado com sua busca de emprego",
+    "markAllRead": "Marcar tudo como lido",
+    "seeAll": "Ver todas as notificações",
+    "empty": "Nenhuma notificação ainda",
+    "emptyDesc": "Vamos notificá-lo sobre novas vagas, CVs salvos e muito mais.",
+    "noUnread": "Tudo em dia!",
+    "noUnreadDesc": "Não há notificações não lidas no momento.",
+    "markRead": "Marcar como lido",
+    "deleteNotification": "Excluir",
+    "footerHint": "As notificações são mantidas por 30 dias",
+    "tabs": {
+      "all": "Todas",
+      "unread": "Não lidas",
+      "read": "Lidas"
+    },
+    "types": {
+      "job_match": {
+        "title": "Nova vaga encontrada",
+        "message": "Uma nova vaga compatível com seu perfil está disponível. Confira!"
+      },
+      "application_sent": {
+        "title": "Candidatura enviada",
+        "message": "Sua candidatura foi enviada com sucesso."
+      },
+      "cv_saved": {
+        "title": "CV salvo",
+        "message": "Seu CV foi salvo e está pronto para download."
+      },
+      "cover_letter": {
+        "title": "Carta de apresentação pronta",
+        "message": "Sua carta de apresentação foi gerada com sucesso."
+      },
+      "credits_low": {
+        "title": "Créditos de IA acabando",
+        "message": "Você tem menos de 3 créditos de IA restantes. Faça upgrade para continuar."
+      },
+      "welcome": {
+        "title": "Bem-vindo ao Jobvero! 🎉",
+        "message": "Comece criando seu CV ou explorando as vagas disponíveis."
+      }
+    }
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Gerencie seu perfil, preferências e conta",
+    "save": "Salvar alterações",
+    "saving": "Salvando…",
+    "saved": "Salvo!",
+    "errorRetry": "Erro — tentar novamente",
+    "saveFailed": "Falha ao salvar",
+    "profile": {
+      "title": "Perfil",
+      "changePhoto": "Alterar foto",
+      "fullName": "Nome completo",
+      "fullNamePlaceholder": "João Silva",
+      "email": "Endereço de e-mail",
+      "emailNote": "O endereço de e-mail não pode ser alterado",
+      "phone": "Número de telefone",
+      "phonePlaceholder": "+55 11 00000-0000",
+      "location": "Localização",
+      "locationPlaceholder": "São Paulo, Brasil",
+      "jobTitle": "Cargo atual",
+      "jobTitlePlaceholder": "Engenheiro de software",
+      "linkedin": "LinkedIn",
+      "linkedinPlaceholder": "linkedin.com/in/seu-perfil",
+      "portfolio": "Portfólio / Site",
+      "portfolioPlaceholder": "seusite.com"
+    },
+    "preferences": {
+      "title": "Preferências de emprego",
+      "targetTitle": "Cargo desejado",
+      "targetTitlePlaceholder": "ex. Desenvolvedor, Enfermeiro, Professor...",
+      "targetCountries": "Países-alvo",
+      "salaryRange": "Faixa salarial (anual)",
+      "salaryMin": "Mínimo",
+      "salaryMinPlaceholder": "50.000",
+      "salaryMax": "Máximo",
+      "salaryMaxPlaceholder": "80.000",
+      "workType": "Tipo de trabalho",
+      "remote": "Remoto",
+      "hybrid": "Híbrido",
+      "onsite": "Presencial",
+      "availableFrom": "Disponível a partir de"
+    },
+    "notifications": {
+      "title": "Notificações",
+      "emailAlerts": "Alertas por e-mail",
+      "emailAlertsDesc": "Receba atualizações importantes e lembretes na sua caixa de entrada",
+      "jobAlerts": "Alertas de emprego",
+      "jobAlertsDesc": "Seja notificado quando novas vagas compatíveis com seu perfil estiverem disponíveis",
+      "weeklyReport": "Relatório semanal",
+      "weeklyReportDesc": "Receba um resumo semanal da sua busca de emprego e novas correspondências"
+    },
+    "account": {
+      "title": "Conta",
+      "changePassword": "Alterar senha",
+      "newPassword": "Nova senha",
+      "newPasswordPlaceholder": "Mín. 8 caracteres",
+      "confirmPassword": "Confirmar senha",
+      "confirmPasswordPlaceholder": "Repita a senha",
+      "pwMinLength": "A senha deve ter pelo menos 8 caracteres",
+      "pwNoMatch": "As senhas não coincidem",
+      "currentPlan": "Plano atual",
+      "upgrade": "Fazer upgrade",
+      "planDescTrial": "3 dias acesso Pro completo · 60 candidaturas/mês · 2 sessões de entrevista",
+      "planDescFree": "3 CVs · 3 cartas · Recursos básicos",
+      "planDescPro": "CVs ilimitados · Todos os recursos de IA · Suporte prioritário",
+      "planDescPremium": "Tudo do Pro + ferramentas exclusivas de IA",
+      "deleteAccount": "Excluir conta",
+      "deleteDesc": "Exclua permanentemente sua conta e todos os seus dados. Esta ação não pode ser desfeita.",
+      "delete": "Excluir",
+      "deleteConfirmTitle": "Tem certeza absoluta?",
+      "deleteConfirmDesc": "Isso excluirá permanentemente sua conta, todos os seus CVs, cartas de apresentação e candidaturas. Esta ação não pode ser desfeita.",
+      "cancel": "Cancelar",
+      "noRefundNotice": "Observação: excluir sua conta não te dá direito a nenhum reembolso. Ao criar sua conta, você aceitou nossos <link>Termos de serviço</link> que incluem uma política de não reembolso.",
+      "deleteConfirmBtn": "Sim, excluir minha conta",
+      "deleting": "Excluindo…",
+      "sendCode": "Sim, envie-me um código de verificação",
+      "codeSentTitle": "Código de verificação enviado",
+      "codeSentDescription": "Digite o código de 8 dígitos que enviamos para seu email.",
+      "codeInputLabel": "Código de verificação",
+      "codeExpiresIn": "O código expira em {time}",
+      "codeExpired": "Código expirado",
+      "resendCode": "Reenviar código",
+      "confirmDeletion": "Confirmar exclusão"
+    }
+  },
+  "atsScore": {
+    "title": "Pontuação ATS",
+    "subtitle": "Verifique se o seu CV corresponde a uma oferta de emprego",
+    "creditsLeft": "créditos restantes",
+    "credits": "créditos",
+    "sectionCV": "Seu CV",
+    "sectionJob": "Oferta de emprego",
+    "tabSaved": "CV salvo",
+    "tabPaste": "Colar texto",
+    "selectCVPlaceholder": "Selecione um CV salvo…",
+    "noCVsSaved": "Nenhum CV salvo.",
+    "buildOne": "Criar um",
+    "cvTextPlaceholder": "Cole o texto do seu CV aqui…",
+    "jobPlaceholder": "Cole a descrição completa da vaga aqui. Inclua habilidades necessárias, responsabilidades e qualificações…",
+    "characters": "caracteres",
+    "analyze": "Analisar pontuação ATS",
+    "analyzing": "Analisando…",
+    "analyzingDesc": "Claude está analisando seu CV com base na descrição da vaga…",
+    "errorNoCv": "Por favor, selecione um CV ou cole seu texto.",
+    "errorNoJob": "Por favor, cole a descrição da vaga.",
+    "errorNoCredits": "Você não tem créditos de IA. Faça upgrade do plano para continuar.",
+    "errorGeneric": "A análise falhou. Por favor, tente novamente.",
+    "emptyTitle": "Sua pontuação ATS aparecerá aqui",
+    "emptyDesc": "Selecione seu CV e cole uma descrição da vaga, depois clique em Analisar.",
+    "newAnalysis": "Nova análise",
+    "labelGood": "Boa correspondência",
+    "labelAverage": "Correspondência média",
+    "labelPoor": "Fraca correspondência",
+    "breakdown": "Detalhamento da pontuação",
+    "keywordsScore": "Palavras-chave",
+    "skillsScore": "Habilidades",
+    "experienceScore": "Experiência",
+    "educationScore": "Educação",
+    "missingKeywords": "Palavras-chave ausentes",
+    "strongPoints": "Pontos fortes",
+    "recommendations": "Recomendações de IA",
+    "improveCV": "Melhorar CV com IA"
+  },
+  "jobs": {
+    "title": "Pesquisa de empregos",
+    "subtitle": "Encontre sua próxima oportunidade",
+    "creditsLeft": "{n} créditos IA restantes",
+    "searchPlaceholder": "Título do cargo, palavras-chave…",
+    "locationPlaceholder": "Cidade, região…",
+    "country": "País",
+    "remoteOnly": "Apenas remoto",
+    "search": "Pesquisar",
+    "searching": "Pesquisando…",
+    "loadMore": "Carregar mais empregos",
+    "jobsFound": "{n} empregos encontrados",
+    "noResults": "Nenhum emprego encontrado",
+    "noResultsTip": "Tente outras palavras-chave ou localização",
+    "searchHint": "Digite palavras-chave e clique em Pesquisar",
+    "save": "Salvar",
+    "saved": "Salvo",
+    "applyWithAI": "Candidatar com IA",
+    "applying": "Candidatando…",
+    "viewDetails": "Ver detalhes",
+    "viewOnIndeed": "Ver no Indeed",
+    "filters": "Filtros",
+    "datePosted": "Data de publicação",
+    "jobType": "Tipo de emprego",
+    "experience": "Experiência",
+    "anyTime": "Qualquer data",
+    "last24h": "Últimas 24 horas",
+    "last3days": "Últimos 3 dias",
+    "lastWeek": "Última semana",
+    "lastMonth": "Último mês",
+    "fullTime": "Tempo integral",
+    "partTime": "Meio período",
+    "contract": "Contrato",
+    "remote": "Remoto",
+    "anyLevel": "Qualquer nível",
+    "entryLevel": "Iniciante",
+    "midLevel": "Intermediário",
+    "seniorLevel": "Sênior",
+    "clearFilters": "Limpar filtros",
+    "aboutRole": "Sobre esta vaga",
+    "applySuccess": "Candidatura enviada! Veja seu Rastreador de empregos",
+    "saveSuccess": "Emprego salvo no seu rastreador",
+    "applyError": "Falha ao candidatar. Por favor, tente novamente.",
+    "saveError": "Falha ao salvar o emprego",
+    "noCredits": "Sem créditos IA. Faça upgrade para continuar."
   }
 }
