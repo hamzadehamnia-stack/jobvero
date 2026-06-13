@@ -486,8 +486,7 @@ export async function runAutoApplyForUser(
       if (sessionUser?.email) {
         userAccountEmail = sessionUser.email;
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: adminData } = await (supabase.auth as any).admin.getUserById(userId);
+        const { data: adminData } = await (supabase.auth as { admin: { getUserById: (id: string) => Promise<{ data: { user: { email: string } | null } }> } }).admin.getUserById(userId);
         userAccountEmail = adminData?.user?.email ?? null;
       }
 

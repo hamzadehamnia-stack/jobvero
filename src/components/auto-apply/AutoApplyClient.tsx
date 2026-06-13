@@ -316,7 +316,6 @@ export default function AutoApplyClient({
     setSaving(true);
     setSaveOk(false);
     setSaveErr('');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, ...merged } = { ...settings, ...overrides };
     const payload = { user_id: userId, ...merged };
     console.log('[auto-apply] upsert payload:', JSON.stringify(payload, null, 2));
@@ -348,7 +347,6 @@ export default function AutoApplyClient({
     setToggling(true);
     setSettings(s => ({ ...s, is_active: next }));
     const supabase = createClient();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, ...rest } = settings;
     await supabase.from('auto_apply_settings').upsert(
       { user_id: userId, ...rest, is_active: next },
