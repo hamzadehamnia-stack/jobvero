@@ -63,17 +63,30 @@ function formatSalary(salary?: string, country?: string): string | undefined {
   return salary;
 }
 
-function publishedDate(dateStr?: string): string | undefined {
+function publishedDate(dateStr?: string, locale?: string): string | undefined {
   if (!dateStr) return undefined;
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return undefined;
-  const diffMs  = Date.now() - date.getTime();
-  if (diffMs < 0) return 'Récemment';
+  const diffMs = Date.now() - date.getTime();
+  const lang = locale ?? 'en';
+  if (diffMs < 0) {
+    return lang === 'fr' ? 'Récemment' : lang === 'es' ? 'Reciente' : lang === 'pt' ? 'Recente' : 'Recently';
+  }
   const diffDays = Math.floor(diffMs / 86_400_000);
-  if (diffDays < 1)  return "Aujourd'hui";
-  if (diffDays < 30) return `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+  if (diffDays < 1) {
+    return lang === 'fr' ? "Aujourd'hui" : lang === 'es' ? 'Hoy' : lang === 'pt' ? 'Hoje' : 'Today';
+  }
+  if (diffDays < 30) {
+    return lang === 'fr' ? `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`
+         : lang === 'es' ? `Hace ${diffDays} día${diffDays > 1 ? 's' : ''}`
+         : lang === 'pt' ? `Há ${diffDays} dia${diffDays > 1 ? 's' : ''}`
+         : `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  }
   const months = Math.floor(diffDays / 30);
-  return `Il y a ${months} mois`;
+  return lang === 'fr' ? `Il y a ${months} mois`
+       : lang === 'es' ? `Hace ${months} mes${months > 1 ? 'es' : ''}`
+       : lang === 'pt' ? `Há ${months} ${months > 1 ? 'meses' : 'mês'}`
+       : `${months} month${months > 1 ? 's' : ''} ago`;
 }
 
 function detectSource(url?: string, country?: string): string | undefined {
@@ -83,38 +96,105 @@ function detectSource(url?: string, country?: string): string | undefined {
   return undefined;
 }
 
-function normalizeJobType(jt?: string): string | undefined {
-  if (!jt) return undefined;
+type JobTypeKey = 'full-time' | 'part-time' | 'cdi' | 'cdd' | 'interim' | 'stage' | 'remote';
+
+const JOB_TYPE_LABELS: Record<JobTypeKey, Record<string, string>> = {
+  'full-time': { en: 'Full-time',  fr: 'Temps plein',   es: 'Tiempo completo', pt: 'Tempo integral' },
+  'part-time': { en: 'Part-time',  fr: 'Temps partiel', es: 'Tiempo parcial',  pt: 'Meio período'   },
+  'cdi':       { en: 'Permanent',  fr: 'CDI',           es: 'Indefinido',      pt: 'Efetivo'        },
+  'cdd':       { en: 'Contract',   fr: 'CDD',           es: 'Contrato',        pt: 'Contrato'       },
+  'interim':   { en: 'Temporary',  fr: 'Intérim',       es: 'Temporal',        pt: 'Temporário'     },
+  'stage':     { en: 'Internship', fr: 'Stage',         es: 'Prácticas',       pt: 'Estágio'        },
+  'remote':    { en: 'Remote',     fr: 'Remote',        es: 'Remoto',          pt: 'Remoto'         },
+};
+
+function toJobTypeKey(jt: string): JobTypeKey | null {
   const key = jt.toLowerCase().trim();
-  const map: Record<string, string> = {
-    'full_time': 'Temps plein', 'fulltime': 'Temps plein', 'full-time': 'Temps plein', 'full time': 'Temps plein',
-    'temps plein': 'Temps plein', 'cdi': 'CDI', 'permanent': 'CDI',
-    'part_time': 'Temps partiel', 'parttime': 'Temps partiel', 'part-time': 'Temps partiel', 'part time': 'Temps partiel',
-    'temps partiel': 'Temps partiel', 'cdd': 'CDD',
-    'contract': 'CDD', 'contractor': 'CDD',
-    'interim': 'Intérim', 'intérim': 'Intérim',
-    'internship': 'Stage', 'stage': 'Stage',
-    'remote': 'Remote',
-  };
-  if (map[key]) return map[key];
-  if (key.includes('permanent') || key.includes('cdi')) return 'CDI';
-  if (key.includes('contract')) return 'CDD';
-  if (key.includes('full')) return 'Temps plein';
-  if (key.includes('part')) return 'Temps partiel';
-  if (key.includes('intern') || key.includes('stage')) return 'Stage';
-  if (key.includes('interim') || key.includes('intérim')) return 'Intérim';
-  return jt;
+  if (key === 'full_time' || key === 'fulltime' || key === 'full-time' || key === 'full time' || key === 'temps plein') return 'full-time';
+  if (key === 'cdi' || key === 'permanent') return 'cdi';
+  if (key === 'part_time' || key === 'parttime' || key === 'part-time' || key === 'part time' || key === 'temps partiel') return 'part-time';
+  if (key === 'cdd' || key === 'contract' || key === 'contractor') return 'cdd';
+  if (key === 'interim' || key === 'intérim') return 'interim';
+  if (key === 'internship' || key === 'stage') return 'stage';
+  if (key === 'remote') return 'remote';
+  if (key.includes('permanent') || key.includes('cdi')) return 'cdi';
+  if (key.includes('full')) return 'full-time';
+  if (key.includes('part')) return 'part-time';
+  if (key.includes('contract')) return 'cdd';
+  if (key.includes('intern') || key.includes('stage')) return 'stage';
+  if (key.includes('interim') || key.includes('intérim')) return 'interim';
+  return null;
 }
+
+function normalizeJobType(jt?: string, locale?: string): string | undefined {
+  if (!jt) return undefined;
+  const typeKey = toJobTypeKey(jt);
+  if (!typeKey) return jt;
+  const labels = JOB_TYPE_LABELS[typeKey];
+  return labels[locale ?? 'en'] ?? labels['en'];
+}
+
+// ─── UI labels ────────────────────────────────────────────────────────────────
+
+const MODAL_LABELS: Record<string, {
+  salaryUnknown: string; aboutCompany: string; jobDescription: string;
+  additionalInfo: string; company: string; location: string; contractType: string;
+  salary: string; published: string; sector: string; requiredSkills: string;
+  tabDetails: string; tabTimeline: string; generating: string; coverLetter: string;
+  inTracker: string; addToTracker: string; applyWithAI: string;
+  noEvents: string; noEventsSubtitle: string;
+}> = {
+  en: {
+    salaryUnknown: 'Salary not specified', aboutCompany: 'About the company',
+    jobDescription: 'Job description', additionalInfo: 'Additional information',
+    company: 'Company', location: 'Location', contractType: 'Contract type',
+    salary: 'Salary', published: 'Published', sector: 'Sector',
+    requiredSkills: 'Required skills', tabDetails: 'Details', tabTimeline: 'Timeline',
+    generating: 'Generating…', coverLetter: 'Cover letter',
+    inTracker: 'In Tracker', addToTracker: 'Add to Tracker', applyWithAI: '✨ Apply with AI',
+    noEvents: 'No events recorded.', noEventsSubtitle: 'Events will appear as applications progress.',
+  },
+  fr: {
+    salaryUnknown: 'Salaire non précisé', aboutCompany: "À propos de l'entreprise",
+    jobDescription: 'Description du poste', additionalInfo: 'Informations complémentaires',
+    company: 'Entreprise', location: 'Localisation', contractType: 'Type de contrat',
+    salary: 'Salaire', published: 'Publié', sector: 'Secteur',
+    requiredSkills: 'Compétences requises', tabDetails: 'Détails', tabTimeline: 'Historique',
+    generating: 'Génération…', coverLetter: 'Lettre de motivation',
+    inTracker: 'Dans le Tracker', addToTracker: 'Ajouter au Tracker', applyWithAI: "✨ Postuler avec l'IA",
+    noEvents: 'Aucun événement enregistré.', noEventsSubtitle: 'Les événements apparaîtront au fil des candidatures.',
+  },
+  es: {
+    salaryUnknown: 'Salario no especificado', aboutCompany: 'Sobre la empresa',
+    jobDescription: 'Descripción del puesto', additionalInfo: 'Información adicional',
+    company: 'Empresa', location: 'Ubicación', contractType: 'Tipo de contrato',
+    salary: 'Salario', published: 'Publicado', sector: 'Sector',
+    requiredSkills: 'Habilidades requeridas', tabDetails: 'Detalles', tabTimeline: 'Historial',
+    generating: 'Generando…', coverLetter: 'Carta de presentación',
+    inTracker: 'En el Tracker', addToTracker: 'Añadir al Tracker', applyWithAI: '✨ Postular con IA',
+    noEvents: 'Ningún evento registrado.', noEventsSubtitle: 'Los eventos aparecerán a medida que avancen las solicitudes.',
+  },
+  pt: {
+    salaryUnknown: 'Salário não especificado', aboutCompany: 'Sobre a empresa',
+    jobDescription: 'Descrição da vaga', additionalInfo: 'Informações adicionais',
+    company: 'Empresa', location: 'Localização', contractType: 'Tipo de contrato',
+    salary: 'Salário', published: 'Publicado', sector: 'Setor',
+    requiredSkills: 'Habilidades exigidas', tabDetails: 'Detalhes', tabTimeline: 'Histórico',
+    generating: 'Gerando…', coverLetter: 'Carta de apresentação',
+    inTracker: 'No Tracker', addToTracker: 'Adicionar ao Tracker', applyWithAI: '✨ Candidatar com IA',
+    noEvents: 'Nenhum evento registrado.', noEventsSubtitle: 'Os eventos aparecerão conforme as candidaturas avançam.',
+  },
+};
 
 // ─── Tracker helpers ──────────────────────────────────────────────────────────
 
-const TRACKER_STATUSES = [
-  { id: 'saved',     label: 'Sauvegardé'  },
-  { id: 'applied',   label: 'Postulé'     },
-  { id: 'interview', label: 'Entretien'   },
-  { id: 'offer',     label: 'Offre reçue' },
-  { id: 'rejected',  label: 'Refusé'      },
-] as const;
+const TRACKER_STATUSES: { id: string; labels: Record<string, string> }[] = [
+  { id: 'saved',     labels: { en: 'Saved',     fr: 'Sauvegardé',  es: 'Guardado',   pt: 'Salvo'       } },
+  { id: 'applied',   labels: { en: 'Applied',   fr: 'Postulé',     es: 'Postulado',  pt: 'Candidatado' } },
+  { id: 'interview', labels: { en: 'Interview', fr: 'Entretien',   es: 'Entrevista', pt: 'Entrevista'  } },
+  { id: 'offer',     labels: { en: 'Offer',     fr: 'Offre reçue', es: 'Oferta',     pt: 'Oferta'      } },
+  { id: 'rejected',  labels: { en: 'Rejected',  fr: 'Refusé',      es: 'Rechazado',  pt: 'Recusado'    } },
+];
 
 interface AppEvent {
   id: string;
@@ -169,10 +249,13 @@ interface Props {
 export default function JobDetailModal({
   job, onClose,
   applying = false, addedToTracker = false,
+  locale,
   onApply, onAddToTracker,
   onCoverLetter, onStatusChange, currentStatus, isGenerating = false,
   initialTab = 'details',
 }: Props) {
+  const lang = locale ?? 'en';
+  const lbl  = MODAL_LABELS[lang] ?? MODAL_LABELS['en'];
   const [addingToTracker, setAddingToTracker] = useState(false);
   const [statusChanging,  setStatusChanging]  = useState(false);
   const [logoError,       setLogoError]       = useState(false);
@@ -203,8 +286,8 @@ export default function JobDetailModal({
   const logoSrc      = job.logo || clearbitLogo(job.company);
 
   const displaySalary  = formatSalary(job.salary, job.country);
-  const displayDate    = publishedDate(job.datePosted);
-  const displayJobType = normalizeJobType(job.jobType);
+  const displayDate    = publishedDate(job.datePosted, locale);
+  const displayJobType = normalizeJobType(job.jobType, locale);
   const displaySource  = detectSource(job.url, job.country);
 
   const handleAddToTracker = async () => {
@@ -282,7 +365,7 @@ export default function JobDetailModal({
               ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30'
               : 'text-slate-400 bg-white/10 border-white/10'
             }`}>
-            💰 {displaySalary ?? 'Salaire non précisé'}
+            💰 {displaySalary ?? lbl.salaryUnknown}
           </span>
           {displayJobType && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-300 bg-violet-500/15 border border-violet-500/30 px-3 py-1.5 rounded-full">
@@ -335,7 +418,7 @@ export default function JobDetailModal({
                   }`}
               >
                 {tab === 'timeline' && <History size={12} className="inline mr-1.5 -mt-0.5" />}
-                {tab === 'details' ? 'Détails' : 'Historique'}
+                {tab === 'details' ? lbl.tabDetails : lbl.tabTimeline}
               </button>
             ))}
           </div>
@@ -354,7 +437,7 @@ export default function JobDetailModal({
               {job.companyDescription && (
                 <section className="px-6">
                   <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
-                    À propos de l&apos;entreprise
+                    {lbl.aboutCompany}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                     {job.companyDescription}
@@ -365,7 +448,7 @@ export default function JobDetailModal({
               {/* Description */}
               <section>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3 px-6">
-                  Description du poste
+                  {lbl.jobDescription}
                 </h3>
                 <div className="mx-6 p-6 rounded-xl bg-gray-800/30 dark:bg-gray-800/50 border border-gray-700/30 dark:border-gray-700/50">
                   <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
@@ -378,16 +461,16 @@ export default function JobDetailModal({
               {[job.company, job.location, displayJobType, displaySalary, displayDate, job.category].some(Boolean) && (
                 <section className="px-6">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-                    Informations complémentaires
+                    {lbl.additionalInfo}
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: 'Entreprise',     value: job.company    },
-                      { label: 'Localisation',   value: job.location   },
-                      { label: 'Type de contrat', value: displayJobType },
-                      { label: 'Salaire',        value: displaySalary  },
-                      { label: 'Publié',         value: displayDate    },
-                      { label: 'Secteur',        value: job.category   },
+                      { label: lbl.company,      value: job.company    },
+                      { label: lbl.location,     value: job.location   },
+                      { label: lbl.contractType, value: displayJobType },
+                      { label: lbl.salary,       value: displaySalary  },
+                      { label: lbl.published,    value: displayDate    },
+                      { label: lbl.sector,       value: job.category   },
                     ].filter(item => item.value).map(({ label, value }) => (
                       <div key={label} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50">
                         <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-0.5">{label}</p>
@@ -402,7 +485,7 @@ export default function JobDetailModal({
               {job.skills && job.skills.length > 0 && (
                 <section className="px-6 pb-2">
                   <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Wrench size={11} /> Compétences requises
+                    <Wrench size={11} /> {lbl.requiredSkills}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {job.skills.map(skill => (
@@ -430,10 +513,8 @@ export default function JobDetailModal({
             ) : events.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <History size={32} className="text-gray-300 dark:text-gray-700 mb-3" />
-                <p className="text-sm text-gray-400">Aucun événement enregistré.</p>
-                <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">
-                  Les événements apparaîtront au fil des candidatures.
-                </p>
+                <p className="text-sm text-gray-400">{lbl.noEvents}</p>
+                <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">{lbl.noEventsSubtitle}</p>
               </div>
             ) : (
               <div className="relative">
@@ -468,7 +549,7 @@ export default function JobDetailModal({
                 style={{ background: 'linear-gradient(135deg, #7C3AED, #4F46E5)' }}
               >
                 {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                {isGenerating ? 'Génération…' : 'Lettre de motivation'}
+                {isGenerating ? lbl.generating : lbl.coverLetter}
               </button>
 
               <div className="relative w-52">
@@ -482,7 +563,7 @@ export default function JobDetailModal({
                     disabled:opacity-60 cursor-pointer transition-colors"
                 >
                   {TRACKER_STATUSES.map(s => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
+                    <option key={s.id} value={s.id}>{s.labels[lang] ?? s.labels['en']}</option>
                   ))}
                 </select>
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
@@ -509,7 +590,7 @@ export default function JobDetailModal({
                   ? <Loader2 size={15} className="animate-spin" />
                   : addedToTracker ? <CheckCircle2 size={15} /> : <PlusCircle size={15} />
                 }
-                {addedToTracker ? 'Dans le Tracker' : 'Ajouter au Tracker'}
+                {addedToTracker ? lbl.inTracker : lbl.addToTracker}
               </button>
 
               <button
@@ -520,7 +601,7 @@ export default function JobDetailModal({
                 style={{ background: 'linear-gradient(135deg, #7C3AED, #4F46E5)' }}
               >
                 <Zap size={16} />
-                {applying ? 'Génération…' : '✨ Postuler avec l\'IA'}
+                {applying ? lbl.generating : lbl.applyWithAI}
               </button>
             </>
           )}

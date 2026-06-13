@@ -100,54 +100,60 @@ function relativeDate(dateStr?: string, locale?: string): string | undefined {
   return lang === 'fr' ? `Il y a ${m} mois` : `${m}mo ago`;
 }
 
-function normalizeJobType(jt?: string): string | undefined {
-  if (!jt) return undefined;
+type JobTypeKey = 'full-time' | 'part-time' | 'cdi' | 'cdd' | 'interim' | 'stage' | 'remote';
+
+const JOB_TYPE_LABELS: Record<JobTypeKey, Record<string, string>> = {
+  'full-time': { en: 'Full-time',  fr: 'Temps plein',   es: 'Tiempo completo', pt: 'Tempo integral' },
+  'part-time': { en: 'Part-time',  fr: 'Temps partiel', es: 'Tiempo parcial',  pt: 'Meio período'   },
+  'cdi':       { en: 'Permanent',  fr: 'CDI',           es: 'Indefinido',      pt: 'Efetivo'        },
+  'cdd':       { en: 'Contract',   fr: 'CDD',           es: 'Contrato',        pt: 'Contrato'       },
+  'interim':   { en: 'Temporary',  fr: 'Intérim',       es: 'Temporal',        pt: 'Temporário'     },
+  'stage':     { en: 'Internship', fr: 'Stage',         es: 'Prácticas',       pt: 'Estágio'        },
+  'remote':    { en: 'Remote',     fr: 'Remote',        es: 'Remoto',          pt: 'Remoto'         },
+};
+
+const TYPE_COLORS_BY_KEY: Record<JobTypeKey, string> = {
+  'full-time': 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
+  'part-time': 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
+  'cdi':       'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
+  'cdd':       'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
+  'interim':   'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
+  'stage':     'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400',
+  'remote':    'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400',
+};
+
+function toJobTypeKey(jt: string): JobTypeKey | null {
   const key = jt.toLowerCase().trim();
-  const map: Record<string, string> = {
-    'full_time': 'Temps plein', 'fulltime': 'Temps plein', 'full-time': 'Temps plein', 'full time': 'Temps plein',
-    'temps plein': 'Temps plein', 'cdi': 'CDI', 'permanent': 'CDI',
-    'part_time': 'Temps partiel', 'parttime': 'Temps partiel', 'part-time': 'Temps partiel', 'part time': 'Temps partiel',
-    'temps partiel': 'Temps partiel', 'cdd': 'CDD',
-    'contract': 'CDD', 'contractor': 'CDD',
-    'interim': 'Intérim', 'intérim': 'Intérim',
-    'internship': 'Stage', 'stage': 'Stage',
-    'remote': 'Remote',
-  };
-  if (map[key]) return map[key];
-  if (key.includes('permanent') || key.includes('cdi')) return 'CDI';
-  if (key.includes('contract')) return 'CDD';
-  if (key.includes('full')) return 'Temps plein';
-  if (key.includes('part')) return 'Temps partiel';
-  if (key.includes('intern') || key.includes('stage')) return 'Stage';
-  if (key.includes('interim') || key.includes('intérim')) return 'Intérim';
-  return jt;
+  if (key === 'full_time' || key === 'fulltime' || key === 'full-time' || key === 'full time' || key === 'temps plein') return 'full-time';
+  if (key === 'cdi' || key === 'permanent') return 'cdi';
+  if (key === 'part_time' || key === 'parttime' || key === 'part-time' || key === 'part time' || key === 'temps partiel') return 'part-time';
+  if (key === 'cdd' || key === 'contract' || key === 'contractor') return 'cdd';
+  if (key === 'interim' || key === 'intérim') return 'interim';
+  if (key === 'internship' || key === 'stage') return 'stage';
+  if (key === 'remote') return 'remote';
+  if (key.includes('permanent') || key.includes('cdi')) return 'cdi';
+  if (key.includes('full')) return 'full-time';
+  if (key.includes('part')) return 'part-time';
+  if (key.includes('contract')) return 'cdd';
+  if (key.includes('intern') || key.includes('stage')) return 'stage';
+  if (key.includes('interim') || key.includes('intérim')) return 'interim';
+  return null;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  'full-time':   'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  'full_time':   'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  'temps plein': 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  'cdi':         'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  'part-time':   'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
-  'part_time':   'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
-  'cdd':         'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  'contract':    'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
-  'permanent':   'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400',
-  'remote':      'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400',
-  'internship':  'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400',
-  'stage':       'bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400',
-  'intérim':     'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
-};
+function normalizeJobType(jt?: string, locale?: string): string | undefined {
+  if (!jt) return undefined;
+  const typeKey = toJobTypeKey(jt);
+  if (!typeKey) return jt;
+  const labels = JOB_TYPE_LABELS[typeKey];
+  return labels[locale ?? 'en'] ?? labels['en'];
+}
 
 function typeClass(jt?: string): string {
   if (!jt) return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
-  // Resolve via normalized label first so "permanent" → "CDI" → green
-  const normalized = normalizeJobType(jt);
-  const key = (normalized ?? jt).toLowerCase().trim();
-  return TYPE_COLORS[key]
-    ?? TYPE_COLORS[jt.toLowerCase().trim()]
-    ?? (Object.entries(TYPE_COLORS).find(([k]) => key.includes(k))?.[1])
-    ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+  const typeKey = toJobTypeKey(jt);
+  return typeKey
+    ? (TYPE_COLORS_BY_KEY[typeKey] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400')
+    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -173,7 +179,7 @@ export default function JobCard({ job, saved, applying, locale, onSave, onApply,
 
   const displaySalary  = formatSalary(job.salary, job.country);
   const displayDate    = relativeDate(job.datePosted, locale);
-  const displayJobType = normalizeJobType(job.jobType);
+  const displayJobType = normalizeJobType(job.jobType, locale);
 
   return (
     <div
@@ -232,7 +238,7 @@ export default function JobCard({ job, saved, applying, locale, onSave, onApply,
             ? 'text-emerald-600 dark:text-emerald-400'
             : 'text-gray-400 dark:text-gray-500'
         }`}>
-          💰 {displaySalary ?? 'Salaire non précisé'}
+          💰 {displaySalary ?? (locale === 'fr' ? 'Salaire non précisé' : locale === 'es' ? 'Salario no especificado' : locale === 'pt' ? 'Salário não especificado' : 'Salary not specified')}
         </span>
         {displayDate && (
           <span className="flex items-center gap-1 flex-shrink-0">
@@ -241,6 +247,13 @@ export default function JobCard({ job, saved, applying, locale, onSave, onApply,
           </span>
         )}
       </div>
+
+      {/* Description excerpt */}
+      {job.description && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-3 line-clamp-3">
+          {job.description.length > 150 ? job.description.slice(0, 150).trimEnd() + '…' : job.description}
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
