@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: 'TTS not configured' }, { status: 503 });
     }
 
@@ -25,14 +25,14 @@ export async function POST(req: Request) {
 
     const voice = VOICE_MAP[language] ?? 'nova';
 
-    const openaiRes = await fetch('https://api.openai.com/v1/audio/speech', {
+    const openaiRes = await fetch('https://openrouter.ai/api/v1/audio/speech', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1',
+        model: 'openai/gpt-4o-mini-tts',
         voice,
         input: text.trim(),
         speed: 1.0,

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { callOpenRouter } from '@/lib/openrouter';
 import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
 
-const MODEL = 'anthropic/claude-sonnet-4-6';
+const MODEL = 'anthropic/claude-sonnet-4.6';
 
 async function handler(req: Request) {
   try {

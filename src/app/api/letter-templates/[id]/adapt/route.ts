@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { callOpenRouter } from '@/lib/openrouter';
 
-const MODEL = 'anthropic/claude-sonnet-4-6';
+const MODEL = 'anthropic/claude-sonnet-4.6';
 
 export async function POST(
   req: Request,

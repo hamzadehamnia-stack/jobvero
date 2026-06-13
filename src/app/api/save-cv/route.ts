@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { title, formData } = await req.json();
+  const { title, formData, htmlContent } = await req.json();
 
   const cvTitle =
     title ||
@@ -17,11 +17,13 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('cvs')
     .insert({
-      user_id:  user.id,
-      title:    cvTitle,
-      content:  formData ?? {},
-      template: formData?.preferences?.template ?? null,
-      country:  formData?.preferences?.targetCountry ?? null,
+      user_id:      user.id,
+      title:        cvTitle,
+      content:      formData ?? {},
+      form_data:    formData ?? {},
+      html_content: htmlContent ?? null,
+      template:     formData?.preferences?.template ?? null,
+      country:      formData?.preferences?.targetCountry ?? null,
     })
     .select('id')
     .single();

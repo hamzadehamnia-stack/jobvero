@@ -15,7 +15,7 @@ export const ENGINE_LABELS: Record<Engine, string> = {
 /**
  * Returns the primary and fallback search engine for a given ISO country code.
  * - fr           → France Travail  (fallback: Adzuna)
- * - us           → JSearch         (fallback: Adzuna)
+ * - us           → Adzuna          (fallback: Adzuna)
  * - gb / ie      → Adzuna          (fallback: JSearch)  — Reed suspended
  * - everything else → Adzuna       (fallback: JSearch)
  */
@@ -24,7 +24,7 @@ export function getSearchEngine(countryCode: string): EngineConfig {
     case 'fr':
       return { primary: 'france-travail', fallback: 'adzuna' };
     case 'us':
-      return { primary: 'jsearch', fallback: 'adzuna' };
+      return { primary: 'adzuna', fallback: 'adzuna' };
     case 'gb':
     case 'ie':
       return { primary: 'adzuna', fallback: 'jsearch' };

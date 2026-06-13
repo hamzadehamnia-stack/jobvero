@@ -2,54 +2,67 @@ import { NextResponse } from 'next/server';
 import { callOpenRouter } from '@/lib/openrouter';
 import { createClient } from '@/lib/supabase/server';
 
-const MODEL = 'anthropic/claude-sonnet-4-6';
+const MODEL = 'anthropic/claude-sonnet-4.6';
 
-const EXTRACT_PROMPT = `You are a CV parser. Extract all information from this CV and return a JSON object matching exactly this structure:
+const EXTRACT_PROMPT = `You are a precision CV parser. Extract ALL information from the provided CV text and return a single JSON object matching exactly this structure. Handle any CV format: chronological, functional, academic, creative, ATS-plain-text.
 
 {
   "personalInfo": {
-    "fullName": string,
-    "email": string,
-    "phone": string,
-    "location": string,
-    "linkedin": string,
-    "portfolio": string
+    "fullName": string (full name as written — preserve accents and capitalization),
+    "email": string (lowercase),
+    "phone": string (preserve original format with country code if present),
+    "location": string (city + country/state if present — not full address),
+    "linkedin": string (extract only the profile path or full URL — e.g. "linkedin.com/in/username"),
+    "portfolio": string (personal website, GitHub URL, or portfolio URL — not LinkedIn)
   },
   "workExperience": [
     {
-      "id": string (short unique id: "w1", "w2" …),
-      "company": string,
-      "position": string,
-      "startDate": string (format "YYYY-MM" — use "YYYY-01" if only year known),
-      "endDate": string (format "YYYY-MM", empty string if current),
-      "current": boolean,
-      "description": string (combine bullet points into 2-4 sentence paragraph)
+      "id": string ("w1", "w2", … — ordered most-recent first),
+      "company": string (exact company name as written),
+      "position": string (exact job title as written — do not paraphrase or abbreviate),
+      "startDate": string ("YYYY-MM" — use "YYYY-01" if only year known; estimate if described as "3 years ago" based on current year),
+      "endDate": string ("YYYY-MM" — empty string "" if current or ongoing),
+      "current": boolean (true only if role is explicitly marked as current/present/ongoing),
+      "description": string (preserve ALL bullet points and responsibilities as a single paragraph; join with ". "; keep original language and terminology)
     }
   ],
   "education": [
     {
-      "id": string (short unique id: "e1", "e2" …),
-      "school": string,
-      "degree": string,
-      "field": string,
-      "startDate": string (format "YYYY-MM"),
-      "endDate": string (format "YYYY-MM", empty string if current),
-      "current": boolean
+      "id": string ("e1", "e2", … — ordered most-recent first),
+      "school": string (exact institution name),
+      "degree": string (exact degree name: Bachelor, Master, PhD, MBA, BTS, Licence, etc.),
+      "field": string (field of study / major / specialization — separate from degree),
+      "startDate": string ("YYYY-MM" — "YYYY-01" if only year known),
+      "endDate": string ("YYYY-MM" — empty string if current),
+      "current": boolean,
+      "gpa": string (only if explicitly stated — otherwise empty string "")
     }
   ],
-  "skills": string[] (individual skill/tool/language strings, max 20),
+  "skills": string[] (
+    Extract every individual skill, tool, technology, framework, language, and certification mentioned ANYWHERE in the CV.
+    Rules:
+    - One item per skill — never combine ("React, Node.js" → ["React", "Node.js"])
+    - Keep exact names: "TypeScript" not "typescript", "React.js" not "reactjs"
+    - Include certifications as skills (e.g. "AWS Certified Solutions Architect")
+    - Include spoken/written languages only if listed in a Skills or Languages section
+    - Maximum 20 items — prioritize technical/hard skills over soft skills
+    - Do NOT include generic phrases like "good communicator" or "team player"
+  ),
   "preferences": {
-    "language": "en",
-    "targetCountry": "USA",
+    "language": string (detect output language from CV content: "en" | "fr" | "es" | "pt" — default "en"),
+    "targetCountry": string (infer from location, company names, or degree institution — default "USA"),
     "style": "Professional"
   }
 }
 
-Rules:
-- Return ONLY valid JSON. No markdown, no explanation, no code fences.
-- Use empty string "" for any field not found (never null/undefined).
-- Extract individual skills/tools, not full sentences.
-- Always use the default preferences shown above.`;
+PARSING RULES:
+1. Return ONLY valid JSON. No markdown fences, no explanation, no trailing text.
+2. Use empty string "" for any missing scalar field. Use [] for missing arrays. Never use null or undefined.
+3. Work experience: if multiple roles at the same company, create a separate entry for each.
+4. Dates: if a role says "2020 – 2023", use startDate "2020-01" endDate "2023-01". If "Jan 2021 – Mar 2023", use "2021-01" and "2023-03".
+5. If the CV contains a Summary, Objective, or Profile section, include it as the description of the first work experience entry prefixed with "[Summary] " — do not create a separate field.
+6. Freelance / consulting / self-employed roles: use "Freelance" or "Self-employed" as the company name.
+7. Skills from "Certifications" sections: add them to the skills array verbatim.`;
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;

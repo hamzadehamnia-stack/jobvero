@@ -128,7 +128,7 @@ export async function GET(req: Request) {
   const params = new URLSearchParams({
     query,
     page,
-    num_pages: '1',
+    num_pages: '3',
   });
 
   if (country)         params.set('country',          country);

@@ -13,7 +13,9 @@ import type { CVFormData } from './types';
 interface SavedCV {
   id: string;
   title: string;
-  content: CVFormData;
+  content: CVFormData | null;
+  form_data: CVFormData | null;
+  html_content: string | null;
   template: string | null;
   country: string | null;
   created_at: string;
@@ -55,7 +57,7 @@ export default function SavedCVsList({ onView, onToast }: Props) {
     const supabase = createClient();
     supabase
       .from('cvs')
-      .select('id, title, content, template, country, created_at')
+      .select('id, title, content, form_data, html_content, template, country, created_at')
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (!error) setCVs((data as SavedCV[]) ?? []);
@@ -64,14 +66,21 @@ export default function SavedCVsList({ onView, onToast }: Props) {
   }, []);
 
   const renderHTML = (cv: SavedCV): string => {
-    if (!cv.template || !cv.content) {
+    // For Claude-generated CVs (no template): use saved html_content directly
+    if (!cv.template) {
+      return cv.html_content
+        ?? '<div style="padding:48px;text-align:center;color:#6B7280;font-family:sans-serif;">No preview available — re-generate this CV to restore the preview.</div>';
+    }
+    // For template-based CVs: re-render from form_data (or legacy content)
+    const formData = cv.form_data ?? cv.content;
+    if (!formData) {
       return '<div style="padding:48px;text-align:center;color:#6B7280;font-family:sans-serif;">No preview available — re-generate with a template.</div>';
     }
     const tpl = getTemplate(cv.template);
     if (!tpl) {
       return '<div style="padding:48px;text-align:center;color:#6B7280;font-family:sans-serif;">Template not found.</div>';
     }
-    return tpl.generateHTML(cv.content);
+    return tpl.generateHTML(formData);
   };
 
   const confirmDelete = async () => {

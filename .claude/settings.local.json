@@ -127,7 +127,13 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(xargs sed -i 's|anthropic/claude-sonnet-4-6|anthropic/claude-sonnet-4-7|g')",
+      "Bash(awk '{print $2, $1}')",
+      "Bash(grep -n 'Resend\\\\|resend\\\\.emails\\\\|from:\\\\|subject:\\\\|to:\\\\|RESEND_API_KEY\\\\|new Resend' c:/Users/Hamza/Desktop/Jobvero/__TRACKED_VAR__)",
+      "Bash(xargs sed -i 's|anthropic/claude-sonnet-4-7|anthropic/claude-sonnet-4.6|g')",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "Bash(Remove-Item -Recurse -Force .next)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hamza\\Desktop\\Jobvero\\src\\app\\[locale]\\(auth)\\auth"

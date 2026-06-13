@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { ParisPreview } from './pdf-preview/ParisPreview';
 import {
   User, Briefcase, GraduationCap, Zap, Settings2,
   ChevronLeft, ChevronRight, Sparkles, Download,
@@ -76,7 +75,6 @@ export default function CVBuilderClient() {
   const [specialityIsCustom, setSpecialityIsCustom] = useState(false);
   const [autoFillBanner, setAutoFillBanner] = useState(false);
   const previewRef   = useRef<HTMLDivElement>(null);
-  const hiddenCVRef  = useRef<HTMLDivElement>(null);
 
   // ── Auto-fill personal info from Settings profile ──────────────────────────
   useEffect(() => {
@@ -244,6 +242,7 @@ export default function CVBuilderClient() {
         body: JSON.stringify({
           title: `CV — ${form.personalInfo.fullName}`,
           formData: form,
+          htmlContent: generatedHTML,
         }),
       });
       const data = await res.json();
@@ -297,39 +296,30 @@ export default function CVBuilderClient() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        // Claude-generated HTML: use html2canvas + jsPDF (image-based)
+        // Claude-generated HTML: POST to server → Puppeteer → text-selectable PDF
         if (!generatedHTML) {
           setError('No CV to download. Please generate a CV first.');
           setDownloading(false);
           return;
         }
-        if (!hiddenCVRef.current) {
-          setError('PDF preview not ready — please wait a moment and try again.');
-          setDownloading(false);
-          return;
-        }
-
-        const [html2canvasModule, jsPDFModule] = await Promise.all([
-          import('html2canvas'),
-          import('jspdf'),
-        ]);
-        const html2canvas = html2canvasModule.default;
-        const jsPDF       = jsPDFModule.jsPDF;
-
-        const canvas = await html2canvas(hiddenCVRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false,
-          width: 794,
-          windowWidth: 794,
+        const res = await fetch('/api/generate-cv-pdf', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ html: generatedHTML, filename }),
         });
-
-        const imgData = canvas.toDataURL('image/png');
-        const doc     = new jsPDF('p', 'mm', 'a4');
-        doc.addImage(imgData, 'PNG', 0, 0, 210, 297);
-        doc.save(filename);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error((err as { error?: string }).error ?? 'PDF generation failed');
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     } catch (e: unknown) {
       setError('PDF download failed: ' + (e instanceof Error ? e.message : 'Unknown error'));
@@ -711,23 +701,6 @@ export default function CVBuilderClient() {
   return (
     <div className="flex h-full min-h-screen bg-gray-50 dark:bg-gray-950">
 
-      {/* ── Hidden CV capture div (Paris Élégant) ── */}
-      {form.preferences.template === 'paris-elegant' && (
-        <div
-          ref={hiddenCVRef}
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: '-9999px',
-            top: 0,
-            width: '794px',
-            overflow: 'visible',
-            pointerEvents: 'none',
-          }}
-        >
-          <ParisPreview data={form} />
-        </div>
-      )}
 
       {/* ── Left panel ── */}
       <div className="flex flex-col w-full xl:w-[520px] xl:min-w-[520px] xl:border-r xl:border-gray-200 xl:dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto">

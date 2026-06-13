@@ -193,7 +193,7 @@ export async function GET(req: Request) {
         .single(),
       supabase
         .from('cvs')
-        .select('content')
+        .select('form_data')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -212,7 +212,7 @@ export async function GET(req: Request) {
     // Keyword priority: auto_apply_config > profile title > CV primary role > fallback
     const configKeywords: string[] = Array.isArray(config?.keywords) ? config.keywords.filter(Boolean) : [];
     const targetTitle    = profile?.target_job_title?.trim() ?? '';
-    const cvRole         = extractCvPrimaryRole(cv?.content);
+    const cvRole         = extractCvPrimaryRole(cv?.form_data);
     const searchKeyword  = configKeywords[0] || targetTitle || cvRole || 'developer';
 
     console.log(`[ai-job-matches] keyword sources — config: [${configKeywords.join(', ')}] | profile: "${targetTitle}" | cvRole: "${cvRole}" → using: "${searchKeyword}"`);
@@ -227,7 +227,7 @@ export async function GET(req: Request) {
     const minSalary: number = profile?.min_salary ?? 0;
 
     // Build keyword set for matching
-    const candidateKws = buildCandidateKeywords(cv?.content, configKeywords, searchKeyword);
+    const candidateKws = buildCandidateKeywords(cv?.form_data, configKeywords, searchKeyword);
 
     console.log(`[ai-job-matches] keyword="${searchKeyword}" country="${country}" cvKws=${candidateKws.length} (${Date.now() - t0}ms)`);
 

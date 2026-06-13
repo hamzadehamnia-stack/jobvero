@@ -13,25 +13,10 @@ import { logApplicationEvent } from '@/lib/applicationEvents';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ALL_COUNTRIES = [
-  { code: 'fr', label: 'France',       flag: '🇫🇷' },
-  { code: 'us', label: 'USA',          flag: '🇺🇸' },
-  { code: 'gb', label: 'UK',           flag: '🇬🇧' },
-  { code: 'ca', label: 'Canada',       flag: '🇨🇦' },
-  { code: 'de', label: 'Germany',      flag: '🇩🇪' },
-  { code: 'be', label: 'Belgium',      flag: '🇧🇪' },
-  { code: 'ch', label: 'Switzerland',  flag: '🇨🇭' },
-  { code: 'nl', label: 'Netherlands',  flag: '🇳🇱' },
-  { code: 'es', label: 'Spain',        flag: '🇪🇸' },
-  { code: 'pt', label: 'Portugal',     flag: '🇵🇹' },
-  { code: 'au', label: 'Australia',    flag: '🇦🇺' },
-  { code: 'nz', label: 'New Zealand',  flag: '🇳🇿' },
-  { code: 'ie', label: 'Ireland',      flag: '🇮🇪' },
-  { code: 'br', label: 'Brazil',       flag: '🇧🇷' },
-  { code: 'mx', label: 'Mexico',       flag: '🇲🇽' },
-  { code: 'pe', label: 'Peru',         flag: '🇵🇪' },
+  { code: 'us', label: 'USA', flag: '🇺🇸' },
 ];
 
-const CONTRACT_TYPE_OPTIONS = ['CDI', 'CDD', 'Intérim', 'Stage', 'Alternance', 'Freelance'];
+const CONTRACT_TYPE_OPTIONS = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Remote'];
 
 const EXPERIENCE_OPTIONS = [
   { value: 'any',    label: 'Any level'    },
@@ -47,6 +32,24 @@ const AVATAR_COLORS = [
 
 function avatarColor(name: string): string {
   return AVATAR_COLORS[(name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length];
+}
+
+const SKIPPED_LABELS: Record<string, string> = {
+  no_access:          'This feature requires Pro or Premium.',
+  not_configured:     "Auto Apply isn't set up yet — open Settings below.",
+  paused:             'Auto Apply is paused. Enable it above first.',
+  daily_limit:        'Daily limit reached. The cron will run again tomorrow.',
+  monthly_limit:      'Monthly limit reached — resets at the start of next month.',
+  no_email_alias:     "Your email alias isn't configured. Check your account settings.",
+  env_not_configured: 'Server configuration error. Please contact support.',
+};
+
+interface RunResult {
+  applied:        number;
+  failed:         number;
+  skipped:        number;
+  skippedReason?: string;
+  message?:       string;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,7 +100,7 @@ const DEFAULT_SETTINGS: Settings = {
   is_active:         false,
   keywords:          [],
   excluded_keywords: [],
-  target_countries:  ['fr'],
+  target_countries:  ['us'],
   locations:         [],
   contract_types:    [],
   min_salary:        0,
@@ -270,6 +273,10 @@ export default function AutoApplyClient({
   const [downloadingPdfId,setDownloadingPdfId]= useState<string | null>(null);
   const [deletingId,      setDeletingId]      = useState<string | null>(null);
   const [toast,           setToast]           = useState<string | null>(null);
+  const [running,        setRunning]        = useState(false);
+  const [runResult,      setRunResult]      = useState<RunResult | null>(null);
+  const [localSentToday, setLocalSentToday] = useState(sentToday);
+  const [localSentMonth, setLocalSentMonth] = useState(sentMonth);
 
   // ── Chip helpers ─────────────────────────────────────────────────────────────
 
@@ -309,15 +316,23 @@ export default function AutoApplyClient({
     setSaving(true);
     setSaveOk(false);
     setSaveErr('');
-    const merged = { ...settings, ...overrides };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, ...merged } = { ...settings, ...overrides };
+    const payload = { user_id: userId, ...merged };
+    console.log('[auto-apply] upsert payload:', JSON.stringify(payload, null, 2));
     const supabase = createClient();
     const { error } = await supabase.from('auto_apply_settings').upsert(
-      { user_id: userId, ...merged },
+      payload,
       { onConflict: 'user_id' },
     );
-    if (error) {
+    if (error?.message) {
       setSaveErr('Failed to save. Please try again.');
-      console.error('[auto-apply] save error:', error);
+      console.error('[auto-apply] SAVE FAILED', {
+        message: error.message,
+        code:    error.code,
+        details: error.details,
+        hint:    error.hint,
+      });
     } else {
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2500);
@@ -333,8 +348,10 @@ export default function AutoApplyClient({
     setToggling(true);
     setSettings(s => ({ ...s, is_active: next }));
     const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, ...rest } = settings;
     await supabase.from('auto_apply_settings').upsert(
-      { user_id: userId, ...settings, is_active: next },
+      { user_id: userId, ...rest, is_active: next },
       { onConflict: 'user_id' },
     );
     setToggling(false);
@@ -426,6 +443,26 @@ export default function AutoApplyClient({
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  }
+
+  async function handleRunNow() {
+    if (!isPremium || running) return;
+    setRunning(true);
+    setRunResult(null);
+    try {
+      const res  = await fetch('/api/auto-apply/run', { method: 'POST' });
+      const data = await res.json() as RunResult;
+      setRunResult(data);
+      if (data.applied > 0) {
+        setLocalSentToday(n => n + data.applied);
+        setLocalSentMonth(n => n + data.applied);
+      }
+      setTimeout(() => setRunResult(null), 10000);
+    } catch {
+      showToast('Run failed — please try again.');
+    } finally {
+      setRunning(false);
+    }
   }
 
   // ── Derived data ──────────────────────────────────────────────────────────────
@@ -573,13 +610,13 @@ export default function AutoApplyClient({
                   <Send size={9} /> Sent today
                 </span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">{sentToday}</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">{localSentToday}</span>
                   <span className="text-xs text-gray-400">/ {dailyMax}</span>
                 </div>
                 <div className="h-1 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-violet-500 transition-all"
-                    style={{ width: `${Math.min((sentToday / Math.max(dailyMax, 1)) * 100, 100)}%` }}
+                    style={{ width: `${Math.min((localSentToday / Math.max(dailyMax, 1)) * 100, 100)}%` }}
                   />
                 </div>
               </div>
@@ -590,15 +627,15 @@ export default function AutoApplyClient({
                   <Briefcase size={9} /> This month
                 </span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">{sentMonth}</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">{localSentMonth}</span>
                   <span className="text-xs text-gray-400">/ {monthlyMax}</span>
                 </div>
                 <div className="h-1 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.min((sentMonth / Math.max(monthlyMax, 1)) * 100, 100)}%`,
-                      background: sentMonth >= monthlyMax ? '#ef4444' : 'linear-gradient(90deg,#7C3AED,#4F46E5)',
+                      width: `${Math.min((localSentMonth / Math.max(monthlyMax, 1)) * 100, 100)}%`,
+                      background: localSentMonth >= monthlyMax ? '#ef4444' : 'linear-gradient(90deg,#7C3AED,#4F46E5)',
                     }}
                   />
                 </div>
@@ -619,6 +656,50 @@ export default function AutoApplyClient({
                 )}
               </div>
             </div>
+
+            {/* Run Now */}
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={handleRunNow}
+                disabled={!isPremium || running}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shadow-md shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg,#7C3AED,#4F46E5)' }}
+              >
+                {running
+                  ? <><Loader2 size={13} className="animate-spin" /> Running…</>
+                  : <><Zap size={13} /> Run Now</>
+                }
+              </button>
+              <span className="text-xs text-gray-400">
+                {running ? 'Searching and sending applications…' : 'Trigger one run manually'}
+              </span>
+            </div>
+
+            {/* Run result banner */}
+            {runResult && (
+              <div className={`mt-3 flex items-start gap-2.5 px-3.5 py-3 rounded-xl border text-xs ${
+                runResult.applied > 0
+                  ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+              }`}>
+                {runResult.applied > 0
+                  ? <CheckCircle size={14} className="flex-shrink-0 mt-0.5" />
+                  : <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                }
+                <span className="flex-1">
+                  {runResult.applied > 0
+                    ? <><strong>{runResult.applied}</strong> application{runResult.applied !== 1 ? 's' : ''} sent! Check your email for the recap.</>
+                    : (SKIPPED_LABELS[runResult.skippedReason ?? ''] ?? runResult.message ?? 'No applications sent this run.')
+                  }
+                </span>
+                <button
+                  onClick={() => setRunResult(null)}
+                  className="flex-shrink-0 ml-1 opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
 
             {/* Active notice */}
             {settings.is_active && isPremium && (
@@ -704,7 +785,7 @@ export default function AutoApplyClient({
                 {/* Locations / departments */}
                 <ChipInput
                   label="Locations / departments"
-                  placeholder='e.g. Paris, 75, Lyon…'
+                  placeholder='e.g. New York, Los Angeles, Chicago…'
                   chips={settings.locations}
                   onAdd={v => addChip('locations', v)}
                   onRemove={v => removeChip('locations', v)}
@@ -744,7 +825,7 @@ export default function AutoApplyClient({
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                      Min salary (€/yr)
+                      Min salary ($/yr)
                     </label>
                     <input
                       type="number"
@@ -797,14 +878,14 @@ export default function AutoApplyClient({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                      Daily limit <span className="text-gray-400 font-normal normal-case">(max {isPremium ? 20 : 5})</span>
+                      Daily limit <span className="text-gray-400 font-normal normal-case">(max {isPremium ? 10 : 5})</span>
                     </label>
                     <input
                       type="number"
                       min={1}
-                      max={isPremium ? 20 : 5}
+                      max={isPremium ? 10 : 5}
                       value={settings.daily_limit}
-                      onChange={e => setSettings(s => ({ ...s, daily_limit: Math.min(Number(e.target.value), isPremium ? 20 : 5) }))}
+                      onChange={e => setSettings(s => ({ ...s, daily_limit: Math.min(Number(e.target.value), isPremium ? 10 : 5) }))}
                       className={inputCls}
                     />
                   </div>

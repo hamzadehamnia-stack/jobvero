@@ -17,7 +17,7 @@ import type { Job, SearchFilters } from './types';
 
 // ─── Countries ────────────────────────────────────────────────────────────────
 
-const VISIBLE_COUNTRY_CODES = new Set(['fr', 'us', 'gb']);
+const VISIBLE_COUNTRY_CODES = new Set(['us']);
 
 const ALL_COUNTRIES = [
   { code: 'fr', label: 'France',       flag: '🇫🇷' },
@@ -798,7 +798,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
 
   const [query,    setQuery]    = useState('');
   const [location, setLocation] = useState('');
-  const [country,  setCountry]  = useState(initialTargetCountries[0] ?? 'fr');
+  const [country,  setCountry]  = useState(initialTargetCountries[0] ?? 'us');
   const [remote,   setRemote]   = useState(false);
   const [filters,  setFilters]  = useState<SearchFilters>({ datePosted: '', jobType: '', experience: '' });
 

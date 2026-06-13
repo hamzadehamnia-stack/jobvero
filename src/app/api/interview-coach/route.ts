@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { streamOpenRouter } from '@/lib/openrouter';
 
-const MODEL = 'anthropic/claude-sonnet-4-6';
+const MODEL = 'anthropic/claude-sonnet-4.6';
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English',
@@ -90,12 +90,12 @@ export async function POST(req: Request) {
     if (cvId) {
       const { data: cv } = await supabase
         .from('cvs')
-        .select('content')
+        .select('form_data')
         .eq('id', cvId)
         .eq('user_id', user.id)
         .single();
-      if (cv?.content) {
-        cvContent = cvToText(cv.content as Record<string, unknown>);
+      if (cv?.form_data) {
+        cvContent = cvToText(cv.form_data as Record<string, unknown>);
       }
     }
 

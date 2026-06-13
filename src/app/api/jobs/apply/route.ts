@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
 import { callOpenRouter } from '@/lib/openrouter';
 
-const MODEL = 'anthropic/claude-sonnet-4-6';
+const MODEL = 'anthropic/claude-sonnet-4.6';
 
 async function handler(req: Request) {
   const supabase = await createClient();
@@ -30,13 +30,13 @@ async function handler(req: Request) {
 
   const { data: cv } = await supabase
     .from('cvs')
-    .select('content, title')
+    .select('form_data, title')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const cvSummary = cv?.content
-    ? JSON.stringify(cv.content).slice(0, 1500)
+  const cvSummary = cv?.form_data
+    ? JSON.stringify(cv.form_data).slice(0, 1500)
     : '';
 
   const userName  = profile?.full_name ?? user.email ?? 'Candidat';

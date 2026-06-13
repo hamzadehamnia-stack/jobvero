@@ -50,8 +50,8 @@ export const FEATURES = {
   },
   AUTO_APPLY: {
     free:    { access: false as const },
-    pro:     { access: false as const },
-    premium: { access: true },                 // Premium-exclusive
+    pro:     { access: true,  monthlyLimit: 60  },   // 60 applications / month
+    premium: { access: true,  monthlyLimit: 150 },   // 150 applications / month
   },
   APPLY_WITH_AI: {
     free:    { access: true,  credits: 1 },
@@ -72,6 +72,13 @@ export type FeatureTierKey = 'free' | 'pro' | 'premium';
 
 // How much a feature costs per tier — convenience type for the UI
 export const TIER_CREDITS_TOTAL = 10; // default starting pool
+
+/** Returns the monthly auto-apply application cap for a given feature tier key. */
+export function getAutoApplyMonthlyLimit(tierKey: FeatureTierKey): number {
+  const cfg = FEATURES.AUTO_APPLY[tierKey];
+  if (!cfg.access) return 0;
+  return 'monthlyLimit' in cfg ? (cfg.monthlyLimit as number) : 0;
+}
 
 export const TIER_LABELS: Record<DbPlan | 'free', { name: string; price: string }> = {
   trial: { name: 'Trial',   price: 'Free for 7 days' },

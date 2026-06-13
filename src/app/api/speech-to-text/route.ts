@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: 'STT not configured' }, { status: 503 });
     }
 
@@ -22,9 +22,9 @@ export async function POST(req: Request) {
     openAIForm.append('model', 'whisper-1');
     openAIForm.append('response_format', 'text');
 
-    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const res = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` },
       body: openAIForm,
     });
 
