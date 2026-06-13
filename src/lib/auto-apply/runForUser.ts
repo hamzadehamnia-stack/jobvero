@@ -133,7 +133,7 @@ export async function runAutoApplyForUser(
   if (!tierConfig.access) return empty('no_access', 'Auto Apply requires Pro or Premium');
 
   const isPremium = tierKey === 'premium';
-  const atsThreshold: number = typeof config.ats_threshold === 'number' ? config.ats_threshold : 60;
+  const atsThreshold: number = typeof config.ats_threshold === 'number' ? config.ats_threshold : 70;
 
   // ── 3. Profile prerequisites ───────────────────────────────────────────────
   if (!profile?.email_alias) return empty('no_email_alias', 'User email alias not configured');

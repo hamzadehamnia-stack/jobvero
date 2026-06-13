@@ -110,7 +110,7 @@ const DEFAULT_SETTINGS: Settings = {
   experience_level:  'any',
   daily_limit:       5,
   monthly_limit:     50,
-  ats_threshold:     60,
+  ats_threshold:     70,
 };
 
 const inputCls = `w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700
@@ -887,9 +887,9 @@ export default function AutoApplyClient({
                     <div className="flex items-center gap-3">
                       <input
                         type="range"
-                        min={50}
-                        max={90}
-                        step={5}
+                        min={1}
+                        max={100}
+                        step={1}
                         value={settings.ats_threshold}
                         onChange={e => setSettings(s => ({ ...s, ats_threshold: Number(e.target.value) }))}
                         className="flex-1 accent-violet-600"
@@ -903,8 +903,8 @@ export default function AutoApplyClient({
                       </span>
                     </div>
                     <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                      <span>50% (lenient)</span>
-                      <span>90% (strict)</span>
+                      <span>1% (min)</span>
+                      <span>100% (max)</span>
                     </div>
                   </div>
                 )}
