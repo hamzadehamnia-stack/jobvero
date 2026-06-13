@@ -54,6 +54,19 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.email) {
+        await fetch('/api/auth/password-changed-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: currentUser.email, locale }),
+        });
+      }
+    } catch {
+      // Non-blocking — confirmation email failure must not prevent the user from proceeding
+    }
+
     setSuccess(true);
     setTimeout(() => router.push(`/${locale}/auth/login`), 3000);
   };
