@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     app_id:           ADZUNA_APP_ID,
     app_key:          ADZUNA_APP_KEY,
     results_per_page: '20',
+    full_description: '1',
   });
 
   if (what)       params.set('what',         what);

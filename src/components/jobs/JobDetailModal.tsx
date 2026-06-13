@@ -12,6 +12,12 @@ import { createClient } from '@/lib/supabase/client';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getCompanyDomain(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(inc\.?|llc\.?|ltd\.?|corp\.?|co\.?|group|company|sarl|sas|sa|gmbh|ag|se|plc)\b/g, '')
+    .replace(/[^a-z0-9]/g, '') + '.com';
+}
 
 const CURRENCY: Record<string, { symbol: string; period: string }> = {
   fr: { symbol: '€', period: '/an' }, be: { symbol: '€', period: '/an' },
@@ -276,7 +282,8 @@ export default function JobDetailModal({
   const initials = job.company.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2);
   const avatarColors = ['#7C3AED', '#2563EB', '#059669', '#D97706', '#DC2626', '#0891B2'];
   const avatarColor  = avatarColors[job.company.charCodeAt(0) % avatarColors.length];
-  const logoSrc      = job.logo ?? '';
+  const domain       = getCompanyDomain(job.company);
+  const logoSrc      = job.logo || `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
   const displaySalary  = formatSalary(job.salary, job.country);
   const displayDate    = publishedDate(job.datePosted, locale);
@@ -311,7 +318,7 @@ export default function JobDetailModal({
         <div className="flex-shrink-0 flex items-start gap-5 p-6 pb-4
           bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900">
 
-          {Boolean(job.logo) && !logoError ? (
+          {!logoError ? (
             <div className="w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center shadow-md">
               <Image
                 src={logoSrc}

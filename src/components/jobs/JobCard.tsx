@@ -7,6 +7,13 @@ import type { Job } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getCompanyDomain(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(inc\.?|llc\.?|ltd\.?|corp\.?|co\.?|group|company|sarl|sas|sa|gmbh|ag|se|plc)\b/g, '')
+    .replace(/[^a-z0-9]/g, '') + '.com';
+}
+
 const CURRENCY: Record<string, { symbol: string; period: string }> = {
   fr: { symbol: '€', period: '/an' },
   be: { symbol: '€', period: '/an' },
@@ -166,8 +173,9 @@ export default function JobCard({ job, saved, applying, locale, onSave, onApply,
   const initials = job.company.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2);
   const colors   = ['#7C3AED', '#2563EB', '#059669', '#D97706', '#DC2626', '#0891B2'];
   const color    = colors[job.company.charCodeAt(0) % colors.length];
-  const logoSrc  = job.logo ?? '';
-  const showLogo = Boolean(job.logo) && !logoError;
+  const domain   = getCompanyDomain(job.company);
+  const logoSrc  = job.logo || `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  const showLogo = !logoError;
 
   const displaySalary  = formatSalary(job.salary, job.country);
   const displayDate    = relativeDate(job.datePosted, locale);
