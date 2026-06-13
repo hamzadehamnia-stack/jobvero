@@ -261,8 +261,23 @@ export default function JobDetailModal({
   const [activeTab,       setActiveTab]       = useState<'details' | 'timeline'>(initialTab);
   const [events,          setEvents]          = useState<AppEvent[]>([]);
   const [eventsLoading,   setEventsLoading]   = useState(false);
+  const [fullDescription, setFullDescription] = useState<string | null>(null);
+  const [descLoading,     setDescLoading]     = useState(false);
 
   const isTrackerMode = Boolean(onCoverLetter);
+
+  useEffect(() => {
+    setFullDescription(null);
+    setDescLoading(true);
+    fetch(`/api/jobs/${job.id}?country=${job.country ?? 'gb'}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data: { description?: string; results?: { description?: string }[] }) => {
+        const desc = data.description ?? data.results?.[0]?.description ?? null;
+        if (desc) setFullDescription(desc);
+      })
+      .catch(() => null)
+      .finally(() => setDescLoading(false));
+  }, [job.id, job.country]);
 
   useEffect(() => {
     if (activeTab !== 'timeline' || !isTrackerMode) return;
@@ -451,9 +466,15 @@ export default function JobDetailModal({
                   {lbl.jobDescription}
                 </h3>
                 <div className="mx-6 p-6 rounded-xl bg-gray-800/30 dark:bg-gray-800/50 border border-gray-700/30 dark:border-gray-700/50">
-                  <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                    {job.description}
-                  </div>
+                  {descLoading ? (
+                    <div className="flex justify-center py-6">
+                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                      {fullDescription ?? job.description}
+                    </div>
+                  )}
                 </div>
               </section>
 
