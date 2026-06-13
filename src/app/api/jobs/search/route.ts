@@ -60,7 +60,15 @@ export async function GET(req: Request) {
     }
 
     const data = await res.json();
-    console.log('[ADZUNA RAW]', JSON.stringify(data.results?.[0], null, 2));
+    const r0 = data.results?.[0];
+    if (r0) {
+      console.log('[ADZUNA ID]', r0.id, '| adref:', r0.adref);
+      console.log('[ADZUNA COMPANY]', JSON.stringify(r0.company));
+      console.log('[ADZUNA LOGO]', 'logo:', r0.logo, '| company_logo:', r0.company_logo, '| logo_url:', r0.company?.logo_url);
+      console.log('[ADZUNA URL]', r0.redirect_url);
+      console.log('[ADZUNA DESC LEN]', r0.description?.length, '| first 300:', r0.description?.slice(0, 300));
+      console.log('[ADZUNA ALL KEYS]', Object.keys(r0).join(', '));
+    }
     return NextResponse.json(data);
   } catch (err) {
     console.error('[jobs/search]', err);
