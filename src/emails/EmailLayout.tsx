@@ -12,7 +12,11 @@ interface EmailLayoutProps {
 export function EmailLayout({ preview, children, footerNote }: EmailLayoutProps) {
   return (
     <Html>
-      <Head />
+      <Head>
+        {/* Prevent mobile clients from auto-linking addresses, phones, dates */}
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+        <meta name="x-apple-disable-message-reformatting" />
+      </Head>
       <Preview>{preview}</Preview>
       <Body style={main}>
         <Container style={container}>
@@ -33,8 +37,15 @@ export function EmailLayout({ preview, children, footerNote }: EmailLayoutProps)
             <Text style={footerText}>
               Jobvero is operated by MELNZ LLC
             </Text>
+            {/*
+              Break the "number + street" pattern that Gmail Android auto-links as a
+              Maps link. The zero-width space (​) between the street number and
+              street name defeats the address regex without any visible change.
+            */}
             <Text style={footerTextSmall}>
-              1209 Mountain Road PL NE, STE N, Albuquerque, New Mexico 87110, USA
+              <span style={noAutoLink}>1209</span>
+              {'​'}
+              <span style={noAutoLink}>{' Mountain Road PL NE, STE N, Albuquerque, New Mexico 87110, USA'}</span>
             </Text>
             <Text style={footerTextSmall}>
               <Link href="https://getjobvero.com" style={footerLink}>getjobvero.com</Link>
@@ -101,5 +112,9 @@ const footerTextSmall = {
 };
 const footerLink = {
   color: '#7c3aed',
+  textDecoration: 'none',
+};
+const noAutoLink = {
+  color: '#a0a0a0',
   textDecoration: 'none',
 };
