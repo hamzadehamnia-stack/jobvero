@@ -8,7 +8,7 @@ export interface EngineConfig {
 export const ENGINE_LABELS: Record<Engine, string> = {
   'france-travail': 'France Travail',
   'reed':           'Reed',
-  'adzuna':         'Adzuna',
+  'adzuna':         'Jobvero',
   'jsearch':        'JSearch',
 };
 

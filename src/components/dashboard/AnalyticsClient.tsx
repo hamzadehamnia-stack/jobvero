@@ -62,7 +62,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const SOURCE_LABELS: Record<string, string> = {
   'france-travail': 'France Travail',
-  adzuna:   'Adzuna',
+  adzuna:   'Jobvero',
   jsearch:  'JSearch',
   reed:     'Reed',
   'auto-apply': 'Auto Apply',

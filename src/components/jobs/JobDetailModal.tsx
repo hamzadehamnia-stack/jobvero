@@ -78,7 +78,6 @@ function publishedDate(dateStr?: string): string | undefined {
 
 function detectSource(url?: string, country?: string): string | undefined {
   if (url?.includes('reed.co.uk'))  return 'Reed UK';
-  if (url?.includes('adzuna'))      return 'Adzuna';
   if (country === 'fr')             return 'France Travail';
   if (url?.includes('rapidapi') || url?.includes('jsearch')) return 'JSearch';
   return undefined;

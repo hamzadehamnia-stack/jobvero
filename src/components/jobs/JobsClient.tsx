@@ -858,9 +858,9 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
           setFallbackNotice('Résultats via France Travail');
         } else {
           result = await callEngine('adzuna', what, location, country, 1, filters, remote);
-          result.results.forEach(j => { newSources[j.id] = 'Adzuna'; });
+          result.results.forEach(j => { newSources[j.id] = 'Jobvero'; });
           currentEngineRef.current = 'adzuna';
-          setFallbackNotice('Résultats via Adzuna');
+          setFallbackNotice('');
         }
 
       // ── Standard flow (all other countries) ──────────────────────────────────
@@ -884,7 +884,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
           }
         }
         result.results.forEach(j => { newSources[j.id] = ENGINE_LABELS[chosenEngine]; });
-        setFallbackNotice(`Résultats via ${ENGINE_LABELS[chosenEngine]}`);
+        setFallbackNotice(chosenEngine === 'adzuna' ? '' : `Résultats via ${ENGINE_LABELS[chosenEngine]}`);
         currentEngineRef.current = chosenEngine;
 
       // ── Load more ─────────────────────────────────────────────────────────────
