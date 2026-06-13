@@ -12,6 +12,7 @@ import { emailTranslations } from '@/emails/translations';
 import type { Locale } from '@/emails/translations';
 import { adaptCVForJob } from './adaptCVForJob';
 import { htmlToPdfBuffer } from '@/lib/htmlToPdfBuffer';
+import { computeATSScore } from './computeATSScore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,7 @@ export async function runAutoApplyForUser(
   if (!tierConfig.access) return empty('no_access', 'Auto Apply requires Pro or Premium');
 
   const isPremium = tierKey === 'premium';
+  const atsThreshold: number = typeof config.ats_threshold === 'number' ? config.ats_threshold : 60;
 
   // ── 3. Profile prerequisites ───────────────────────────────────────────────
   if (!profile?.email_alias) return empty('no_email_alias', 'User email alias not configured');
@@ -142,7 +144,7 @@ export async function runAutoApplyForUser(
   // ── 4. CV ──────────────────────────────────────────────────────────────────
   const { data: cv } = await supabase
     .from('cvs')
-    .select('form_data')
+    .select('form_data, html_content')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -151,6 +153,9 @@ export async function runAutoApplyForUser(
   const cvRawContent = (cv?.form_data ?? null) as Record<string, unknown> | null;
   if (!cvRawContent) return empty('no_cv', 'Please create and save your CV in the CV Builder first.');
   const cvText = JSON.stringify(cvRawContent).slice(0, 3000);
+  const cvHtmlContent = typeof cv?.html_content === 'string' ? cv.html_content : null;
+  // For ATS scoring we want clean prose text — only possible when html_content exists
+  const cvTextForATS = cvHtmlContent ? stripHtml(cvHtmlContent).slice(0, 4000) : null;
 
   // ── 5. Env checks ──────────────────────────────────────────────────────────
   if (!process.env.ADZUNA_APP_ID || !process.env.ADZUNA_APP_KEY || !process.env.RESEND_API_KEY) {
@@ -344,6 +349,33 @@ export async function runAutoApplyForUser(
       continue;
     }
 
+    // ── Premium: ATS score pre-filter ────────────────────────────────────────
+    // Run before recruiter lookup to avoid wasting email-finder credits on poor matches.
+    let atsScore: number | null = null;
+    if (isPremium) {
+      if (!cvTextForATS) {
+        console.warn('[runAutoApplyForUser] ATS check skipped: CV has no html_content');
+      } else {
+        try {
+          const jobDescForATS = stripHtml(job.description ?? '').slice(0, 2000);
+          const score = await Promise.race([
+            computeATSScore(cvTextForATS, jobDescForATS),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), 15_000),
+            ),
+          ]);
+          atsScore = score;
+          if (score < atsThreshold) {
+            console.log(`[ATS SKIP] score=${score}, threshold=${atsThreshold}, job="${title}" @ ${company}`);
+            jobs.push({ title, company, location, status: 'skipped', reason: 'ats_score_too_low' });
+            continue;
+          }
+        } catch (e) {
+          console.error('[runAutoApplyForUser] ATS score failed (non-fatal, proceeding):', e);
+        }
+      }
+    }
+
     const jobCtx: JobContext = {
       jobId: job.id,
       jobTitle: title,
@@ -450,7 +482,7 @@ export async function runAutoApplyForUser(
 
     await supabase.from('auto_apply_logs').insert({
       user_id: userId, job_title: title, company, location, status: 'applied', cover_letter: coverLetter,
-      cv_tailored: cvTailored, job_id: job.id,
+      cv_tailored: cvTailored, job_id: job.id, ats_score: atsScore,
     }).then(() => null, () => null);
 
     // Keep in-memory dedup sets current so within-run duplicates are also blocked
@@ -464,6 +496,7 @@ export async function runAutoApplyForUser(
       sent_at: new Date().toISOString(),
       recruiter_email: recruiterResult.email, email_source: recruiterResult.source,
       email_confidence: recruiterResult.confidence, resend_email_id: resendEmailId,
+      ats_score: atsScore,
     }).select('id').single();
 
     if (appRow?.id) {

@@ -67,6 +67,7 @@ interface Settings {
   experience_level:  string;
   daily_limit:       number;
   monthly_limit:     number;
+  ats_threshold:     number;
 }
 
 interface Application {
@@ -81,6 +82,7 @@ interface Application {
   cover_letter:  string | null;
   thread_id:     string | null;
   status:        string;
+  ats_score:     number | null;
 }
 
 type FeedFilter = 'all' | 'sent' | 'pending' | 'failed';
@@ -108,6 +110,7 @@ const DEFAULT_SETTINGS: Settings = {
   experience_level:  'any',
   daily_limit:       5,
   monthly_limit:     50,
+  ats_threshold:     60,
 };
 
 const inputCls = `w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700
@@ -872,6 +875,40 @@ export default function AutoApplyClient({
                   </div>
                 </div>
 
+                {/* ATS minimum score — Premium only */}
+                {isPremium && (
+                  <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800">
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                      ATS minimum score (Premium)
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      Skip jobs where your CV scores below this threshold. Saves applications for well-matched offers only.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={50}
+                        max={90}
+                        step={5}
+                        value={settings.ats_threshold}
+                        onChange={e => setSettings(s => ({ ...s, ats_threshold: Number(e.target.value) }))}
+                        className="flex-1 accent-violet-600"
+                      />
+                      <span className={`flex-shrink-0 w-12 text-center text-sm font-bold rounded-lg px-2 py-1 ${
+                        settings.ats_threshold >= 70
+                          ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                          : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {settings.ats_threshold}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                      <span>50% (lenient)</span>
+                      <span>90% (strict)</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Daily + Monthly limits */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1030,15 +1067,27 @@ export default function AutoApplyClient({
 
                         {/* Right side */}
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            isSent
-                              ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                              : isFailed
-                              ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400'
-                              : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
-                          }`}>
-                            {isSent ? 'Sent' : isFailed ? 'Failed' : 'Pending'}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              isSent
+                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                : isFailed
+                                ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400'
+                                : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                            }`}>
+                              {isSent ? 'Sent' : isFailed ? 'Failed' : 'Pending'}
+                            </span>
+
+                            {typeof app.ats_score === 'number' && (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                app.ats_score >= 70
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                  : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                              }`}>
+                                ATS {app.ats_score}%
+                              </span>
+                            )}
+                          </div>
 
                           <span className="text-[10px] text-gray-400 dark:text-gray-500">
                             {relTime(app.sent_at)}

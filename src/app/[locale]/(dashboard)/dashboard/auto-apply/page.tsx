@@ -36,7 +36,7 @@ export default async function AutoApplyPage({ params: { locale } }: Props) {
       .maybeSingle(),
     supabase
       .from('applications')
-      .select('id, job_title, company_name, location, salary, contract_type, send_status, sent_at, cover_letter, thread_id, status')
+      .select('id, job_title, company_name, location, salary, contract_type, send_status, sent_at, cover_letter, thread_id, status, ats_score')
       .eq('user_id', user.id)
       .eq('application_type', 'auto')
       .order('created_at', { ascending: false })
