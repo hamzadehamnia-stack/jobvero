@@ -27,9 +27,10 @@ export async function GET(req: Request) {
   const sortBy      = searchParams.get('sort_by');
 
   const params = new URLSearchParams({
-    app_id:           ADZUNA_APP_ID,
-    app_key:          ADZUNA_APP_KEY,
-    results_per_page: '20',
+    app_id:              ADZUNA_APP_ID,
+    app_key:             ADZUNA_APP_KEY,
+    results_per_page:    '20',
+    show_company_logos:  '1',
   });
 
   if (what)       params.set('what',         what);

@@ -7,14 +7,6 @@ import type { Job } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function clearbitLogo(company: string): string {
-  const domain = company
-    .toLowerCase()
-    .replace(/\b(inc\.?|llc\.?|ltd\.?|corp\.?|co\.?|group|company|sarl|sas|sa|gmbh|ag)\b/g, '')
-    .replace(/[^a-z0-9]/g, '');
-  return `https://logo.clearbit.com/${domain}.com`;
-}
-
 const CURRENCY: Record<string, { symbol: string; period: string }> = {
   fr: { symbol: '€', period: '/an' },
   be: { symbol: '€', period: '/an' },
@@ -174,8 +166,8 @@ export default function JobCard({ job, saved, applying, locale, onSave, onApply,
   const initials = job.company.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2);
   const colors   = ['#7C3AED', '#2563EB', '#059669', '#D97706', '#DC2626', '#0891B2'];
   const color    = colors[job.company.charCodeAt(0) % colors.length];
-  const logoSrc  = job.logo || clearbitLogo(job.company);
-  const showLogo = !logoError;
+  const logoSrc  = job.logo ?? '';
+  const showLogo = Boolean(job.logo) && !logoError;
 
   const displaySalary  = formatSalary(job.salary, job.country);
   const displayDate    = relativeDate(job.datePosted, locale);
