@@ -40,10 +40,19 @@ export async function GET(request: NextRequest) {
 
   const user = data.user;
 
-  // Step 2 — Detect brand-new accounts (created within last 10 seconds)
+  // Step 2 — Recovery flow: recovery_sent_at is set and recent (< 15 min)
+  const isRecovery = !!user.recovery_sent_at &&
+    Date.now() - new Date(user.recovery_sent_at).getTime() < 15 * 60 * 1000;
+  if (isRecovery) {
+    const metaLocale = (user.user_metadata?.locale ?? user.user_metadata?.language) as string | undefined;
+    const recoveryLocale = ['en', 'fr', 'es', 'pt'].includes(metaLocale ?? '') ? metaLocale! : locale;
+    return NextResponse.redirect(`${origin}/${recoveryLocale}/auth/reset-password`);
+  }
+
+  // Step 3 — Detect brand-new accounts (created within last 10 seconds)
   const isNewUser = (Date.now() - new Date(user.created_at).getTime()) < 10_000;
 
-  // Step 3 — If intent is login but user is new: delete account and reject
+  // Step 4 — If intent is login but user is new: delete account and reject
   if (intent === 'login' && isNewUser) {
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,6 +66,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/${locale}/auth/login?error=no_account`);
   }
 
-  // Step 4 — Normal flow
+  // Step 5 — Normal flow
   return NextResponse.redirect(`${origin}${next}`);
 }

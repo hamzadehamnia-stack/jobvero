@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   // Supabase passes as redirect_to (Supabase strips it if not in the allowlist).
   const supabaseBaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, '');
   const effectiveRedirect = email_action_type === 'recovery'
-    ? `https://getjobvero.com/api/auth/callback?next=/${locale}/auth/reset-password`
+    ? `https://getjobvero.com/api/auth/callback`
     : (redirect_to ?? site_url);
   const confirmLink = `${supabaseBaseUrl}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(effectiveRedirect)}`;
 

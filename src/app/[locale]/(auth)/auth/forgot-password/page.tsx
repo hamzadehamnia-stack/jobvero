@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
     setError('');
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `https://getjobvero.com/api/auth/callback?next=/${locale}/auth/reset-password`,
+      redirectTo: `https://getjobvero.com/api/auth/callback`,
     });
     if (error) {
       setError(t('errorGeneric'));
