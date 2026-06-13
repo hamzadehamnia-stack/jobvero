@@ -72,8 +72,13 @@ export async function POST(request: Request) {
   const locale = detectLocale(redirect_to, user?.user_metadata);
 
   // ---- 2. Build confirmation link ----
+  // For recovery, always redirect through our PKCE callback regardless of what
+  // Supabase passes as redirect_to (Supabase strips it if not in the allowlist).
   const supabaseBaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, '');
-  const confirmLink = `${supabaseBaseUrl}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(redirect_to ?? site_url)}`;
+  const effectiveRedirect = email_action_type === 'recovery'
+    ? `https://getjobvero.com/api/auth/callback?next=/${locale}/auth/reset-password`
+    : (redirect_to ?? site_url);
+  const confirmLink = `${supabaseBaseUrl}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${encodeURIComponent(effectiveRedirect)}`;
 
   // ---- 3. Route to the right template ----
   let emailComponent: React.ReactElement;
