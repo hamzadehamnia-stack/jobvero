@@ -60,6 +60,7 @@ export async function GET(req: Request) {
     }
 
     const data = await res.json();
+    console.log('[ADZUNA RAW]', JSON.stringify(data.results?.[0], null, 2));
     return NextResponse.json(data);
   } catch (err) {
     console.error('[jobs/search]', err);
