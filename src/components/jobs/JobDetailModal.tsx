@@ -12,34 +12,34 @@ import {
 import type { Job } from './types';
 import { createClient } from '@/lib/supabase/client';
 
-// ─── Markdown components (styled for Jobvero dark theme) ──────────────────────
+// ─── Markdown components (adaptive light / dark) ──────────────────────────────
 
 const MD: Components = {
   h1: ({ children }) => (
-    <h1 className="text-base font-semibold text-violet-300 mt-6 mb-2 pb-1 border-b border-violet-800/40 first:mt-0">
+    <h1 className="text-base font-semibold text-violet-700 dark:text-violet-300 mt-6 mb-2 pb-1 border-b border-violet-200 dark:border-violet-800/40 first:mt-0">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-sm font-semibold text-violet-300 mt-5 mb-2 first:mt-0">
+    <h2 className="text-sm font-semibold text-violet-700 dark:text-violet-300 mt-5 mb-2 first:mt-0">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest mt-4 mb-1.5 first:mt-0">
+    <h3 className="text-[11px] font-bold text-indigo-600 dark:text-indigo-300 uppercase tracking-widest mt-4 mb-1.5 first:mt-0">
       {children}
     </h3>
   ),
   p: ({ children }) => (
-    <p className="text-sm text-gray-300 leading-relaxed mb-3 last:mb-0">
+    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0">
       {children}
     </p>
   ),
   strong: ({ children }) => (
-    <strong className="font-semibold text-gray-100">{children}</strong>
+    <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>
   ),
   em: ({ children }) => (
-    <em className="italic text-gray-400">{children}</em>
+    <em className="italic text-gray-500 dark:text-gray-400">{children}</em>
   ),
   ul: ({ children }) => (
     <ul className="mb-3 space-y-1.5 last:mb-0">{children}</ul>
@@ -48,8 +48,8 @@ const MD: Components = {
     <ol className="mb-3 space-y-1.5 last:mb-0">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="flex items-start gap-2 text-sm text-gray-300 leading-relaxed">
-      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+    <li className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-violet-500 dark:bg-violet-400 flex-shrink-0" />
       <span className="flex-1 min-w-0">{children}</span>
     </li>
   ),
@@ -523,15 +523,15 @@ export default function JobDetailModal({
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3 px-6">
                   {lbl.jobDescription}
                 </h3>
-                <div className="mx-6 p-6 rounded-xl bg-gray-800/30 dark:bg-gray-800/50 border border-gray-700/30 dark:border-gray-700/50">
+                <div className="mx-6 p-6 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/50">
                   {descLoading ? (
                     <div className="space-y-2.5 animate-pulse">
-                      <div className="h-3 bg-gray-700/40 rounded w-full" />
-                      <div className="h-3 bg-gray-700/40 rounded w-5/6" />
-                      <div className="h-3 bg-gray-700/40 rounded w-4/6" />
-                      <div className="h-3 bg-gray-700/40 rounded w-full" />
-                      <div className="h-3 bg-gray-700/40 rounded w-3/4" />
-                      <div className="h-3 bg-gray-700/40 rounded w-5/6" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-full" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-5/6" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-4/6" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-full" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-3/4" />
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700/40 rounded w-5/6" />
                     </div>
                   ) : (
                     <ReactMarkdown components={MD}>
