@@ -66,7 +66,6 @@ const ADZUNA_COUNTRY_MAP: Record<string, CountryCode> = {
   mx: 'mx', ca: 'ca', au: 'au', nz: 'nz', nl: 'nl',
 };
 
-const MODEL  = 'anthropic/claude-sonnet-4.6';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -92,10 +91,34 @@ function guessDomain(companyName: string): string | null {
   return `${slug}.com`;
 }
 
-function coverLetterToHtml(text: string): string {
+function bodyToHtml(text: string): string {
   const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const body = paragraphs.map(p => `<p style="margin: 0 0 16px 0;">${p.replace(/\n/g, '<br>')}</p>`).join('');
-  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a; max-width: 600px;">${body}<p style="margin-top: 32px; font-size: 12px; color: #888;"><em>Sent via Jobvero — getjobvero.com</em></p></div>`;
+  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a; max-width: 600px;">${body}</div>`;
+}
+
+async function generateEmailBody(
+  title: string,
+  company: string,
+  candidateName: string,
+  cvSummary: string,
+): Promise<string> {
+  return callOpenRouter('deepseek/deepseek-chat', [
+    {
+      role: 'system',
+      content:
+        'Write a short, professional job application email body (3-4 sentences max). ' +
+        'The candidate is applying for the position. Express genuine interest, mention ' +
+        '1-2 relevant strengths from the CV, and note the CV is attached. Professional ' +
+        'but warm tone. NO subject line, NO greeting placeholder like [Name] — write it ' +
+        'ready to send. Sign with the candidate\'s name. Do NOT mention any tool, ' +
+        'automation, or AI. Write as if the candidate wrote it personally.',
+    },
+    {
+      role: 'user',
+      content: `Candidate name: ${candidateName}\nApplying for: ${title} at ${company}\nCV summary: ${cvSummary}`,
+    },
+  ], 200);
 }
 
 // ─── Main engine ──────────────────────────────────────────────────────────────
@@ -435,10 +458,11 @@ export async function runAutoApplyForUser(
     }
 
     let pdfAttachment: { filename: string; content: Buffer } | null = null;
-    if (tailoredHtml) {
+    const htmlForPdf = tailoredHtml ?? cvHtmlContent;
+    if (htmlForPdf) {
       try {
         const buf = await Promise.race([
-          htmlToPdfBuffer(tailoredHtml),
+          htmlToPdfBuffer(htmlForPdf),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('timeout')), 18_000),
           ),
@@ -449,20 +473,18 @@ export async function runAutoApplyForUser(
       }
     }
 
-    // ── Cover letter ──────────────────────────────────────────────────────────
-    let coverLetter = '';
+    // ── Email body (short AI message, ~3-4 sentences) ────────────────────────
+    let emailBody = '';
     try {
-      const coverLetterUserPrompt = isPremium && cvTailored
-        ? `Write a targeted cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${richDesc}\nRequirements:\n- Up to 200 words, professional and confident\n- Open by addressing the exact role (${title})\n- Mention 2-3 specific skills or requirements from the job description\n- Reference something specific about ${company} in the closing line\n- End with a clear call to action\nReturn plain text only, no HTML, no markdown.`
-        : `Write a cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${richDesc.slice(0, 800)}\nKeep under 180 words. Be specific and confident.`;
-
-      coverLetter = await callOpenRouter(MODEL, [
-        { role: 'system', content: 'You are a career coach. Write a concise professional cover letter. Return plain text only, no HTML, no markdown.' },
-        { role: 'user',   content: coverLetterUserPrompt },
-      ], isPremium ? 700 : 600);
+      emailBody = await Promise.race([
+        generateEmailBody(title, company, userName, cvText),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 15_000),
+        ),
+      ]);
     } catch (e) {
-      console.error('[runAutoApplyForUser] Cover letter failed:', e);
-      jobs.push({ title, company, location, status: 'failed', reason: 'cover_letter_failed' });
+      console.error('[runAutoApplyForUser] Email body generation failed:', e);
+      jobs.push({ title, company, location, status: 'failed', reason: 'email_body_failed' });
       continue;
     }
 
@@ -471,8 +493,9 @@ export async function runAutoApplyForUser(
       const resendResponse = await resend.emails.send({
         from:    `${userName} <${userFromEmail}>`,
         to:      recruiterResult.email,
-        subject: `Application for ${title}`,
-        html:    coverLetterToHtml(coverLetter),
+        replyTo: userFromEmail,
+        subject: `Application for ${title} - ${userName}`,
+        html:    bodyToHtml(emailBody),
         headers: { 'X-Jobvero-Source': recruiterResult.source, 'X-Jobvero-Confidence': recruiterResult.confidence },
         tags:    [{ name: 'source', value: recruiterResult.source }, { name: 'confidence', value: recruiterResult.confidence }],
         ...(pdfAttachment ? { attachments: [{ filename: pdfAttachment.filename, content: pdfAttachment.content }] } : {}),
@@ -492,7 +515,7 @@ export async function runAutoApplyForUser(
     }
 
     await supabase.from('auto_apply_logs').insert({
-      user_id: userId, job_title: title, company, location, status: 'applied', cover_letter: coverLetter,
+      user_id: userId, job_title: title, company, location, status: 'applied', cover_letter: emailBody,
       cv_tailored: cvTailored, job_id: job.id, ats_score: atsScore,
     }).then(() => null, () => null);
 
