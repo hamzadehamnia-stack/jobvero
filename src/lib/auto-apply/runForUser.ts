@@ -488,12 +488,31 @@ export async function runAutoApplyForUser(
       continue;
     }
 
+    // Create thread BEFORE email so replyTo can use reply+{threadId}@ format
+    let threadId: string | null = null;
+    try {
+      const { data: newThread } = await supabase.from('message_threads').insert({
+        user_id:                userId,
+        job_title:              title,
+        company_name:           company,
+        employer_email:         recruiterResult.email,
+        subject:                `Application for ${title} - ${userName}`,
+        last_message_preview:   emailBody.slice(0, 120),
+        last_message_at:        new Date().toISOString(),
+        last_message_direction: 'outbound',
+        unread_count:           0,
+      }).select('id').single();
+      threadId = (newThread?.id as string) ?? null;
+    } catch (e) {
+      console.error('[runAutoApplyForUser] thread create failed (non-fatal):', e);
+    }
+
     let resendEmailId: string | null = null;
     try {
       const resendResponse = await resend.emails.send({
         from:    `${userName} <${userFromEmail}>`,
         to:      recruiterResult.email,
-        replyTo: userFromEmail,
+        replyTo: threadId ? `reply+${threadId}@getjobvero.com` : userFromEmail,
         subject: `Application for ${title} - ${userName}`,
         html:    bodyToHtml(emailBody),
         headers: { 'X-Jobvero-Source': recruiterResult.source, 'X-Jobvero-Confidence': recruiterResult.confidence },
@@ -502,6 +521,15 @@ export async function runAutoApplyForUser(
       });
       if (resendResponse.error) throw new Error(resendResponse.error.message);
       resendEmailId = resendResponse.data?.id ?? null;
+      if (threadId) {
+        await supabase.from('messages').insert({
+          thread_id:  threadId,
+          direction:  'outbound',
+          from_email: userFromEmail,
+          body:       emailBody,
+          read:       true,
+        }).then(() => null, () => null);
+      }
     } catch (e) {
       console.error('[runAutoApplyForUser] Resend failed:', e);
       await supabase.from('applications').insert({
@@ -530,7 +558,7 @@ export async function runAutoApplyForUser(
       sent_at: new Date().toISOString(),
       recruiter_email: recruiterResult.email, email_source: recruiterResult.source,
       email_confidence: recruiterResult.confidence, resend_email_id: resendEmailId,
-      ats_score: atsScore,
+      ats_score: atsScore, thread_id: threadId,
     }).select('id').single();
 
     if (appRow?.id) {
