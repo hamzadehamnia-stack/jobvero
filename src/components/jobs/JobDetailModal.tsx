@@ -269,15 +269,28 @@ export default function JobDetailModal({
   useEffect(() => {
     setFullDescription(null);
     setDescLoading(true);
-    fetch(`/api/jobs/${job.id}?country=${job.country ?? 'gb'}`)
+    fetch('/api/jobs/full-description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId:        job.id,
+        redirectUrl:  job.url,
+        title:        job.title,
+        company:      job.company,
+        location:     job.location,
+        salary:       job.salary,
+        contractType: job.jobType,
+        sector:       job.category,
+        excerpt:      job.description,
+      }),
+    })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((data: { description?: string; results?: { description?: string }[] }) => {
-        const desc = data.description ?? data.results?.[0]?.description ?? null;
-        if (desc) setFullDescription(desc);
+      .then((data: { description?: string | null }) => {
+        if (data.description) setFullDescription(data.description);
       })
       .catch(() => null)
       .finally(() => setDescLoading(false));
-  }, [job.id, job.country]);
+  }, [job.id]);
 
   useEffect(() => {
     if (activeTab !== 'timeline' || !isTrackerMode) return;
@@ -467,8 +480,13 @@ export default function JobDetailModal({
                 </h3>
                 <div className="mx-6 p-6 rounded-xl bg-gray-800/30 dark:bg-gray-800/50 border border-gray-700/30 dark:border-gray-700/50">
                   {descLoading ? (
-                    <div className="flex justify-center py-6">
-                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                    <div className="space-y-2.5 animate-pulse">
+                      <div className="h-3 bg-gray-700/40 rounded w-full" />
+                      <div className="h-3 bg-gray-700/40 rounded w-5/6" />
+                      <div className="h-3 bg-gray-700/40 rounded w-4/6" />
+                      <div className="h-3 bg-gray-700/40 rounded w-full" />
+                      <div className="h-3 bg-gray-700/40 rounded w-3/4" />
+                      <div className="h-3 bg-gray-700/40 rounded w-5/6" />
                     </div>
                   ) : (
                     <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">

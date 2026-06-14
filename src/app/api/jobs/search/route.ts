@@ -60,13 +60,6 @@ export async function GET(req: Request) {
     }
 
     const data = await res.json();
-    const r0 = data.results?.[0];
-    if (r0) console.log('AZ', JSON.stringify({
-      id: r0.id, adref: r0.adref, keys: Object.keys(r0),
-      dLen: r0.description?.length, desc: r0.description?.slice(0, 80),
-      logo: r0.logo, clogo: r0.company_logo, co: r0.company,
-      redir: r0.redirect_url?.slice(0, 80),
-    }));
     return NextResponse.json(data);
   } catch (err) {
     console.error('[jobs/search]', err);

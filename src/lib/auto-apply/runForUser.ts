@@ -11,6 +11,7 @@ import { renderRecapEmail } from './renderRecapEmail';
 import { emailTranslations } from '@/emails/translations';
 import type { Locale } from '@/emails/translations';
 import { adaptCVForJob } from './adaptCVForJob';
+import { getFullDescription } from '@/lib/jobs/getFullDescription';
 import { htmlToPdfBuffer } from '@/lib/htmlToPdfBuffer';
 import { computeATSScore } from './computeATSScore';
 
@@ -400,6 +401,17 @@ export async function runAutoApplyForUser(
       continue;
     }
 
+    // ── Full description (cache → scrape → AI) ────────────────────────────────
+    const descResult = await getFullDescription({
+      jobId:       job.id,
+      redirectUrl: job.redirect_url,
+      title,
+      company,
+      location,
+      excerpt:     desc,
+    }, supabase).catch(() => null);
+    const richDesc = descResult?.description ?? stripHtml(job.description ?? '').slice(0, 2000);
+
     // ── Premium: tailor CV + generate PDF ────────────────────────────────────
     let tailoredHtml: string | null = null;
     let cvTailored = false;
@@ -410,7 +422,7 @@ export async function runAutoApplyForUser(
             cvContent:      cvRawContent,
             jobTitle:       title,
             company,
-            jobDescription: job.description ?? '',
+            jobDescription: richDesc,
           }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('timeout')), 20_000),
@@ -440,10 +452,9 @@ export async function runAutoApplyForUser(
     // ── Cover letter ──────────────────────────────────────────────────────────
     let coverLetter = '';
     try {
-      const fullDesc = job.description ? stripHtml(job.description).slice(0, 800) : desc;
       const coverLetterUserPrompt = isPremium && cvTailored
-        ? `Write a targeted cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${fullDesc}\nRequirements:\n- Up to 200 words, professional and confident\n- Open by addressing the exact role (${title})\n- Mention 2-3 specific skills or requirements from the job description\n- Reference something specific about ${company} in the closing line\n- End with a clear call to action\nReturn plain text only, no HTML, no markdown.`
-        : `Write a cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${desc}\nKeep under 180 words. Be specific and confident.`;
+        ? `Write a targeted cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${richDesc}\nRequirements:\n- Up to 200 words, professional and confident\n- Open by addressing the exact role (${title})\n- Mention 2-3 specific skills or requirements from the job description\n- Reference something specific about ${company} in the closing line\n- End with a clear call to action\nReturn plain text only, no HTML, no markdown.`
+        : `Write a cover letter for ${userName} applying to ${title} at ${company}.\nCV data: ${cvText || 'not provided'}\nJob description: ${richDesc.slice(0, 800)}\nKeep under 180 words. Be specific and confident.`;
 
       coverLetter = await callOpenRouter(MODEL, [
         { role: 'system', content: 'You are a career coach. Write a concise professional cover letter. Return plain text only, no HTML, no markdown.' },
