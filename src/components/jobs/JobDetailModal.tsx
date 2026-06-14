@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import {
   X, MapPin, Zap,
   PlusCircle, CheckCircle2, Loader2, FileText, ChevronDown,
@@ -9,6 +11,49 @@ import {
 } from 'lucide-react';
 import type { Job } from './types';
 import { createClient } from '@/lib/supabase/client';
+
+// ─── Markdown components (styled for Jobvero dark theme) ──────────────────────
+
+const MD: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-base font-semibold text-violet-300 mt-6 mb-2 pb-1 border-b border-violet-800/40 first:mt-0">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-sm font-semibold text-violet-300 mt-5 mb-2 first:mt-0">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest mt-4 mb-1.5 first:mt-0">
+      {children}
+    </h3>
+  ),
+  p: ({ children }) => (
+    <p className="text-sm text-gray-300 leading-relaxed mb-3 last:mb-0">
+      {children}
+    </p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-gray-100">{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em className="italic text-gray-400">{children}</em>
+  ),
+  ul: ({ children }) => (
+    <ul className="mb-3 space-y-1.5 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-3 space-y-1.5 last:mb-0">{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li className="flex items-start gap-2 text-sm text-gray-300 leading-relaxed">
+      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
+      <span className="flex-1 min-w-0">{children}</span>
+    </li>
+  ),
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -489,9 +534,9 @@ export default function JobDetailModal({
                       <div className="h-3 bg-gray-700/40 rounded w-5/6" />
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                    <ReactMarkdown components={MD}>
                       {fullDescription ?? job.description}
-                    </div>
+                    </ReactMarkdown>
                   )}
                 </div>
               </section>
