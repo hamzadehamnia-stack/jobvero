@@ -133,7 +133,26 @@
       "Bash(grep -n 'Resend\\\\|resend\\\\.emails\\\\|from:\\\\|subject:\\\\|to:\\\\|RESEND_API_KEY\\\\|new Resend' c:/Users/Hamza/Desktop/Jobvero/__TRACKED_VAR__)",
       "Bash(xargs sed -i 's|anthropic/claude-sonnet-4-7|anthropic/claude-sonnet-4.6|g')",
       "mcp__claude_ai_Supabase__list_migrations",
-      "Bash(Remove-Item -Recurse -Force .next)"
+      "Bash(Remove-Item -Recurse -Force .next)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Hamza\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Hamza-Desktop-Jobvero\\\\bd46cf9f-ec54-4a1d-af69-0deaac795ca7\\\\tasks\\\\bpateflj8.output\")",
+      "Bash(Select-Object -Last 20)",
+      "Bash(grep -q \"Compiled successfully\\\\|Error\\\\|Failed\" \"C:\\\\Users\\\\Hamza\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Hamza-Desktop-Jobvero\\\\bd46cf9f-ec54-4a1d-af69-0deaac795ca7\\\\tasks\\\\bpytxr5by.output\")",
+      "Bash(grep -q \"prerendered as static\" \"C:\\\\Users\\\\Hamza\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Hamza-Desktop-Jobvero\\\\bd46cf9f-ec54-4a1d-af69-0deaac795ca7\\\\tasks\\\\bpytxr5by.output\")",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__get_runtime_logs",
+      "mcp__claude_ai_Vercel__web_fetch_vercel_url",
+      "Bash(Start-Sleep -Seconds 15)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Hamza\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Hamza-Desktop-Jobvero\\\\bd46cf9f-ec54-4a1d-af69-0deaac795ca7\\\\tasks\\\\bjq5qkjfp.output\")",
+      "Bash(Select-Object -Last 40)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Hamza\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Hamza-Desktop-Jobvero\\\\bd46cf9f-ec54-4a1d-af69-0deaac795ca7\\\\tasks\\\\bwy0vq7cj.output\")",
+      "Bash(Select-Object -Last 50)",
+      "Bash(grep -E \"\\\\.\\(sql|ts\\)$\")",
+      "Bash(dir C:\\\\Users\\\\Hamza\\\\Desktop\\\\Jobvero\\\\supabase\\\\migrations)",
+      "Bash(git -C \"C:\\\\Users\\\\Hamza\\\\Desktop\\\\Jobvero\" log --oneline --all -- \"src/app/api/inbox/webhook/route.ts\")",
+      "WebFetch(domain:resend.com)",
+      "Bash(curl -s 'https://sxckozkviocnanwiydrh.supabase.co/rest/v1/messages?select=id,direction,from_email,to_email,subject,body,created_at&order=created_at.desc&limit=10' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Content-Type: application/json')",
+      "Bash(curl -s 'https://sxckozkviocnanwiydrh.supabase.co/rest/v1/message_threads?select=id,subject,last_message_at,last_message_direction,status,unread_count,employer_email,job_title,company_name&order=last_message_at.desc&limit=10' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Content-Type: application/json')"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hamza\\Desktop\\Jobvero\\src\\app\\[locale]\\(auth)\\auth"
