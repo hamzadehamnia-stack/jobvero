@@ -193,7 +193,7 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userName, userId
   onSent: (threadId: string) => void;
   userName?: string; userId?: string;
 }) {
-  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}<br>Envoyé via Jobvero`;
+  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}`;
   const [to,         setTo]         = useState('');
   const [subject,    setSubject]    = useState('');
   const [bodyText,   setBodyText]   = useState('');
@@ -604,7 +604,7 @@ function ReplyBox({ thread, onSend, onClose, userName, userId }: {
   thread: Thread; onSend: (html: string) => Promise<void>; onClose: () => void;
   userName?: string; userId?: string;
 }) {
-  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}<br>Envoyé via Jobvero`;
+  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}`;
   const [bodyText,   setBodyText]   = useState('');
   const [fmtState,   setFmtState]   = useState({ bold: false, italic: false, underline: false });
   const [sending,    setSending]    = useState(false);

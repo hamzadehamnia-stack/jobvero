@@ -46,6 +46,7 @@ export async function POST(req: Request) {
         last_message_preview:   preview,
         unread_count:           0,
         last_message_direction: 'outbound',
+        status:                 'sent',
       })
       .select()
       .single();
