@@ -599,11 +599,10 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
 
 // ─── Reply Box ────────────────────────────────────────────────────────────────
 
-function ReplyBox({ thread, onSend, onClose, userName, userId }: {
-  thread: Thread; onSend: (html: string) => Promise<void>; onClose: () => void;
+function ReplyBox({ thread, onSend, onClose, userId }: {
+  thread: Thread; onSend: (html: string, attachmentUrl?: string | null, attachmentName?: string | null) => Promise<void>; onClose: () => void;
   userName?: string; userId?: string;
 }) {
-  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}`;
   const [bodyText,   setBodyText]   = useState('');
   const [fmtState,   setFmtState]   = useState({ bold: false, italic: false, underline: false });
   const [sending,    setSending]    = useState(false);
@@ -615,13 +614,10 @@ function ReplyBox({ thread, onSend, onClose, userName, userId }: {
 
   useEffect(() => {
     if (!bodyRef.current) return;
-    bodyRef.current.innerHTML = sigHtml;
-    setBodyText(bodyRef.current.innerText);
     bodyRef.current.focus();
     const range = document.createRange();
     const sel   = window.getSelection();
     if (sel) { range.setStart(bodyRef.current, 0); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
-    bodyRef.current.scrollTop = 0;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateFmtState = () => setFmtState({
@@ -648,7 +644,9 @@ function ReplyBox({ thread, onSend, onClose, userName, userId }: {
   const handleSend = async () => {
     if (!bodyText.trim() || sending) return;
     setSending(true);
-    let finalBody = bodyRef.current?.innerHTML ?? '';
+    const finalBody = bodyRef.current?.innerHTML ?? '';
+    let attachmentUrl: string | null = null;
+    let attachmentName: string | null = null;
 
     if (attachment && userId) {
       const path = `${userId}/${Date.now()}_${attachment.name}`;
@@ -659,15 +657,16 @@ function ReplyBox({ thread, onSend, onClose, userName, userId }: {
         console.warn('[reply] attachment upload failed:', upErr.message);
       } else if (uploaded) {
         const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
-        finalBody += `<br><br>📎 Pièce jointe : <a href="${urlData.publicUrl}" target="_blank" rel="noopener noreferrer">${attachment.name}</a>`;
+        attachmentUrl  = urlData.publicUrl;
+        attachmentName = attachment.name;
       }
     }
 
-    await onSend(finalBody);
+    await onSend(finalBody, attachmentUrl, attachmentName);
     setSending(false);
     if (bodyRef.current) {
-      bodyRef.current.innerHTML = sigHtml;
-      setBodyText(bodyRef.current.innerText);
+      bodyRef.current.innerHTML = '';
+      setBodyText('');
     }
     setAttachment(null);
   };
@@ -949,13 +948,13 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
   // ── Reply ──────────────────────────────────────────────────────────────────
 
-  const handleReply = useCallback(async (body: string) => {
+  const handleReply = useCallback(async (body: string, attachmentUrl?: string | null, attachmentName?: string | null) => {
     if (!selectedId || sending) return;
     setSending(true);
     try {
       const res = await fetch('/api/inbox/reply', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ threadId: selectedId, body }),
+        body: JSON.stringify({ threadId: selectedId, body, attachmentUrl, attachmentName }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})) as { error?: string }; throw new Error(d.error ?? 'Erreur'); }
       const { message } = await res.json() as { message: MessageRow };

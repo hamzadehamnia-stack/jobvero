@@ -9,7 +9,10 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { threadId, body } = await req.json() as { threadId: string; body: string };
+  const { threadId, body, attachmentUrl, attachmentName } = await req.json() as {
+    threadId: string; body: string;
+    attachmentUrl?: string | null; attachmentName?: string | null;
+  };
   if (!threadId || !body?.trim()) {
     return NextResponse.json({ error: 'threadId and body are required' }, { status: 400 });
   }
@@ -32,7 +35,20 @@ export async function POST(req: Request) {
 
   const userName = profile?.full_name ?? user.email ?? 'Candidat';
   const subject  = `Re: ${thread.subject}`;
-  const safeBody = body.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  let attachments: { filename: string; content: Buffer }[] | undefined;
+  if (attachmentUrl && attachmentName) {
+    try {
+      const fileRes = await fetch(attachmentUrl);
+      if (fileRes.ok) {
+        attachments = [{ filename: attachmentName, content: Buffer.from(await fileRes.arrayBuffer()) }];
+      } else {
+        console.warn('[inbox/reply] attachment fetch failed:', fileRes.status);
+      }
+    } catch (e) {
+      console.error('[inbox/reply] attachment fetch error:', e);
+    }
+  }
 
   // Send via Resend — keep Reply-To wired to same thread
   const { error: sendErr } = await resend.emails.send({
@@ -40,7 +56,8 @@ export async function POST(req: Request) {
     replyTo: `reply+${threadId}@getjobvero.com`,
     to:      [thread.employer_email],
     subject,
-    html:    `<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.7;white-space:pre-line;color:#1a1a2e;">${safeBody}</div>`,
+    html:    `<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.7;color:#1a1a2e;">${body.trim()}</div>`,
+    ...(attachments ? { attachments } : {}),
   });
 
   if (sendErr) {
