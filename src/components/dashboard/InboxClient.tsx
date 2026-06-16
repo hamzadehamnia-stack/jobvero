@@ -188,12 +188,11 @@ const ALLOWED_TYPES = ['application/pdf','application/msword',
   'image/jpeg','image/png'];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-function ComposeModal({ onClose, onMinimize, minimized, onSent, userName, userId }: {
+function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
   onClose: () => void; onMinimize: () => void; minimized: boolean;
   onSent: (threadId: string) => void;
   userName?: string; userId?: string;
 }) {
-  const sigHtml = `<br><br><br>Cordialement,<br>${userName ?? 'Utilisateur'}`;
   const [to,         setTo]         = useState('');
   const [subject,    setSubject]    = useState('');
   const [bodyText,   setBodyText]   = useState('');
@@ -205,16 +204,13 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userName, userId
   const fileRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Initialize content + cursor on mount
+  // Focus the empty editor on mount
   useEffect(() => {
     if (!bodyRef.current) return;
-    bodyRef.current.innerHTML = sigHtml;
-    setBodyText(bodyRef.current.innerText);
     bodyRef.current.focus();
     const range = document.createRange();
     const sel   = window.getSelection();
     if (sel) { range.setStart(bodyRef.current, 0); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
-    bodyRef.current.scrollTop = 0;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-focus on un-minimize without resetting content
@@ -249,7 +245,9 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userName, userId
     if (!canSend || sending) return;
     setSending(true);
     try {
-      let finalBody = bodyRef.current?.innerHTML ?? '';
+      const finalBody = bodyRef.current?.innerHTML ?? '';
+      let attachmentUrl: string | null = null;
+      let attachmentName: string | null = null;
 
       if (attachment && userId) {
         const path = `${userId}/${Date.now()}_${attachment.name}`;
@@ -260,13 +258,14 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userName, userId
           console.warn('[compose] attachment upload failed:', upErr.message);
         } else if (uploaded) {
           const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
-          finalBody += `<br><br>📎 Pièce jointe : <a href="${urlData.publicUrl}" target="_blank" rel="noopener noreferrer">${attachment.name}</a>`;
+          attachmentUrl  = urlData.publicUrl;
+          attachmentName = attachment.name;
         }
       }
 
       const res = await fetch('/api/inbox/compose', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: finalBody }),
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: finalBody, attachmentUrl, attachmentName }),
       });
       const d = await res.json() as { thread_id?: string; error?: string };
       if (!res.ok) throw new Error(d.error ?? 'Envoi échoué');

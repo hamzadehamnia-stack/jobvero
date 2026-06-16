@@ -10,8 +10,9 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { to, subject, body } = await req.json() as {
+    const { to, subject, body, attachmentUrl, attachmentName } = await req.json() as {
       to: string; subject: string; body: string;
+      attachmentUrl?: string | null; attachmentName?: string | null;
     };
 
     if (!to?.trim() || !subject?.trim() || !body?.trim()) {
@@ -72,16 +73,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Failed to save message: ${msgErr.message}` }, { status: 500 });
     }
 
-    const safeBody = body.trim()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    let attachments: { filename: string; content: Buffer }[] | undefined;
+    if (attachmentUrl && attachmentName) {
+      try {
+        const fileRes = await fetch(attachmentUrl);
+        if (fileRes.ok) {
+          attachments = [{ filename: attachmentName, content: Buffer.from(await fileRes.arrayBuffer()) }];
+        } else {
+          console.warn('[compose] attachment fetch failed:', fileRes.status);
+        }
+      } catch (e) {
+        console.error('[compose] attachment fetch error:', e);
+      }
+    }
 
     const { error: sendErr } = await resend.emails.send({
       from:    fromAddress,
       to:      [to.trim()],
       subject: subject.trim(),
-      html:    `<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.7;white-space:pre-line;color:#1a1a2e;">${safeBody}</div>`,
+      html:    `<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.7;color:#1a1a2e;">${body.trim()}</div>`,
+      ...(attachments ? { attachments } : {}),
     });
 
     if (sendErr) {
