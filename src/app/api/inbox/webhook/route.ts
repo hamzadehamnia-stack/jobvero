@@ -62,6 +62,7 @@ function parseUsername(addressStr: string): string {
 async function handleThreadReply(
   threadId: string,
   from: string,
+  to: string,
   body: string,
   preview: string,
 ) {
@@ -80,6 +81,7 @@ async function handleThreadReply(
     thread_id:  threadId,
     direction:  'inbound',
     from_email: from,
+    to_email:   to,
     body,
     read:       false,
   });
@@ -154,6 +156,7 @@ async function handleThreadReply(
 async function handleAliasEmail(
   username: string,
   from: string,
+  to: string,
   subject: string,
   body: string,
   preview: string,
@@ -215,6 +218,7 @@ async function handleAliasEmail(
     thread_id:  threadId,
     direction:  'inbound',
     from_email: from,
+    to_email:   to,
     body,
     read:       false,
   });
@@ -263,7 +267,7 @@ export async function POST(req: Request) {
     const threadMatch = toStr.match(/reply\+([0-9a-f-]{36})@/i);
     if (threadMatch) {
       console.log(`[inbox/webhook] thread reply: ${threadMatch[1]}`);
-      await handleThreadReply(threadMatch[1], from, body, preview);
+      await handleThreadReply(threadMatch[1], from, toStr, body, preview);
       return NextResponse.json({ ok: true });
     }
 
@@ -286,7 +290,7 @@ export async function POST(req: Request) {
       // Legacy fallback: try to find a thread by subject line containing a known thread ID
       const subjectThreadMatch = subject.match(/([0-9a-f-]{36})/i);
       if (subjectThreadMatch) {
-        await handleThreadReply(subjectThreadMatch[1], from, body, preview);
+        await handleThreadReply(subjectThreadMatch[1], from, toStr, body, preview);
       } else {
         console.warn('[inbox/webhook] apply@ address with no thread ID in subject — dropping');
       }
@@ -294,7 +298,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Route by email_alias
-    await handleAliasEmail(username, from, subject, body, preview);
+    await handleAliasEmail(username, from, toStr, subject, body, preview);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

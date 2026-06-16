@@ -526,6 +526,7 @@ export async function runAutoApplyForUser(
           thread_id:  threadId,
           direction:  'outbound',
           from_email: userFromEmail,
+          to_email:   recruiterResult.email,
           body:       emailBody,
           read:       true,
         }).then(() => null, () => null);
