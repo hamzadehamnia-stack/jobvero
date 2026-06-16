@@ -40,15 +40,16 @@ interface Thread {
 }
 
 interface MessageRow {
-  id:         string;
-  thread_id:  string;
-  direction:  'inbound' | 'outbound';
-  from_email: string;
-  to_email?:  string;
-  subject?:   string;
-  body:       string;
-  read:       boolean;
-  created_at: string;
+  id:          string;
+  thread_id:   string;
+  direction:   'inbound' | 'outbound';
+  from_email:  string;
+  to_email?:   string;
+  subject?:    string;
+  body:        string;
+  read:        boolean;
+  created_at:  string;
+  attachments?: { url: string; name: string }[] | null;
 }
 
 interface ToastData { message: string; undoFn?: () => void; }
@@ -590,6 +591,17 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
             <p className="text-[15px] leading-[1.65] text-gray-800 dark:text-gray-200 whitespace-pre-line">
               {message.body}
             </p>
+          )}
+          {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {message.attachments.map((att, i) => (
+                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[13px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 transition-colors">
+                  <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
+                  <span className="truncate max-w-[240px]">{att.name}</span>
+                </a>
+              ))}
+            </div>
           )}
           <div className="mt-6 flex items-center gap-3">
             <button onClick={onReply}

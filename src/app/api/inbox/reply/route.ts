@@ -69,13 +69,14 @@ export async function POST(req: Request) {
   const { data: message, error: msgErr } = await supabase
     .from('messages')
     .insert({
-      thread_id:  threadId,
-      direction:  'outbound',
-      from_email: 'apply@getjobvero.com',
-      to_email:   thread.employer_email,
+      thread_id:   threadId,
+      direction:   'outbound',
+      from_email:  'apply@getjobvero.com',
+      to_email:    thread.employer_email,
       subject,
-      body:       body.trim(),
-      read:       true,
+      body:        body.trim(),
+      read:        true,
+      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName }] : null,
     })
     .select()
     .single();

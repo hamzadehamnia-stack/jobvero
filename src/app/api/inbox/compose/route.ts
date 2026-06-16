@@ -59,13 +59,14 @@ export async function POST(req: Request) {
 
     // Insert outbound message
     const { error: msgErr } = await supabase.from('messages').insert({
-      thread_id:  thread.id,
-      direction:  'outbound',
-      from_email: fromEmail,
-      to_email:   to.trim(),
-      subject:    subject.trim(),
-      body:       body.trim(),
-      read:       true,
+      thread_id:   thread.id,
+      direction:   'outbound',
+      from_email:  fromEmail,
+      to_email:    to.trim(),
+      subject:     subject.trim(),
+      body:        body.trim(),
+      read:        true,
+      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName }] : null,
     });
 
     if (msgErr) {
