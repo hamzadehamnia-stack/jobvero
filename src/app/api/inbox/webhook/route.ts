@@ -9,6 +9,8 @@ const admin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
+const WEBHOOK_SECRET = process.env.INBOX_WEBHOOK_SECRET;
+
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
@@ -236,19 +238,24 @@ async function handleAliasEmail(
 }
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
+// Receives forwarded inbound emails from the Cloudflare Email Worker
+// (see cloudflare-email-worker/). Payload: { from, to, subject, text, html, messageId }
 
 export async function POST(req: Request) {
+  const secret = req.headers.get('x-webhook-secret');
+  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const raw     = await req.json() as Record<string, unknown>;
-    const payload = (raw.data ?? raw) as Record<string, unknown>;
+    const payload = await req.json() as {
+      from?: string; to?: string; subject?: string; text?: string; html?: string;
+    };
 
-    const toRaw = payload.to;
-    const toStr = Array.isArray(toRaw) ? (toRaw[0] as string) : (toRaw as string ?? '');
-
-    const from    = (payload.from as string) ?? '';
-    const subject = (payload.subject as string) ?? '';
-    const rawBody = (payload.text as string)
-      || (payload.html ? stripHtml(payload.html as string) : '');
+    const toStr   = payload.to ?? '';
+    const from    = payload.from ?? '';
+    const subject = payload.subject ?? '';
+    const rawBody = payload.text || (payload.html ? stripHtml(payload.html) : '');
     const body    = rawBody.trim() || '(message vide)';
     const preview = body.slice(0, 120);
 
@@ -292,6 +299,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[inbox/webhook] error:', err);
-    return NextResponse.json({ ok: true }); // always 200 to Resend
+    return NextResponse.json({ ok: true }); // always 200 so the Worker doesn't bounce the email on a processing error
   }
 }

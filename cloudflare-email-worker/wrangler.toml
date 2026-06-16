@@ -1,0 +1,7 @@
+name = "jobvero-email-worker"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# INBOX_WEBHOOK_SECRET is a secret, not a var — set it with:
+#   npx wrangler secret put INBOX_WEBHOOK_SECRET
+# Do not add it to [vars] here (would be committed in plaintext).
