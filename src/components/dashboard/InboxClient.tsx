@@ -11,6 +11,7 @@ import {
   MailOpen, X, Minimize2, Maximize2, Pencil, Paperclip,
   Bold, Italic, Underline, Loader2, Reply, ChevronDown, Plus,
   Check, Bell, HelpCircle, Filter, Forward, Mail, AlertTriangle, RotateCcw,
+  Download,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ interface MessageRow {
   body:        string;
   read:        boolean;
   created_at:  string;
-  attachments?: { url: string; name: string }[] | null;
+  attachments?: { url: string; name: string; size?: number | null }[] | null;
 }
 
 interface ToastData { message: string; undoFn?: () => void; }
@@ -189,7 +190,7 @@ const ALLOWED_TYPES = ['application/pdf','application/msword',
   'image/jpeg','image/png'];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-async function uploadAttachment(file: File, userId: string): Promise<{ url: string; name: string }> {
+async function uploadAttachment(file: File, userId: string): Promise<{ url: string; name: string; size: number }> {
   const path = `${userId}/${Date.now()}_${file.name}`;
   const { data: uploaded, error: upErr } = await createClient()
     .storage.from('attachments')
@@ -198,7 +199,13 @@ async function uploadAttachment(file: File, userId: string): Promise<{ url: stri
     throw new Error(upErr?.message ?? 'upload failed');
   }
   const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
-  return { url: urlData.publicUrl, name: file.name };
+  return { url: urlData.publicUrl, name: file.name, size: file.size };
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} octets`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
@@ -262,12 +269,14 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
       const finalBody = bodyRef.current?.innerHTML ?? '';
       let attachmentUrl: string | null = null;
       let attachmentName: string | null = null;
+      let attachmentSize: number | null = null;
 
       if (attachment && userId) {
         try {
           const uploaded = await uploadAttachment(attachment, userId);
           attachmentUrl  = uploaded.url;
           attachmentName = uploaded.name;
+          attachmentSize = uploaded.size;
         } catch {
           setAttachErr("Échec de l'envoi de la pièce jointe — message non envoyé");
           return;
@@ -276,7 +285,7 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
 
       const res = await fetch('/api/inbox/compose', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: finalBody, attachmentUrl, attachmentName }),
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: finalBody, attachmentUrl, attachmentName, attachmentSize }),
       });
       const d = await res.json() as { thread_id?: string; error?: string };
       if (!res.ok) throw new Error(d.error ?? 'Envoi échoué');
@@ -593,13 +602,24 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
             </p>
           )}
           {Array.isArray(message.attachments) && message.attachments.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-3">
               {message.attachments.map((att, i) => (
-                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[13px] text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 transition-colors">
-                  <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
-                  <span className="truncate max-w-[240px]">{att.name}</span>
-                </a>
+                <div key={i}
+                  className="group flex items-center gap-3 w-[260px] border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-800/60 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-colors">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex-shrink-0">
+                    <FileText size={18} className="text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-gray-800 dark:text-gray-200 truncate">{att.name}</div>
+                    {att.size != null && (
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">{formatFileSize(att.size)}</div>
+                    )}
+                  </a>
+                  <a href={att.url} download={att.name} target="_blank" rel="noopener noreferrer" title="Télécharger"
+                    className="flex-shrink-0 p-1.5 rounded-full text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors">
+                    <Download size={15} />
+                  </a>
+                </div>
               ))}
             </div>
           )}
@@ -622,7 +642,7 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
 // ─── Reply Box ────────────────────────────────────────────────────────────────
 
 function ReplyBox({ thread, onSend, onClose, userId }: {
-  thread: Thread; onSend: (html: string, attachmentUrl?: string | null, attachmentName?: string | null) => Promise<void>; onClose: () => void;
+  thread: Thread; onSend: (html: string, attachmentUrl?: string | null, attachmentName?: string | null, attachmentSize?: number | null) => Promise<void>; onClose: () => void;
   userName?: string; userId?: string;
 }) {
   const [bodyText,   setBodyText]   = useState('');
@@ -671,19 +691,21 @@ function ReplyBox({ thread, onSend, onClose, userId }: {
       const finalBody = bodyRef.current?.innerHTML ?? '';
       let attachmentUrl: string | null = null;
       let attachmentName: string | null = null;
+      let attachmentSize: number | null = null;
 
       if (attachment && userId) {
         try {
           const uploaded = await uploadAttachment(attachment, userId);
           attachmentUrl  = uploaded.url;
           attachmentName = uploaded.name;
+          attachmentSize = uploaded.size;
         } catch {
           setAttachErr("Échec de l'envoi de la pièce jointe — message non envoyé");
           return;
         }
       }
 
-      await onSend(finalBody, attachmentUrl, attachmentName);
+      await onSend(finalBody, attachmentUrl, attachmentName, attachmentSize);
       if (bodyRef.current) {
         bodyRef.current.innerHTML = '';
         setBodyText('');
@@ -835,7 +857,8 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
   const selectedIdRef  = useRef<string | null>(null);
   const threadsRef     = useRef<Thread[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const threadListRef  = useRef<HTMLDivElement>(null);
+  const convoBodyRef   = useRef<HTMLDivElement>(null);
 
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
   useEffect(() => { threadsRef.current    = threads;    }, [threads]);
@@ -865,7 +888,9 @@ export default function InboxClient({ emailAlias, userName, userId }: {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  // Open conversations (and the thread list on folder change) scrolled to the top — like a normal email client
+  useEffect(() => { convoBodyRef.current?.scrollTo({ top: 0 }); }, [selectedId]);
+  useEffect(() => { threadListRef.current?.scrollTo({ top: 0 }); }, [folder]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -971,13 +996,13 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
   // ── Reply ──────────────────────────────────────────────────────────────────
 
-  const handleReply = useCallback(async (body: string, attachmentUrl?: string | null, attachmentName?: string | null) => {
+  const handleReply = useCallback(async (body: string, attachmentUrl?: string | null, attachmentName?: string | null, attachmentSize?: number | null) => {
     if (!selectedId || sending) return;
     setSending(true);
     try {
       const res = await fetch('/api/inbox/reply', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ threadId: selectedId, body, attachmentUrl, attachmentName }),
+        body: JSON.stringify({ threadId: selectedId, body, attachmentUrl, attachmentName, attachmentSize }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})) as { error?: string }; throw new Error(d.error ?? 'Erreur'); }
       const { message } = await res.json() as { message: MessageRow };
@@ -1235,7 +1260,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
           )}
 
           {/* Thread rows */}
-          <div className="flex-1 overflow-y-auto">
+          <div ref={threadListRef} className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex flex-col items-center justify-center h-40 gap-3">
                 <Loader2 size={22} className="animate-spin text-[#7c3aed]" />
@@ -1307,7 +1332,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
             </div>
 
             {/* Conversation body */}
-            <div className="flex-1 overflow-y-auto bg-[#f6f8fc] dark:bg-gray-950">
+            <div ref={convoBodyRef} className="flex-1 overflow-y-auto bg-[#f6f8fc] dark:bg-gray-950">
               <div className="max-w-[860px] mx-auto px-6 py-6">
 
                 {/* Subject + meta */}
@@ -1343,7 +1368,6 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                         }
                       />
                     ))}
-                    <div ref={messagesEndRef} />
                   </div>
                 )}
 

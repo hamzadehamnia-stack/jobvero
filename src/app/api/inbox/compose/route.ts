@@ -10,9 +10,9 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { to, subject, body, attachmentUrl, attachmentName } = await req.json() as {
+    const { to, subject, body, attachmentUrl, attachmentName, attachmentSize } = await req.json() as {
       to: string; subject: string; body: string;
-      attachmentUrl?: string | null; attachmentName?: string | null;
+      attachmentUrl?: string | null; attachmentName?: string | null; attachmentSize?: number | null;
     };
 
     if (!to?.trim() || !subject?.trim() || !body?.trim()) {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       subject:     subject.trim(),
       body:        body.trim(),
       read:        true,
-      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName }] : null,
+      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName, size: attachmentSize ?? null }] : null,
     });
 
     if (msgErr) {

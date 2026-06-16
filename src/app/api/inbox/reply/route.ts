@@ -9,9 +9,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { threadId, body, attachmentUrl, attachmentName } = await req.json() as {
+  const { threadId, body, attachmentUrl, attachmentName, attachmentSize } = await req.json() as {
     threadId: string; body: string;
-    attachmentUrl?: string | null; attachmentName?: string | null;
+    attachmentUrl?: string | null; attachmentName?: string | null; attachmentSize?: number | null;
   };
   if (!threadId || !body?.trim()) {
     return NextResponse.json({ error: 'threadId and body are required' }, { status: 400 });
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       subject,
       body:        body.trim(),
       read:        true,
-      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName }] : null,
+      attachments: attachmentUrl && attachmentName ? [{ url: attachmentUrl, name: attachmentName, size: attachmentSize ?? null }] : null,
     })
     .select()
     .single();
