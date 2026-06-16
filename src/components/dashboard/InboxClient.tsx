@@ -188,6 +188,18 @@ const ALLOWED_TYPES = ['application/pdf','application/msword',
   'image/jpeg','image/png'];
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+async function uploadAttachment(file: File, userId: string): Promise<{ url: string; name: string }> {
+  const path = `${userId}/${Date.now()}_${file.name}`;
+  const { data: uploaded, error: upErr } = await createClient()
+    .storage.from('attachments')
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr || !uploaded) {
+    throw new Error(upErr?.message ?? 'upload failed');
+  }
+  const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
+  return { url: urlData.publicUrl, name: file.name };
+}
+
 function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
   onClose: () => void; onMinimize: () => void; minimized: boolean;
   onSent: (threadId: string) => void;
@@ -243,6 +255,7 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
 
   const handleSend = async () => {
     if (!canSend || sending) return;
+    setAttachErr('');
     setSending(true);
     try {
       const finalBody = bodyRef.current?.innerHTML ?? '';
@@ -250,16 +263,13 @@ function ComposeModal({ onClose, onMinimize, minimized, onSent, userId }: {
       let attachmentName: string | null = null;
 
       if (attachment && userId) {
-        const path = `${userId}/${Date.now()}_${attachment.name}`;
-        const { data: uploaded, error: upErr } = await createClient()
-          .storage.from('attachments')
-          .upload(path, attachment, { contentType: attachment.type, upsert: false });
-        if (upErr) {
-          console.warn('[compose] attachment upload failed:', upErr.message);
-        } else if (uploaded) {
-          const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
-          attachmentUrl  = urlData.publicUrl;
-          attachmentName = attachment.name;
+        try {
+          const uploaded = await uploadAttachment(attachment, userId);
+          attachmentUrl  = uploaded.url;
+          attachmentName = uploaded.name;
+        } catch {
+          setAttachErr("Échec de l'envoi de la pièce jointe — message non envoyé");
+          return;
         }
       }
 
@@ -643,32 +653,33 @@ function ReplyBox({ thread, onSend, onClose, userId }: {
 
   const handleSend = async () => {
     if (!bodyText.trim() || sending) return;
+    setAttachErr('');
     setSending(true);
-    const finalBody = bodyRef.current?.innerHTML ?? '';
-    let attachmentUrl: string | null = null;
-    let attachmentName: string | null = null;
+    try {
+      const finalBody = bodyRef.current?.innerHTML ?? '';
+      let attachmentUrl: string | null = null;
+      let attachmentName: string | null = null;
 
-    if (attachment && userId) {
-      const path = `${userId}/${Date.now()}_${attachment.name}`;
-      const { data: uploaded, error: upErr } = await createClient()
-        .storage.from('attachments')
-        .upload(path, attachment, { contentType: attachment.type, upsert: false });
-      if (upErr) {
-        console.warn('[reply] attachment upload failed:', upErr.message);
-      } else if (uploaded) {
-        const { data: urlData } = createClient().storage.from('attachments').getPublicUrl(uploaded.path);
-        attachmentUrl  = urlData.publicUrl;
-        attachmentName = attachment.name;
+      if (attachment && userId) {
+        try {
+          const uploaded = await uploadAttachment(attachment, userId);
+          attachmentUrl  = uploaded.url;
+          attachmentName = uploaded.name;
+        } catch {
+          setAttachErr("Échec de l'envoi de la pièce jointe — message non envoyé");
+          return;
+        }
       }
-    }
 
-    await onSend(finalBody, attachmentUrl, attachmentName);
-    setSending(false);
-    if (bodyRef.current) {
-      bodyRef.current.innerHTML = '';
-      setBodyText('');
+      await onSend(finalBody, attachmentUrl, attachmentName);
+      if (bodyRef.current) {
+        bodyRef.current.innerHTML = '';
+        setBodyText('');
+      }
+      setAttachment(null);
+    } finally {
+      setSending(false);
     }
-    setAttachment(null);
   };
 
   const FMT_BTNS: { cmd: 'bold' | 'italic' | 'underline'; Icon: typeof Bold; key: keyof typeof fmtState; label: string }[] = [
