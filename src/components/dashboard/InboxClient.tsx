@@ -11,7 +11,7 @@ import {
   MailOpen, X, Minimize2, Maximize2, Pencil, Paperclip,
   Bold, Italic, Underline, Loader2, Reply, ChevronDown, Plus,
   Check, Bell, HelpCircle, Filter, Forward, Mail, AlertTriangle, RotateCcw,
-  Download,
+  Download, Zap,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,6 +38,19 @@ interface Thread {
   status:                 string;
   original_folder:        string;
   last_message_direction: string;
+  // AI enrichment fields (populated by webhook after inbound email)
+  ai_category:        string | null;
+  ai_summary:         string | null;
+  ai_label:           string | null;
+  ai_confidence:      number | null;
+  ai_draft:           string | null;
+  ai_chips:           { l: string; d: string }[] | null;
+  ai_detected_event:  { title: string; date: string; time: string | null } | null;
+  source:             'auto' | 'manual' | null;
+  source_date:        string | null;
+  auto_status_updated: boolean;
+  follow_up_config:   { days: number; ctx: string; suggested: string } | null;
+  ai_processed_at:    string | null;
 }
 
 interface MessageRow {
@@ -53,7 +66,8 @@ interface MessageRow {
   attachments?: { url: string; name: string; size?: number | null }[] | null;
 }
 
-interface ToastData { message: string; undoFn?: () => void; }
+interface ToastData  { message: string; undoFn?: () => void; }
+interface LinkedApp  { id: string; status: string; application_type: string; created_at: string; }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -79,6 +93,16 @@ const LABEL_CONFIG: Record<LabelId, { label: string; bg: string; text: string }>
   offer:     { label: 'Offre',     bg: 'bg-violet-100 dark:bg-violet-900/30',   text: 'text-violet-700 dark:text-violet-300'   },
   applied:   { label: 'Postulé',   bg: 'bg-blue-100 dark:bg-blue-900/30',       text: 'text-blue-700 dark:text-blue-300'       },
   rejected:  { label: 'Refusé',    bg: 'bg-red-100 dark:bg-red-900/30',         text: 'text-red-700 dark:text-red-300'         },
+};
+
+const AI_CATEGORY_CONFIG: Record<string, { label: string; color: string; urgent?: boolean }> = {
+  interviews: { label: 'Entretiens',    color: '#4ade80' },
+  offers:     { label: 'Offres reçues', color: '#a5b4fc' },
+  tests:      { label: 'Tests & Évals', color: '#60a5fa' },
+  ghosting:   { label: 'Ghosting',      color: '#f97316', urgent: true },
+  followup:   { label: 'Relances dues', color: '#fb923c', urgent: true },
+  rejected:   { label: 'Refus',         color: '#fca5a5' },
+  accepted:   { label: 'Acceptées',     color: '#86efac' },
 };
 
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
@@ -482,6 +506,16 @@ function ThreadRow({ thread, selected, checked, search, narrow, inTrash, onSelec
               — <Highlight text={thread.last_message_preview.slice(0, 80)} query={search} />
             </span>
           )}
+          {thread.ai_label && (
+            <span className="flex-shrink-0 hidden xl:block text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-100/80 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 max-w-[90px] truncate">
+              {thread.ai_label}
+            </span>
+          )}
+          {thread.source === 'auto' && (
+            <span className="flex-shrink-0 hidden xl:block text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-600 text-white tracking-wider">
+              AUTO
+            </span>
+          )}
         </div>
       )}
 
@@ -641,9 +675,9 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
 
 // ─── Reply Box ────────────────────────────────────────────────────────────────
 
-function ReplyBox({ thread, onSend, onClose, userId }: {
+function ReplyBox({ thread, onSend, onClose, userId, aiDraft }: {
   thread: Thread; onSend: (html: string, attachmentUrl?: string | null, attachmentName?: string | null, attachmentSize?: number | null) => Promise<void>; onClose: () => void;
-  userName?: string; userId?: string;
+  userName?: string; userId?: string; aiDraft?: string;
 }) {
   const [bodyText,   setBodyText]   = useState('');
   const [fmtState,   setFmtState]   = useState({ bold: false, italic: false, underline: false });
@@ -661,6 +695,13 @@ function ReplyBox({ thread, onSend, onClose, userId }: {
     const sel   = window.getSelection();
     if (sel) { range.setStart(bodyRef.current, 0); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!aiDraft || !bodyRef.current) return;
+    bodyRef.current.innerHTML = aiDraft;
+    setBodyText(aiDraft);
+    bodyRef.current.focus();
+  }, [aiDraft]);
 
   const updateFmtState = () => setFmtState({
     bold:      document.queryCommandState('bold'),
@@ -733,6 +774,11 @@ function ReplyBox({ thread, onSend, onClose, userId }: {
         </button>
       </div>
       <div className="px-6 py-4">
+        {aiDraft && (
+          <div className="flex items-center gap-1.5 mb-2 text-[11px] text-indigo-400 dark:text-indigo-500">
+            <Zap size={11} /> Généré par Claude · Modifiable
+          </div>
+        )}
         {/* Rich text editor */}
         <div
           ref={bodyRef}
@@ -854,6 +900,9 @@ export default function InboxClient({ emailAlias, userName, userId }: {
   const [toast,           setToast]           = useState<ToastData | null>(null);
   const [showConvo,       setShowConvo]       = useState(false);
   const [refreshing,      setRefreshing]      = useState(false);
+  const [aiFilter,        setAiFilter]        = useState<string | null>(null);
+  const [linkedApp,       setLinkedApp]       = useState<LinkedApp | null>(null);
+  const [aiReplyDraft,    setAiReplyDraft]    = useState('');
 
   const selectedIdRef  = useRef<string | null>(null);
   const threadsRef     = useRef<Thread[]>([]);
@@ -891,6 +940,17 @@ export default function InboxClient({ emailAlias, userName, userId }: {
   // Open conversations (and the thread list on folder change) scrolled to the top — like a normal email client
   useEffect(() => { convoBodyRef.current?.scrollTo({ top: 0 }); }, [selectedId]);
   useEffect(() => { threadListRef.current?.scrollTo({ top: 0 }); }, [folder]);
+
+  // Fetch linked application when a thread is opened
+  useEffect(() => {
+    if (!selectedId) { setLinkedApp(null); return; }
+    createClient()
+      .from('applications')
+      .select('id, status, application_type, created_at')
+      .eq('thread_id', selectedId)
+      .maybeSingle()
+      .then(({ data }) => setLinkedApp(data as LinkedApp | null));
+  }, [selectedId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -933,6 +993,9 @@ export default function InboxClient({ emailAlias, userName, userId }: {
         default:         return true;
       }
     });
+    if (aiFilter) {
+      list = list.filter(t => t.ai_category === aiFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(t =>
@@ -941,7 +1004,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
       );
     }
     return list.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
-  }, [threads, folder, search]);
+  }, [threads, folder, search, aiFilter]);
 
   const selectedThread = useMemo(() => threads.find(t => t.id === selectedId) ?? null, [threads, selectedId]);
   const totalUnread    = useMemo(() => threads.filter(t => t.status === 'inbox').reduce((s, t) => s + t.unread_count, 0), [threads]);
@@ -1157,6 +1220,35 @@ export default function InboxClient({ emailAlias, userName, userId }: {
           <button className="flex items-center gap-2 pl-6 mt-1 mb-3 text-[13px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors py-1">
             <Plus size={15} /> Nouveau libellé
           </button>
+
+          <div className="mx-4 my-2 border-t border-gray-200/80 dark:border-gray-700/60" />
+
+          {/* Smart Inbox */}
+          <div className="px-6 pb-1">
+            <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Smart Inbox</p>
+          </div>
+          {Object.entries(AI_CATEGORY_CONFIG).map(([catId, cfg]) => {
+            const count  = threads.filter(t => t.ai_category === catId).length;
+            if (count === 0) return null;
+            const active = aiFilter === catId;
+            return (
+              <button key={catId}
+                onClick={() => setAiFilter(active ? null : catId)}
+                className={`w-full flex items-center gap-3 pl-6 pr-4 h-[34px] rounded-r-full text-[14px] font-medium transition-all mb-0.5
+                  ${active
+                    ? 'bg-[#d3e3fd] dark:bg-violet-800/40 text-[#041e49] dark:text-violet-200 font-semibold'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-gray-800'
+                  }`}>
+                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
+                <span className="flex-1 text-left truncate">{cfg.label}</span>
+                {cfg.urgent && (
+                  <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 uppercase tracking-wide mr-1">!</span>
+                )}
+                <span className="text-[11px] font-bold ml-1 text-gray-500 dark:text-gray-400">{count > 99 ? '99+' : count}</span>
+              </button>
+            );
+          })}
+          <div className="pb-3" />
         </aside>
 
         {/* ════ THREAD LIST ════════════════════════════════════════════════════
@@ -1322,6 +1414,14 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                   <Icon size={18} />
                 </button>
               ))}
+              {selectedThread.ai_draft && (
+                <button
+                  onClick={() => { setAiReplyDraft(selectedThread.ai_draft ?? ''); setReplyOpen(true); }}
+                  className="flex items-center gap-1.5 ml-2 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 0 12px rgba(124,58,237,0.35)' }}>
+                  <Zap size={13} /> Instant Reply IA
+                </button>
+              )}
               <div className="flex items-center gap-1 ml-auto text-[12px] text-gray-400 dark:text-gray-500">
                 <span className="hidden sm:block">{filtered.findIndex(t => t.id === selectedId) + 1} / {filtered.length}</span>
                 <button onClick={() => { const i = filtered.findIndex(t => t.id === selectedId); if (i > 0) handleSelectThread(filtered[i - 1].id); }}
@@ -1351,6 +1451,96 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                   </div>
                 </div>
 
+                {/* AI Summary Card */}
+                {selectedThread.ai_summary && (
+                  <div className="mb-6 rounded-2xl border border-indigo-200/70 dark:border-indigo-700/40 bg-indigo-50/60 dark:bg-indigo-950/20 overflow-hidden">
+                    <div className="px-5 py-4">
+                      <p className="text-[9px] font-bold tracking-widest uppercase text-indigo-500 dark:text-indigo-400 mb-2">
+                        Résumé IA · Claude Sonnet 4.6
+                      </p>
+                      <p className="text-[13px] text-gray-800 dark:text-indigo-200 leading-relaxed mb-3">
+                        {selectedThread.ai_summary}
+                      </p>
+                      {selectedThread.ai_detected_event && (
+                        <div className="flex items-center gap-2 flex-wrap mb-3">
+                          <span className="flex items-center gap-1.5 text-[12px] font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-full">
+                            📅 {selectedThread.ai_detected_event.title} · {selectedThread.ai_detected_event.date}
+                            {selectedThread.ai_detected_event.time && ` · ${selectedThread.ai_detected_event.time}`}
+                          </span>
+                          <button className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                            + Ajouter au calendrier
+                          </button>
+                        </div>
+                      )}
+                      {selectedThread.ai_chips && selectedThread.ai_chips.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedThread.ai_chips.map((chip, i) => (
+                            <button key={i}
+                              onClick={() => { setAiReplyDraft(chip.d); setReplyOpen(true); }}
+                              className="text-[12px] font-medium px-3 py-1.5 rounded-full bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors max-w-[200px] truncate">
+                              {chip.l}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Candidature Card */}
+                {linkedApp && (
+                  <div className="mb-6 rounded-2xl border border-gray-200/80 dark:border-gray-700/60 bg-white dark:bg-gray-900 shadow-[0_1px_4px_rgba(0,0,0,.06)] overflow-hidden">
+                    <div className="px-5 py-4">
+                      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <span className="text-[12px] font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                          {selectedThread.source === 'auto'
+                            ? `🤖 Postule Auto${selectedThread.source_date ? ` · ${smartDate(selectedThread.source_date)}` : ''}`
+                            : selectedThread.source === 'manual'
+                              ? `✍ Manuel${selectedThread.source_date ? ` · ${smartDate(selectedThread.source_date)}` : ''}`
+                              : "📬 Inbound · tu n'as pas postulé"}
+                        </span>
+                        {selectedThread.auto_status_updated && (
+                          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Check size={12} /> Statut mis à jour automatiquement
+                          </span>
+                        )}
+                      </div>
+                      {(() => {
+                        const stages     = ['Envoyée', 'Vue', 'Réponse', 'Entretien', 'Offre', 'Embauché'];
+                        const stageMap: Record<string, number> = {
+                          applied: 1, delivered: 1, interview: 3, offer: 4, accepted: 5,
+                        };
+                        const current = stageMap[linkedApp.status] ?? 0;
+                        return (
+                          <div className="mb-3">
+                            <div className="flex items-center gap-0.5 mb-2">
+                              {stages.map((s, i) => (
+                                <div key={s} className="flex-1 relative">
+                                  <div className={`h-1.5 rounded-full ${i <= current ? 'bg-violet-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                                  {i === current && (
+                                    <div className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-violet-600 ring-2 ring-violet-200 dark:ring-violet-900" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              {stages.map((s, i) => (
+                                <div key={s} className={`flex-1 text-[9px] text-center ${i <= current ? 'text-violet-600 dark:text-violet-400 font-semibold' : 'text-gray-400 dark:text-gray-600'}`}>
+                                  {s}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <a href="/dashboard/tracker"
+                        className="text-[12px] text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 font-medium transition-colors">
+                        Voir dans le Tracker →
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 {/* Messages */}
                 {loadingMessages ? (
                   <div className="flex flex-col items-center justify-center h-40 gap-3">
@@ -1371,10 +1561,30 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                   </div>
                 )}
 
+                {/* Follow-up Banner */}
+                {selectedThread.follow_up_config && (
+                  <div className="mb-4 flex items-center gap-3 px-5 py-3 rounded-2xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40 flex-wrap">
+                    <AlertTriangle size={16} className="text-orange-500 flex-shrink-0" />
+                    <span className="text-[13px] text-orange-800 dark:text-orange-300 flex-1 min-w-0">
+                      {selectedThread.follow_up_config.days} jours sans réponse — relance recommandée
+                    </span>
+                    <button
+                      onClick={() => { setAiReplyDraft(selectedThread.ai_draft ?? ''); setReplyOpen(true); }}
+                      className="flex-shrink-0 text-[12px] font-medium px-3 py-1.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">
+                      Relancer
+                    </button>
+                    {selectedThread.follow_up_config.suggested && (
+                      <button className="flex-shrink-0 text-[12px] font-medium px-3 py-1.5 rounded-full border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-colors">
+                        📅 {selectedThread.follow_up_config.suggested}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Reply area */}
                 <div className="mt-6">
                   {replyOpen ? (
-                    <ReplyBox thread={selectedThread} onSend={handleReply} onClose={() => setReplyOpen(false)} userName={userName} userId={userId} />
+                    <ReplyBox thread={selectedThread} onSend={handleReply} onClose={() => { setReplyOpen(false); setAiReplyDraft(''); }} userName={userName} userId={userId} aiDraft={aiReplyDraft} />
                   ) : (
                     !loadingMessages && messages.length > 0 && (
                       <div className="flex items-center gap-3 pb-4">
