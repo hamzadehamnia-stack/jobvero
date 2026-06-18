@@ -13,6 +13,7 @@ import {
   Check, Bell, HelpCircle, Filter, Forward, Mail, AlertTriangle, RotateCcw,
   Download, Zap,
 } from 'lucide-react';
+import InsightsView from './InsightsView';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -903,6 +904,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
   const [aiFilter,        setAiFilter]        = useState<string | null>(null);
   const [linkedApp,       setLinkedApp]       = useState<LinkedApp | null>(null);
   const [aiReplyDraft,    setAiReplyDraft]    = useState('');
+  const [activeView,      setActiveView]      = useState<'inbox' | 'insights'>('inbox');
 
   const selectedIdRef  = useRef<string | null>(null);
   const threadsRef     = useRef<Thread[]>([]);
@@ -1168,6 +1170,22 @@ export default function InboxClient({ emailAlias, userName, userId }: {
         {/* ════ LEFT SIDEBAR (240px, desktop only) ════════════════════════════ */}
         <aside className="hidden lg:flex w-[240px] flex-shrink-0 flex-col overflow-y-auto py-2 bg-[#f6f8fc] dark:bg-gray-950">
 
+          {/* View toggle */}
+          <div className="px-3 mb-2 flex gap-1">
+            <button
+              onClick={() => setActiveView('inbox')}
+              className={`flex-1 py-1.5 rounded-xl text-[12px] font-medium transition-all ${activeView === 'inbox' ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+            >
+              ✉ Inbox
+            </button>
+            <button
+              onClick={() => setActiveView('insights')}
+              className={`flex-1 py-1.5 rounded-xl text-[12px] font-medium transition-all ${activeView === 'insights' ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+            >
+              📊 Insights
+            </button>
+          </div>
+
           {/* Compose */}
           <div className="px-3 mb-3">
             <button
@@ -1250,6 +1268,14 @@ export default function InboxClient({ emailAlias, userName, userId }: {
           })}
           <div className="pb-3" />
         </aside>
+
+        {activeView === 'insights' ? (
+          <InsightsView
+            threads={threads}
+            userId={userId ?? ''}
+            onSelectThread={(threadId: string) => { setActiveView('inbox'); handleSelectThread(threadId); }}
+          />
+        ) : (<>
 
         {/* ════ THREAD LIST ════════════════════════════════════════════════════
              Always rendered.
@@ -1609,6 +1635,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
             <NoThreadSelected />
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── Toast ────────────────────────────────────────────────────────────── */}
