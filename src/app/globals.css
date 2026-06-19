@@ -72,6 +72,12 @@
   .animate-marquee { animation: none; }
 }
 
+/* ─── Inbox mobile drawer slide-in ───────────────────────────────────────── */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal-on-scroll {
     opacity: 1;

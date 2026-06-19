@@ -11,7 +11,7 @@ import {
   MailOpen, X, Minimize2, Maximize2, Pencil, Paperclip,
   Bold, Italic, Underline, Loader2, Reply, ChevronDown, Plus,
   Check, Bell, HelpCircle, Filter, Forward, Mail, AlertTriangle, RotateCcw,
-  Download, Zap,
+  Download, Zap, Menu,
 } from 'lucide-react';
 import InsightsView from './InsightsView';
 
@@ -905,6 +905,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
   const [linkedApp,       setLinkedApp]       = useState<LinkedApp | null>(null);
   const [aiReplyDraft,    setAiReplyDraft]    = useState('');
   const [activeView,      setActiveView]      = useState<'inbox' | 'insights'>('inbox');
+  const [drawerOpen,      setDrawerOpen]      = useState(false);
 
   const selectedIdRef  = useRef<string | null>(null);
   const threadsRef     = useRef<Thread[]>([]);
@@ -1141,6 +1142,14 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
       {/* ── Search header ──────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 bg-[#f6f8fc] dark:bg-gray-950">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="lg:hidden flex-shrink-0 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={20} />
+        </button>
         <div className="flex-1 max-w-[680px]">
           <div className="flex items-center bg-[#eaf1fb] dark:bg-gray-800 hover:bg-[#dce8f8] dark:hover:bg-gray-700 focus-within:bg-white dark:focus-within:bg-gray-800 focus-within:shadow-[0_1px_3px_rgba(0,0,0,.2)] rounded-full px-4 transition-all">
             <Search size={20} className="text-gray-500 dark:text-gray-400 flex-shrink-0 mr-3" />
@@ -1638,6 +1647,130 @@ export default function InboxClient({ emailAlias, userName, userId }: {
         )}
         </>)}
       </div>
+
+      {/* ── Mobile drawer ────────────────────────────────────────────────────── */}
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDrawerOpen(false)}
+          />
+          {/* Panel */}
+          <aside className="relative w-[280px] flex flex-col bg-[#f6f8fc] dark:bg-gray-950 h-full overflow-y-auto shadow-2xl animate-[slideInLeft_0.22s_ease-out]">
+
+            {/* Close button */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+              <span className="text-[15px] font-semibold text-gray-800 dark:text-gray-200">Menu</span>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400"
+                aria-label="Fermer le menu"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* View toggle */}
+            <div className="px-3 mb-2 flex gap-1">
+              <button
+                onClick={() => { setActiveView('inbox'); setDrawerOpen(false); }}
+                className={`flex-1 py-1.5 rounded-xl text-[12px] font-medium transition-all ${activeView === 'inbox' ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+              >
+                ✉ Inbox
+              </button>
+              <button
+                onClick={() => { setActiveView('insights'); setDrawerOpen(false); }}
+                className={`flex-1 py-1.5 rounded-xl text-[12px] font-medium transition-all ${activeView === 'insights' ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+              >
+                📊 Insights
+              </button>
+            </div>
+
+            {/* Compose */}
+            <div className="px-3 mb-3">
+              <button
+                onClick={() => { setComposeOpen(true); setComposeMin(false); setDrawerOpen(false); }}
+                className="flex items-center gap-3 pl-5 pr-6 h-[52px] w-full rounded-2xl bg-[#c2e7ff] dark:bg-violet-600/20 hover:bg-[#b0d8f5] dark:hover:bg-violet-600/30 hover:shadow-md active:scale-[0.99] transition-all text-[#001d35] dark:text-violet-300 font-medium text-[14px]"
+              >
+                <Pencil size={20} /> Nouveau message
+              </button>
+            </div>
+
+            {/* Folders */}
+            <nav>
+              {NAV_FOLDERS.map(({ id, label, icon: Icon }) => {
+                const count  = folderCounts[id];
+                const active = folder === id;
+                return (
+                  <button key={id}
+                    onClick={() => { setFolder(id); setSelectedId(null); setMessages([]); setShowConvo(false); setDrawerOpen(false); }}
+                    className={`w-full flex items-center gap-3 pl-6 pr-4 h-[40px] rounded-r-full text-[14px] font-medium transition-all mb-0.5
+                      ${active
+                        ? 'bg-[#d3e3fd] dark:bg-violet-800/40 text-[#041e49] dark:text-violet-200 font-semibold'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-gray-800'
+                      }`}
+                  >
+                    <Icon size={18} className={active ? 'text-[#041e49] dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'} />
+                    <span className="flex-1 text-left truncate">{label}</span>
+                    {count > 0 && (
+                      <span className={`text-[11px] font-bold ml-1 ${active ? 'text-[#041e49] dark:text-violet-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {count > 99 ? '99+' : count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="mx-4 my-2 border-t border-gray-200/80 dark:border-gray-700/60" />
+
+            {/* Labels */}
+            <div className="px-6 pb-1">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Libellés</p>
+            </div>
+            {NAV_LABELS.map(lbl => (
+              <button key={lbl.id}
+                className="w-full flex items-center gap-3 pl-6 pr-4 h-[40px] rounded-r-full text-[14px] text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-gray-800 transition-colors">
+                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${lbl.dot}`} />
+                {lbl.label}
+              </button>
+            ))}
+            <button className="flex items-center gap-2 pl-6 mt-1 mb-3 text-[13px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors py-1">
+              <Plus size={15} /> Nouveau libellé
+            </button>
+
+            <div className="mx-4 my-2 border-t border-gray-200/80 dark:border-gray-700/60" />
+
+            {/* Smart Inbox */}
+            <div className="px-6 pb-1">
+              <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Smart Inbox</p>
+            </div>
+            {Object.entries(AI_CATEGORY_CONFIG).map(([catId, cfg]) => {
+              const count  = threads.filter(t => t.ai_category === catId).length;
+              if (count === 0) return null;
+              const active = aiFilter === catId;
+              return (
+                <button key={catId}
+                  onClick={() => { setAiFilter(active ? null : catId); setDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 pl-6 pr-4 h-[40px] rounded-r-full text-[14px] font-medium transition-all mb-0.5
+                    ${active
+                      ? 'bg-[#d3e3fd] dark:bg-violet-800/40 text-[#041e49] dark:text-violet-200 font-semibold'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200/80 dark:hover:bg-gray-800'
+                    }`}>
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
+                  <span className="flex-1 text-left truncate">{cfg.label}</span>
+                  {cfg.urgent && (
+                    <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 uppercase tracking-wide mr-1">!</span>
+                  )}
+                  <span className="text-[11px] font-bold ml-1 text-gray-500 dark:text-gray-400">{count > 99 ? '99+' : count}</span>
+                </button>
+              );
+            })}
+            <div className="pb-4" />
+          </aside>
+        </div>
+      )}
 
       {/* ── Toast ────────────────────────────────────────────────────────────── */}
       {toast && <Toast data={toast} onClose={() => setToast(null)} />}
