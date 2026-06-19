@@ -126,6 +126,9 @@ export default function JobDescriptionLoader({ job, className }: Props) {
   // Tick the progress bar forward while loading
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Destructure stable primitives so the dependency array stays flat
+  const { id, url, title, company, location, salary, jobType, category, description } = job;
+
   useEffect(() => {
     let cancelled = false;
     setText(null);
@@ -147,15 +150,15 @@ export default function JobDescriptionLoader({ job, className }: Props) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jobId:        job.id,
-        redirectUrl:  job.url        ?? null,
-        title:        job.title,
-        company:      job.company,
-        location:     job.location   ?? null,
-        salary:       job.salary     ?? null,
-        contractType: job.jobType    ?? null,
-        sector:       job.category   ?? null,
-        excerpt:      job.description,
+        jobId:        id,
+        redirectUrl:  url         ?? null,
+        title,
+        company,
+        location:     location    ?? null,
+        salary:       salary      ?? null,
+        contractType: jobType     ?? null,
+        sector:       category    ?? null,
+        excerpt:      description,
       }),
     })
       .then(r => r.ok ? r.json() as Promise<FullDescriptionResponse> : Promise.reject(r.status))
@@ -174,7 +177,7 @@ export default function JobDescriptionLoader({ job, className }: Props) {
       cancelled = true;
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [job.id]);
+  }, [id, url, title, company, location, salary, jobType, category, description]);
 
   const handleCopy = async () => {
     const content = text ?? job.description;
