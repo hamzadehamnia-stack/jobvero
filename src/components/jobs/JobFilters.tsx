@@ -7,6 +7,7 @@ interface Props {
   onChange:       (f: SearchFilters) => void;
   remoteOnly?:    boolean;
   onRemoteToggle?: () => void;
+  mobile?:        boolean;
 }
 
 const DATE_OPTIONS = [
@@ -63,10 +64,10 @@ function FilterGroup<V extends string>({
   );
 }
 
-export default function JobFilters({ filters, onChange, remoteOnly, onRemoteToggle }: Props) {
+export default function JobFilters({ filters, onChange, remoteOnly, onRemoteToggle, mobile }: Props) {
   return (
-    <div className="w-44 flex-shrink-0 hidden lg:block">
-      <div className="sticky top-4">
+    <div className={mobile ? 'w-full' : 'w-44 flex-shrink-0 hidden lg:block'}>
+      <div className={mobile ? undefined : 'sticky top-4'}>
         <p className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Filters</p>
 
         <FilterGroup
