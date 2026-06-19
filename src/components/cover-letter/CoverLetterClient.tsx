@@ -253,7 +253,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
       <div className="flex flex-col w-full xl:w-[480px] xl:min-w-[480px] xl:border-r xl:border-gray-200 xl:dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto">
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center">
               <FileText size={18} className="text-white" />
@@ -266,7 +266,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 px-6 pt-3 pb-0">
+        <div className="flex gap-1 px-3 sm:px-6 pt-3 pb-0">
           {(['new', 'saved', 'templates'] as const).map((tab) => (
             <button
               key={tab}
@@ -293,7 +293,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
           <TemplatesTab onToast={(message, type) => setToast({ message, type: type ?? 'success' })} />
         ) : (
         <>
-        <div className="flex-1 px-6 py-5 space-y-5 overflow-y-auto">
+        <div className="flex-1 px-3 sm:px-6 py-4 sm:py-5 space-y-5 overflow-y-auto">
 
           {/* Job Title */}
           <div>
@@ -390,7 +390,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
         </div>
 
         {/* Generate button */}
-        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800">
+        <div className="px-3 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-800">
           {/* Credits indicator */}
           <div className={`flex items-center justify-between mb-3 px-3 py-2 rounded-xl text-xs font-medium
             ${credits > 0

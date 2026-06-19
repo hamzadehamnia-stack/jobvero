@@ -591,7 +591,7 @@ export default function CVBuilderClient() {
     // ── Manual wizard mode ──
     return (
       <>
-        <div className="flex-1 px-6 py-5">
+        <div className="flex-1 px-3 sm:px-6 py-4 sm:py-5">
           {/* Auto-fill banner */}
           {autoFillBanner && (
             <div className="flex items-center justify-between gap-3 mb-4 px-3 py-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
@@ -706,7 +706,7 @@ export default function CVBuilderClient() {
       <div className="flex flex-col w-full xl:w-[520px] xl:min-w-[520px] xl:border-r xl:border-gray-200 xl:dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto">
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${palette.primary}, ${palette.accent})` }}>
               <FileText size={18} className="text-white" />

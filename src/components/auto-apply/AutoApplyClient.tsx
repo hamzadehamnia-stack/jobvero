@@ -494,7 +494,7 @@ export default function AutoApplyClient({
     <div className="flex-1 flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Page Header ── */}
-      <div className="px-6 pt-6 pb-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 flex-shrink-0">
@@ -517,7 +517,7 @@ export default function AutoApplyClient({
         </div>
       </div>
 
-      <div className="flex-1 px-6 py-6">
+      <div className="flex-1 px-3 sm:px-6 py-6">
         <div className="max-w-3xl mx-auto space-y-4">
 
           {/* ── Premium Wall ── */}

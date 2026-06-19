@@ -545,7 +545,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
     <div className="flex-1 flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
@@ -659,7 +659,7 @@ export default function AnalyticsClient({ data }: { data: AnalyticsData }) {
         )}
       </div>
 
-      <div className="flex-1 px-6 py-6 space-y-5 max-w-[1400px] mx-auto w-full">
+      <div className="flex-1 px-3 sm:px-6 py-6 space-y-5 max-w-[1400px] mx-auto w-full">
 
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

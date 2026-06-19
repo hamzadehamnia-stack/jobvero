@@ -205,7 +205,7 @@ function StatsBar({ jobs }: { jobs: Job[] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-3 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
       {stats.map(({ icon: Icon, value, label, color, bg }) => (
         <div key={label} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${bg}`}>
           <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-white dark:bg-gray-900 shadow-sm`}>
@@ -911,8 +911,8 @@ export default function KanbanBoard({ initialJobs, userId }: Props) {
     <div className="flex flex-col h-full min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
-        <div className="flex items-center justify-between">
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Briefcase size={20} className="text-violet-500" /> Job Tracker
@@ -932,7 +932,7 @@ export default function KanbanBoard({ initialJobs, userId }: Props) {
       <StatsBar jobs={jobs} />
 
       {/* ── Board ── */}
-      <div className="flex-1 overflow-x-auto px-6 py-6">
+      <div className="flex-1 overflow-x-auto px-3 sm:px-6 py-6">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}

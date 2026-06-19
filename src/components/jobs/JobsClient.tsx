@@ -1065,7 +1065,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
     <div className="flex-1 flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -1083,9 +1083,9 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
 
           {/* ── Search form ── */}
           <form onSubmit={handleSearch} className="space-y-3">
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               {/* Keywords */}
-              <div className="flex-1 relative">
+              <div className="flex-1 min-w-0 relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={query}
@@ -1098,7 +1098,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
               </div>
 
               {/* Location */}
-              <div className="w-48 relative">
+              <div className="w-full sm:w-48 relative">
                 <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={location}
@@ -1170,7 +1170,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
       </div>
 
       {/* ── Body ── */}
-      <div className="flex-1 px-6 py-6">
+      <div className="flex-1 px-3 sm:px-6 py-6">
         <div className="max-w-4xl mx-auto flex gap-6">
 
           {/* Desktop filters */}
