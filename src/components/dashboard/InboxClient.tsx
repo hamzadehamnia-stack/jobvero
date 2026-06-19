@@ -1415,7 +1415,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
           <div className={`flex-1 flex flex-col overflow-hidden min-w-0 ${showConvo ? 'flex' : 'hidden lg:flex'}`}>
 
             {/* Conversation toolbar */}
-            <div className="flex-shrink-0 flex items-center h-[52px] px-3 gap-0.5 bg-[#f6f8fc] dark:bg-gray-950 border-b border-gray-200/70 dark:border-gray-700/60">
+            <div className="flex-shrink-0 flex items-center h-[52px] px-3 gap-0.5 bg-[#f6f8fc] dark:bg-gray-950 border-b border-gray-200/70 dark:border-gray-700/60 overflow-x-auto">
               <button
                 onClick={() => { setSelectedId(null); setMessages([]); setShowConvo(false); }}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400 mr-1"
@@ -1443,9 +1443,10 @@ export default function InboxClient({ emailAlias, userName, userId }: {
               {selectedThread.ai_draft && (
                 <button
                   onClick={() => { setAiReplyDraft(selectedThread.ai_draft ?? ''); setReplyOpen(true); }}
-                  className="flex items-center gap-1.5 ml-2 px-3 py-1.5 rounded-full text-[12px] font-semibold text-white flex-shrink-0"
+                  className="flex items-center gap-1 ml-2 px-2 md:px-3 py-1.5 rounded-full text-[12px] font-semibold text-white flex-shrink-0"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 0 12px rgba(124,58,237,0.35)' }}>
-                  <Zap size={13} /> Instant Reply IA
+                  <Zap size={13} />
+                  <span className="hidden md:inline">Instant Reply IA</span>
                 </button>
               )}
               <div className="flex items-center gap-1 ml-auto text-[12px] text-gray-400 dark:text-gray-500">
@@ -1479,7 +1480,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
                 {/* AI Summary Card */}
                 {selectedThread.ai_summary && (
-                  <div className="mb-6 rounded-2xl border border-indigo-200/70 dark:border-indigo-700/40 bg-indigo-50/60 dark:bg-indigo-950/20 overflow-hidden">
+                  <div className="mb-6 rounded-2xl border border-indigo-200/70 dark:border-indigo-700/40 bg-indigo-50/60 dark:bg-indigo-950/20 overflow-hidden max-w-full">
                     <div className="px-5 py-4">
                       <p className="text-[9px] font-bold tracking-widest uppercase text-indigo-500 dark:text-indigo-400 mb-2">
                         Résumé IA · Claude Sonnet 4.6
@@ -1515,7 +1516,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
                 {/* Candidature Card */}
                 {linkedApp && (
-                  <div className="mb-6 rounded-2xl border border-gray-200/80 dark:border-gray-700/60 bg-white dark:bg-gray-900 shadow-[0_1px_4px_rgba(0,0,0,.06)] overflow-hidden">
+                  <div className="mb-6 rounded-2xl border border-gray-200/80 dark:border-gray-700/60 bg-white dark:bg-gray-900 shadow-[0_1px_4px_rgba(0,0,0,.06)] overflow-hidden max-w-full">
                     <div className="px-5 py-4">
                       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                         <span className="text-[12px] font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
@@ -1589,7 +1590,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
 
                 {/* Follow-up Banner */}
                 {selectedThread.follow_up_config && (
-                  <div className="mb-4 flex items-center gap-3 px-5 py-3 rounded-2xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40 flex-wrap">
+                  <div className="mb-4 flex items-center gap-3 px-5 py-3 rounded-2xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/40 flex-wrap overflow-hidden max-w-full">
                     <AlertTriangle size={16} className="text-orange-500 flex-shrink-0" />
                     <span className="text-[13px] text-orange-800 dark:text-orange-300 flex-1 min-w-0">
                       {selectedThread.follow_up_config.days} jours sans réponse — relance recommandée
