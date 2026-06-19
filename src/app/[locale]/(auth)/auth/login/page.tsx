@@ -48,6 +48,8 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
+    document.cookie = `oauth_next=/${locale}/dashboard; path=/; max-age=300; SameSite=Lax`;
+    document.cookie = `oauth_intent=login; path=/; max-age=300; SameSite=Lax`;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

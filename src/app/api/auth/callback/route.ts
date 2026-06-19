@@ -5,9 +5,13 @@ import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
-  const code   = searchParams.get('code');
-  const next   = searchParams.get('next') ?? '/';
-  const intent = searchParams.get('intent'); // 'login' | 'signup' | null
+  const code = searchParams.get('code');
+
+  // Read cookieStore first so it's available for oauth_next / oauth_intent fallback
+  const cookieStore = cookies();
+
+  const next   = searchParams.get('next')   ?? cookieStore.get('oauth_next')?.value   ?? '/en/dashboard';
+  const intent = searchParams.get('intent') ?? cookieStore.get('oauth_intent')?.value ?? null;
 
   const locale = next.split('/')[1] || 'en';
 
@@ -16,7 +20,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Step 1 — Exchange code for session
-  const cookieStore = cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -66,6 +69,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/${locale}/auth/login?error=no_account`);
   }
 
-  // Step 5 — Normal flow
-  return NextResponse.redirect(`${origin}${next}`);
+  // Step 5 — Normal flow; clear the oauth helper cookies
+  const response = NextResponse.redirect(`${origin}${next}`);
+  response.cookies.set('oauth_next',   '', { path: '/', maxAge: 0 });
+  response.cookies.set('oauth_intent', '', { path: '/', maxAge: 0 });
+  return response;
 }
