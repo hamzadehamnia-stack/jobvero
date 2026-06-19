@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from 'lucide-react';
 import type { SearchFilters } from './types';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   remoteOnly?:    boolean;
   onRemoteToggle?: () => void;
   mobile?:        boolean;
+  onClose?:       () => void;
 }
 
 const DATE_OPTIONS = [
@@ -64,11 +66,23 @@ function FilterGroup<V extends string>({
   );
 }
 
-export default function JobFilters({ filters, onChange, remoteOnly, onRemoteToggle, mobile }: Props) {
+export default function JobFilters({ filters, onChange, remoteOnly, onRemoteToggle, mobile, onClose }: Props) {
   return (
     <div className={mobile ? 'w-full' : 'w-44 flex-shrink-0 hidden lg:block'}>
       <div className={mobile ? undefined : 'sticky top-4'}>
-        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Filters</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">Filters</p>
+          {mobile && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Close filters"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
 
         <FilterGroup
           label="Date posted"
@@ -134,6 +148,17 @@ export default function JobFilters({ filters, onChange, remoteOnly, onRemoteTogg
         >
           Clear all filters
         </button>
+
+        {mobile && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 w-full flex items-center justify-center py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+            style={{ background: 'linear-gradient(135deg, #7C3AED, #4F46E5)' }}
+          >
+            Appliquer les filtres
+          </button>
+        )}
       </div>
     </div>
   );

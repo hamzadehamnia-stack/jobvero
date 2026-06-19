@@ -1162,7 +1162,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
             {/* Mobile filters */}
             {showFilters && (
               <div className="lg:hidden p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <JobFilters mobile filters={filters} onChange={setFilters} remoteOnly={remote} onRemoteToggle={() => setRemote(r => !r)} />
+                <JobFilters mobile filters={filters} onChange={setFilters} remoteOnly={remote} onRemoteToggle={() => setRemote(r => !r)} onClose={() => setShowFilters(false)} />
               </div>
             )}
           </form>
