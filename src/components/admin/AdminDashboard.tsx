@@ -8,7 +8,7 @@ import {
   TrendingUp, Crown, AlertTriangle, CheckCircle2,
   Bell, Trash2, Edit3, Ban, UserCheck, Loader2,
   ToggleLeft, ToggleRight, X, Briefcase, ClipboardList,
-  MessageSquare, Reply, Clock,
+  MessageSquare, Reply, Clock, Menu,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -1288,6 +1288,7 @@ export default function AdminDashboard({ userEmail }: Props) {
   const [stats,        setStats]        = useState<OverviewStats | null>(null);
   const [loadingSt,    setLoadingSt]    = useState(true);
   const [unreadSupport,setUnreadSupport]= useState(0);
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
 
   const loadStats = useCallback(async () => {
     setLoadingSt(true);
@@ -1314,8 +1315,8 @@ export default function AdminDashboard({ userEmail }: Props) {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-gray-50 dark:bg-[#0F172A]">
 
-      {/* ── Inner sidebar ── */}
-      <aside className="w-52 flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] overflow-y-auto">
+      {/* ── Desktop sidebar (lg+) ── */}
+      <aside className="hidden lg:flex w-52 flex-shrink-0 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111827] overflow-y-auto">
         <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-md shadow-red-500/30 flex-shrink-0">
@@ -1351,7 +1352,6 @@ export default function AdminDashboard({ userEmail }: Props) {
           })}
         </nav>
 
-        {/* Stats summary */}
         {stats && (
           <div className="p-3 border-t border-gray-100 dark:border-gray-800 space-y-1.5">
             <div className="flex items-center justify-between text-xs">
@@ -1366,8 +1366,76 @@ export default function AdminDashboard({ userEmail }: Props) {
         )}
       </aside>
 
+      {/* ── Mobile drawer (< lg) ── */}
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
+          <aside className="relative w-[280px] flex flex-col bg-white dark:bg-[#111827] h-full overflow-y-auto shadow-2xl animate-[slideInLeft_0.22s_ease-out]">
+            <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-md shadow-red-500/30 flex-shrink-0">
+                  <Shield size={14} className="text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">Admin Panel</p>
+                  <p className="text-[10px] text-gray-400 truncate mt-0.5">{userEmail}</p>
+                </div>
+              </div>
+              <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Fermer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <nav className="flex-1 py-2 px-2 space-y-0.5">
+              {TABS.map(({ id, label, icon: Icon }) => {
+                const active = tab === id;
+                const badge  = id === 'support' && unreadSupport > 0 ? unreadSupport : 0;
+                return (
+                  <button key={id} onClick={() => { setTab(id); setDrawerOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left
+                      ${active
+                        ? 'bg-gradient-to-r from-violet-600/10 to-indigo-600/5 text-violet-700 dark:text-violet-400 font-semibold'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/60'
+                      }`}>
+                    <Icon size={16} className={active ? 'text-violet-600 dark:text-violet-400' : 'text-gray-400 dark:text-gray-500'} />
+                    <span className="truncate flex-1">{label}</span>
+                    {badge > 0 && (
+                      <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                    {active && badge === 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-600 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {stats && (
+              <div className="p-3 border-t border-gray-100 dark:border-gray-800 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Total users</span>
+                  <span className="font-bold text-gray-700 dark:text-gray-300">{stats.users.total}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">MRR</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">${stats.users.mrr.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
       {/* ── Main content ── */}
       <main className="flex-1 min-w-0 overflow-y-auto p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-600/40 [&::-webkit-scrollbar-track]:bg-transparent">
+        {/* Mobile top bar with hamburger */}
+        <div className="lg:hidden flex items-center gap-3 mb-5">
+          <button onClick={() => setDrawerOpen(true)} className="p-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors shadow-sm" aria-label="Ouvrir le menu">
+            <Menu size={18} />
+          </button>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {TABS.find(t => t.id === tab)?.label ?? 'Admin Panel'}
+          </span>
+        </div>
         {tab === 'overview' && <OverviewTab stats={stats} loading={loadingSt} onRefresh={loadStats} />}
         {tab === 'users'    && <UsersTab />}
         {tab === 'support'  && <SupportTab onReplySent={loadUnreadSupport} />}
