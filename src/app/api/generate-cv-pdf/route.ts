@@ -1,6 +1,7 @@
 import React from 'react';
 import { NextResponse } from 'next/server';
 import { renderToBuffer } from '@react-pdf/renderer';
+import { createClient } from '@/lib/supabase/server';
 import type { CVFormData } from '@/components/cv-builder/types';
 import {
   ParisPDF, BordeauxPDF, AmericanPDF, NewYorkPDF, LondonPDF,
@@ -26,6 +27,10 @@ function getPDFElement(templateId: string, data: CVFormData): React.ReactElement
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json();
     const { html, filename, templateId, userData } = body as {

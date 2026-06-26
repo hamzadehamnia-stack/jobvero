@@ -185,7 +185,8 @@
       "Bash(grep -qE \"Ready in|started server on|Error|Failed to compile\" \"C:\\\\\\\\Users\\\\\\\\Hamza\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-Hamza-Desktop-Jobvero\\\\\\\\e272413d-5cbd-4da3-8a7e-e6193a10c3c5\\\\\\\\tasks\\\\\\\\b36v9j0z6.output\")",
       "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\Hamza\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\C--Users-Hamza-Desktop-Jobvero\\\\\\\\e272413d-5cbd-4da3-8a7e-e6193a10c3c5\\\\\\\\tasks\\\\\\\\b36v9j0z6.output\")",
       "PowerShell(npx supabase --version 2>&1)",
-      "Bash(curl -s https://sxckozkviocnanwiydrh.supabase.co/rest/v1/profiles?limit=0 -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA')"
+      "Bash(curl -s https://sxckozkviocnanwiydrh.supabase.co/rest/v1/profiles?limit=0 -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4Y2tvemt2aW9jbmFud2l5ZHJoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc1ODMzNCwiZXhwIjoyMDkxMzM0MzM0fQ.Wjgv99QWmtUkDxwRbBcTGOGIzeSt1kS7hKq3tMeESgA')",
+      "Bash(git rm *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Hamza\\Desktop\\Jobvero\\src\\app\\[locale]\\(auth)\\auth"
