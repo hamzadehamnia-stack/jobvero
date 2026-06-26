@@ -1,45 +1,47 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 
 export default function CTA({ locale }: { locale: string }) {
   const t = useTranslations('cta');
 
   return (
-    <section className="relative py-28 px-4 overflow-hidden">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 dark:from-violet-950 dark:via-indigo-950 dark:to-blue-950" />
-
-      {/* Decorative orbs */}
-      <div className="absolute -top-40 left-1/4 w-[480px] h-[480px] bg-white/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 right-1/4 w-[400px] h-[400px] bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative max-w-2xl mx-auto text-center">
-        {/* Headline */}
-        <h2 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold text-white mb-5 leading-tight tracking-tight">
-          {t('headline')}
-        </h2>
-
-        {/* Subheadline */}
-        <p className="text-indigo-200 dark:text-indigo-300 text-lg sm:text-xl mb-10 leading-relaxed">
-          {t('subheadline')}
-        </p>
-
-        {/* Single CTA button */}
-        <Link
-          href={`/${locale}/auth/register`}
-          className="inline-flex items-center justify-center px-10 py-4 rounded-xl
-            bg-white text-violet-700 font-bold text-base sm:text-lg
-            hover:bg-violet-50 active:scale-[0.97]
-            shadow-xl shadow-black/25
-            transition-all duration-150"
+    <section className="relative px-4 sm:px-6 py-24 sm:py-32">
+      <div className="relative max-w-5xl mx-auto rounded-3xl border border-subtle bg-elevated overflow-hidden">
+        {/* Glow */}
+        <div className="absolute inset-x-0 -top-24 h-96 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,hsl(var(--accent)/0.30)_0%,transparent_70%)] pointer-events-none" />
+        <div
+          className="absolute inset-0 opacity-50 pointer-events-none"
+          style={{
+            maskImage:
+              'radial-gradient(ellipse 60% 50% at 50% 0%, black 0%, transparent 70%)',
+            WebkitMaskImage:
+              'radial-gradient(ellipse 60% 50% at 50% 0%, black 0%, transparent 70%)',
+          }}
         >
-          {t('ctaPrimary')}
-        </Link>
+          <div className="absolute inset-0 bg-grid-pattern bg-grid" style={{ opacity: 0.6 }} />
+        </div>
 
-        {/* Small disclaimer */}
-        <p className="mt-5 text-sm text-indigo-300/80 dark:text-indigo-400/70">
-          {t('disclaimer')}
-        </p>
+        <div className="relative px-6 sm:px-10 py-16 sm:py-20 text-center">
+          <h2 className="font-display text-fg text-3xl sm:text-5xl lg:text-[56px] tracking-tightest leading-[1.05] max-w-2xl mx-auto">
+            {t('headline')}
+          </h2>
+          <p className="mt-5 max-w-xl mx-auto text-fg-muted text-base sm:text-lg leading-relaxed">
+            {t('subheadline')}
+          </p>
+
+          <div className="mt-9 flex justify-center">
+            <Link
+              href={`/${locale}/auth/register`}
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-fg px-6 text-[15px] font-medium text-canvas shadow-soft hover:bg-fg/90 active:scale-[0.98] transition-all"
+            >
+              {t('ctaPrimary')}
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+
+          <p className="mt-5 text-[13px] text-fg-subtle">{t('disclaimer')}</p>
+        </div>
       </div>
     </section>
   );

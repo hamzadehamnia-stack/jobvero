@@ -2,11 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Tokens ──────────────────────────────────────────────────────────
+   Semantic tokens (HSL components). Used via tailwind.config (canvas, surface,
+   fg, fg-muted, subtle, strong, accent). Legacy code that uses `gray-900`,
+   `bg-white`, etc. is unaffected — it continues to work as before.
+   ────────────────────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    color-scheme: light dark;
-    --primary: #7C3AED;
-    --primary-end: #4F46E5;
+    color-scheme: light;
+
+    --canvas:   0 0% 100%;
+    --surface:  0 0% 99%;
+    --elevated: 0 0% 100%;
+
+    --fg:        240 6% 10%;
+    --fg-muted:  240 4% 46%;
+    --fg-subtle: 240 4% 64%;
+
+    --border-subtle: 240 6% 90%;
+    --border-strong: 240 6% 80%;
+
+    --accent:       244 75% 60%;
+    --accent-hover: 244 75% 55%;
+    --accent-fg:    0 0% 100%;
+
+    --success: 158 64% 40%;
+    --warning:  38 92% 50%;
+    --danger:    0 75% 55%;
+
+    /* Legacy */
+    --primary:     #4F46E5;
+    --primary-end: #6366F1;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --canvas:   240 8% 4%;
+    --surface:  240 7% 7%;
+    --elevated: 240 7% 10%;
+
+    --fg:        0 0% 96%;
+    --fg-muted:  240 5% 65%;
+    --fg-subtle: 240 4% 45%;
+
+    --border-subtle: 240 5% 15%;
+    --border-strong: 240 5% 24%;
+
+    --accent:       244 100% 72%;
+    --accent-hover: 244 100% 78%;
+    --accent-fg:    0 0% 100%;
+
+    --success: 158 64% 50%;
+    --warning:  38 92% 60%;
+    --danger:    0 80% 65%;
   }
 
   html {
@@ -14,29 +63,76 @@
   }
 
   body {
-    @apply bg-[#F8FAFC] dark:bg-[#0F172A] text-gray-900 dark:text-gray-100 antialiased;
+    @apply bg-canvas text-fg antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+    color:      hsl(var(--fg));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--accent));
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
-@layer utilities {
+/* ─── Component primitives ───────────────────────────────────────────────── */
+@layer components {
+  .font-display {
+    font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv09';
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(244 100% 80%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Legacy class kept so unrefactored pages still render. Now uses accent only. */
   .gradient-text {
-    @apply bg-gradient-to-r from-violet-500 to-cyan-500 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(244 100% 78%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .gradient-border {
-    background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(244 100% 78%) 100%);
     padding: 1px;
     border-radius: 0.75rem;
   }
+
+  .card-glass {
+    @apply rounded-xl border border-subtle bg-surface/60 backdrop-blur-xl;
+  }
+
+  .card-surface {
+    @apply rounded-xl border border-subtle bg-surface;
+  }
+
+  .hairline {
+    @apply h-px w-full bg-subtle;
+  }
+
+  .section {
+    @apply py-24 sm:py-32 px-4 sm:px-6;
+  }
 }
 
-/* ─── Scroll-reveal ─────────────────────────────────────────────────────────
-   IntersectionObserver in ScrollReveal.tsx adds `.is-visible`.
-   ────────────────────────────────────────────────────────────────────────── */
+/* ─── Scroll-reveal ──────────────────────────────────────────────────────── */
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(32px);
+  transform: translateY(20px);
   transition:
     opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
@@ -54,22 +150,17 @@
 .reveal-delay-5 { transition-delay: 400ms; }
 .reveal-delay-6 { transition-delay: 480ms; }
 
-/* ─── Testimonials marquee (mobile) ──────────────────────────────────────── */
+/* ─── Testimonials marquee ───────────────────────────────────────────────── */
 @keyframes marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
 
 .animate-marquee {
-  animation: marquee 28s linear infinite;
+  animation: marquee 32s linear infinite;
 }
-
 .animate-marquee:hover {
   animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-marquee { animation: none; }
 }
 
 /* ─── Inbox mobile drawer slide-in ───────────────────────────────────────── */
@@ -79,15 +170,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
   .reveal-on-scroll {
     opacity: 1;
     transform: none;
     transition: none;
   }
-
-  body {
-    transition: none;
-  }
+  body { transition: none; }
 }
 
 /* ─── CV Preview ─────────────────────────────────────────────────────────── */

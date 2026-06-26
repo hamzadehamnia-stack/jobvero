@@ -2,34 +2,43 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import type { ButtonHTMLAttributes } from 'react';
 
+type Variant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'accent-soft';
+type Size = 'sm' | 'md' | 'lg';
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: Variant;
+  size?: Size;
   href?: string;
 }
 
-const getClasses = (
-  variant: ButtonProps['variant'] = 'primary',
-  size: ButtonProps['size'] = 'md',
-  className?: string
-) =>
-  cn(
-    'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950',
-    {
-      'bg-gradient-to-r from-violet-600 to-violet-500 text-white hover:from-violet-500 hover:to-violet-400 shadow-lg shadow-violet-500/20':
-        variant === 'primary',
-      'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-600':
-        variant === 'secondary',
-      'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white':
-        variant === 'ghost',
-    },
-    {
-      'px-3 py-1.5 text-sm': size === 'sm',
-      'px-5 py-2.5 text-sm': size === 'md',
-      'px-7 py-3.5 text-base': size === 'lg',
-    },
-    className
-  );
+const base =
+  'group relative inline-flex items-center justify-center gap-2 font-medium rounded-lg ' +
+  'transition-[background,border-color,color,box-shadow,transform] duration-200 ease-out-expo ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-canvas disabled:opacity-50 disabled:pointer-events-none ' +
+  'active:scale-[0.98] select-none whitespace-nowrap';
+
+const variants: Record<Variant, string> = {
+  primary:
+    'bg-fg text-canvas hover:bg-fg/90 shadow-soft',
+  secondary:
+    'bg-surface text-fg border border-subtle hover:border-strong hover:bg-elevated',
+  ghost:
+    'text-fg-muted hover:text-fg hover:bg-surface',
+  outline:
+    'bg-transparent text-fg border border-strong hover:bg-surface',
+  'accent-soft':
+    'bg-accent-soft text-accent hover:bg-accent/20',
+};
+
+const sizes: Record<Size, string> = {
+  sm: 'h-8 px-3 text-[13px]',
+  md: 'h-10 px-4 text-sm',
+  lg: 'h-12 px-6 text-[15px]',
+};
+
+const getClasses = (variant: Variant, size: Size, className?: string) =>
+  cn(base, variants[variant], sizes[size], className);
 
 export default function Button({
   variant = 'primary',

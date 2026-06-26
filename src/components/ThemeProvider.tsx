@@ -21,14 +21,12 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Read stored preference and sync with whatever the anti-FOUC script applied.
-    // All localStorage access is intentionally inside useEffect (client-only).
     const stored = localStorage.getItem('theme') as Theme | null;
-    const initial = stored ?? 'light';
+    const initial: Theme = stored ?? 'dark';
     setTheme(initial);
     document.documentElement.classList.toggle('dark', initial === 'dark');
     setMounted(true);

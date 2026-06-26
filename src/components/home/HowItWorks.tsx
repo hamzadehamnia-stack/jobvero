@@ -10,24 +10,39 @@ export default function HowItWorks() {
   }>;
 
   return (
-    <section id="how-it-works" className="py-24 px-4 bg-gray-50/80 dark:bg-gray-900/40 scroll-mt-16 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16 reveal-on-scroll">
-          <Badge className="mb-4">{t('sectionBadge')}</Badge>
-          <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white">{t('headline')}</h2>
+    <section
+      id="how-it-works"
+      className="relative py-24 sm:py-32 px-4 sm:px-6 scroll-mt-16 border-t border-subtle bg-surface/40"
+    >
+      <div className="max-w-6xl mx-auto">
+        <div className="max-w-2xl mx-auto text-center reveal-on-scroll">
+          <Badge variant="default" className="mb-5">
+            {t('sectionBadge')}
+          </Badge>
+          <h2 className="font-display text-fg text-3xl sm:text-5xl tracking-tighter leading-[1.1]">
+            {t('headline')}
+          </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          {/* Connector line (desktop) */}
-          <div className="hidden md:block absolute top-10 left-[calc(16.66%)] right-[calc(16.66%)] h-px bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-400 opacity-30 dark:from-violet-800 dark:via-cyan-800 dark:to-violet-800 dark:opacity-40" />
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          {/* Connecting line */}
+          <div className="hidden md:block absolute top-7 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-subtle to-transparent" />
 
           {steps.map((step, i) => (
-            <div key={i} className="reveal-on-scroll flex flex-col items-center text-center px-4">
-              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-cyan-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-500/20 dark:shadow-violet-900/30 z-10">
-                <span className="text-2xl font-extrabold text-white">{step.number}</span>
+            <div
+              key={i}
+              className={`reveal-on-scroll reveal-delay-${Math.min(i + 1, 3)} relative flex flex-col items-center text-center`}
+            >
+              <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl border border-subtle bg-canvas font-display text-lg text-fg">
+                {step.number}
+                <span className="absolute -inset-px rounded-2xl bg-gradient-to-b from-accent/20 to-transparent opacity-50 pointer-events-none" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{step.title}</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed max-w-xs">{step.description}</p>
+              <h3 className="mt-6 font-display text-fg text-lg leading-tight">
+                {step.title}
+              </h3>
+              <p className="mt-2 max-w-xs text-fg-muted text-[13.5px] leading-relaxed">
+                {step.description}
+              </p>
             </div>
           ))}
         </div>

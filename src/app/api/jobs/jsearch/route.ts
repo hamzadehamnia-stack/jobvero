@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 const BASE_URL = 'https://jsearch.p.rapidapi.com/search';
 
@@ -101,6 +102,10 @@ function mapJob(j: JSearchJob) {
 }
 
 export async function GET(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const apiKey = process.env.JSEARCH_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

@@ -230,36 +230,51 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 lg:gap-8">
+    <footer className="border-t border-subtle bg-canvas">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
 
-          {/* ── Left: brand ── */}
-          <div className="flex flex-col gap-3">
-            <Link href={`/${locale}`} className="text-xl font-bold gradient-text w-fit">
-              Jobvero
+          {/* Brand block */}
+          <div className="lg:col-span-5 flex flex-col gap-4">
+            <Link
+              href={`/${locale}`}
+              className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-fg w-fit"
+            >
+              <span className="grid h-7 w-7 place-items-center rounded-md bg-fg text-canvas font-bold text-[12px]">
+                J
+              </span>
+              <span>Jobvero</span>
             </Link>
-            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+            <p className="text-[13.5px] text-fg-muted leading-relaxed max-w-sm">
               {t('tagline')}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-600 mt-2">
-              {t('copyright')}
-            </p>
+
+            {/* Social */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {SOCIAL.map(({ Icon, label }) => (
+                <button
+                  key={label}
+                  aria-label={label}
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-subtle hover:border-strong hover:bg-surface transition-colors"
+                >
+                  <Icon />
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* ── Center: 2 link columns ── */}
-          <div className="lg:col-span-2 grid grid-cols-2 gap-8">
-            {/* Produit */}
+          {/* Link columns */}
+          <div className="lg:col-span-4 grid grid-cols-2 gap-8">
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+              <h4 className="text-[11px] font-semibold uppercase tracking-widest text-fg-subtle mb-4">
                 {t('product')}
               </h4>
-              <ul className="space-y-2.5">
+              <ul className="space-y-3">
                 {productLinks.map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150"
+                      className="text-[13.5px] text-fg-muted hover:text-fg transition-colors"
                     >
                       {l.label}
                     </Link>
@@ -268,17 +283,16 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Support */}
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+              <h4 className="text-[11px] font-semibold uppercase tracking-widest text-fg-subtle mb-4">
                 {t('support')}
               </h4>
-              <ul className="space-y-2.5">
+              <ul className="space-y-3">
                 {supportLinks.map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150"
+                      className="text-[13.5px] text-fg-muted hover:text-fg transition-colors"
                     >
                       {l.label}
                     </Link>
@@ -286,38 +300,26 @@ export default function Footer() {
                 ))}
               </ul>
             </div>
-
           </div>
 
-          {/* ── Right: social + payment ── */}
-          <div className="flex flex-col gap-6">
-            {/* Social icons */}
-            <div className="flex flex-col gap-3">
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                Follow Us
+          {/* Right cluster */}
+          <div className="lg:col-span-3 flex flex-col gap-6">
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-widest text-fg-subtle mb-4">
+                Download
               </h4>
-              <div className="flex flex-wrap gap-2">
-                {SOCIAL.map(({ Icon, label }) => (
-                  <button
-                    key={label}
-                    aria-label={label}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg
-                      bg-transparent
-                      hover:bg-gray-100 dark:hover:bg-gray-800
-                      border border-gray-200 dark:border-gray-800
-                      hover:border-gray-300 dark:hover:border-gray-700
-                      opacity-90 hover:opacity-100
-                      transition-all duration-150"
-                  >
-                    <Icon />
-                  </button>
-                ))}
+              <div className="flex flex-col gap-2">
+                <div className="w-[135px] h-[40px] rounded-md overflow-hidden opacity-90 hover:opacity-100 transition-opacity">
+                  <AppStoreBadge />
+                </div>
+                <div className="w-[135px] h-[40px] rounded-md overflow-hidden opacity-90 hover:opacity-100 transition-opacity">
+                  <GooglePlayBadge />
+                </div>
               </div>
             </div>
 
-            {/* Payment icons */}
-            <div className="flex flex-col gap-3">
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-widest text-fg-subtle mb-3">
                 Payment
               </h4>
               <div className="flex flex-wrap gap-1.5">
@@ -325,37 +327,22 @@ export default function Footer() {
                   <div
                     key={label}
                     title={label}
-                    className="w-[38px] h-[24px] rounded overflow-hidden
-                      opacity-80 hover:opacity-100
-                      dark:opacity-70 dark:hover:opacity-100
-                      transition-opacity duration-150 cursor-default"
+                    className="w-[34px] h-[22px] rounded overflow-hidden opacity-70 hover:opacity-100 transition-opacity"
                   >
                     <Icon />
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Store badges */}
-            <div className="flex flex-col gap-3">
-              <h4 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                Download
-              </h4>
-              <div className="flex flex-col gap-2">
-                <div className="w-[135px] h-[40px] rounded-md overflow-hidden
-                  opacity-90 hover:opacity-100
-                  transition-opacity duration-150 cursor-default">
-                  <AppStoreBadge />
-                </div>
-                <div className="w-[135px] h-[40px] rounded-md overflow-hidden
-                  opacity-90 hover:opacity-100
-                  transition-opacity duration-150 cursor-default">
-                  <GooglePlayBadge />
-                </div>
-              </div>
-            </div>
           </div>
+        </div>
 
+        {/* Bottom bar */}
+        <div className="mt-14 pt-6 border-t border-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-[12px] text-fg-subtle">{t('copyright')}</p>
+          <p className="text-[12px] text-fg-subtle">
+            Made with intent · AI Job Search
+          </p>
         </div>
       </div>
     </footer>

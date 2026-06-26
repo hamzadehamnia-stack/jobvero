@@ -2,40 +2,32 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Sparkles, ArrowRight, ChevronDown } from 'lucide-react';
+import { Sparkles, ArrowRight, Star, Check } from 'lucide-react';
 
-const WORKERS = [
+const MATCHES = [
   {
-    src: 'https://images.unsplash.com/photo-1643297654416-05795d62e39c?w=800',
-    alt: 'Female doctor in white coat',
-    label: 'Healthcare',
-    accent: 'from-cyan-500 to-teal-500',
-    rotate: '-rotate-[2deg]',
-    position: 'left-0 top-0',
+    photo: 'https://images.unsplash.com/photo-1643297654416-05795d62e39c?w=160',
+    name: 'Healthcare',
+    role: 'Registered Nurse · Paris',
+    match: 96,
   },
   {
-    src: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=800',
-    alt: 'Male accountant in suit',
-    label: 'Business',
-    accent: 'from-violet-500 to-purple-600',
-    rotate: 'rotate-[1.5deg]',
-    position: 'right-0 top-5',
+    photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=160',
+    name: 'Business',
+    role: 'Accountant · Madrid',
+    match: 92,
   },
   {
-    src: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800',
-    alt: 'Construction worker on site',
-    label: 'Construction',
-    accent: 'from-amber-500 to-orange-500',
-    rotate: 'rotate-[1deg]',
-    position: 'left-5 bottom-0',
+    photo: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=160',
+    name: 'Construction',
+    role: 'Site Manager · Lyon',
+    match: 88,
   },
   {
-    src: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800',
-    alt: 'Plumber / mason at work',
-    label: 'Trades',
-    accent: 'from-emerald-500 to-green-600',
-    rotate: '-rotate-[1.5deg]',
-    position: 'right-0 bottom-5',
+    photo: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=160',
+    name: 'Trades',
+    role: 'Plumbing Tech · Lisbon',
+    match: 84,
   },
 ];
 
@@ -43,126 +35,139 @@ export default function Hero({ locale }: { locale: string }) {
   const t = useTranslations('hero');
 
   return (
-    <section className="relative min-h-screen flex items-center px-4 sm:px-6 pt-16 overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute inset-0 bg-hero-glow pointer-events-none opacity-50 dark:opacity-100" />
-
-      {/* Subtle grid */}
+    <section className="relative pt-28 sm:pt-32 pb-20 px-4 sm:px-6 overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 bg-hero-glow pointer-events-none" />
       <div
-        className="absolute inset-0 opacity-[0.02] pointer-events-none"
+        className="absolute inset-0 opacity-[0.7] dark:opacity-100 pointer-events-none"
         style={{
-          backgroundImage:
-            'linear-gradient(rgba(0,0,0,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.2) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+          maskImage:
+            'radial-gradient(ellipse 80% 50% at 50% 0%, black 0%, transparent 70%)',
+          WebkitMaskImage:
+            'radial-gradient(ellipse 80% 50% at 50% 0%, black 0%, transparent 70%)',
         }}
-      />
+      >
+        <div
+          className="absolute inset-0 bg-grid-pattern bg-grid"
+          style={{ opacity: 0.4 }}
+        />
+      </div>
 
-      {/* Blobs */}
-      <div className="absolute top-1/4 -left-40 w-96 h-96 bg-violet-300/10 dark:bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-40 w-96 h-96 bg-cyan-300/10 dark:bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative max-w-6xl mx-auto">
 
-      <div className="relative w-full max-w-7xl mx-auto py-16 lg:py-0">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 xl:gap-20 items-center">
+        {/* ── Centered headline block ── */}
+        <div className="flex flex-col items-center text-center">
+          <div className="animate-fade-up">
+            <Badge variant="accent">
+              <Sparkles size={11} />
+              {t('badge')}
+            </Badge>
+          </div>
 
-          {/* ── Left: text content ── */}
-          <div className="text-center lg:text-left">
-            <div className="mb-6 animate-fade-up">
-              <Badge>
-                <Sparkles size={12} />
-                {t('badge')}
-              </Badge>
-            </div>
+          <h1 className="mt-7 max-w-4xl font-display text-fg text-[44px] sm:text-[60px] lg:text-[72px] leading-[1.05] tracking-tightest animate-fade-up">
+            {t('headline')}{' '}
+            <span className="text-gradient-accent">{t('headlineAccent')}</span>
+          </h1>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-6xl xl:text-7xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6 animate-fade-up">
-              {t('headline')}{' '}
-              <span className="gradient-text">{t('headlineAccent')}</span>
-            </h1>
+          <p className="mt-6 max-w-xl text-fg-muted text-base sm:text-lg leading-relaxed animate-fade-up">
+            {t('subheadline')}
+          </p>
 
-            <p className="text-lg sm:text-xl text-gray-500 dark:text-gray-400 max-w-lg mx-auto lg:mx-0 mb-10 leading-relaxed animate-fade-up">
-              {t('subheadline')}
-            </p>
+          <div className="mt-9 flex flex-col sm:flex-row items-center gap-3 animate-fade-up">
+            <Button size="lg" href={`/${locale}/auth/register`}>
+              {t('ctaPrimary')}
+              <ArrowRight size={16} />
+            </Button>
+            <Button size="lg" variant="outline" href="#features">
+              {t('ctaSecondary')}
+            </Button>
+          </div>
 
-            <div className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 animate-fade-up">
-              <Button size="lg" href={`/${locale}/auth/register`}>
-                {t('ctaPrimary')}
-                <ArrowRight size={18} className="ml-2" />
-              </Button>
-              <Button size="lg" variant="secondary" href="#features">
-                {t('ctaSecondary')}
-                <ChevronDown size={18} className="ml-2" />
-              </Button>
-            </div>
-
-            <p className="mt-7 text-sm text-gray-400 dark:text-gray-600 animate-fade-up">
-              {t('socialProof')}
-            </p>
-
-            {/* Stats */}
-            <div className="mt-10 grid grid-cols-3 gap-3 max-w-sm mx-auto lg:mx-0">
-              {[
-                { value: '27M+', label: t('statsJobSeekers') },
-                { value: '95%',  label: t('statsSuccessRate') },
-                { value: '4',    label: t('statsFasterHiring') },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="bg-white/80 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-center shadow-sm dark:shadow-none transition-colors duration-200"
-                >
-                  <div className="text-xl font-bold gradient-text">{stat.value}</div>
-                  <div className="text-xs text-gray-500 mt-0.5 leading-tight">{stat.label}</div>
-                </div>
+          {/* Social proof */}
+          <div className="mt-7 flex items-center gap-3 text-[13px] text-fg-subtle animate-fade-up">
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} size={12} className="text-amber-400 fill-amber-400" />
               ))}
             </div>
+            <span>{t('socialProof')}</span>
           </div>
-
-          {/* ── Right: 2×2 staggered image collage ── */}
-          <div className="relative hidden lg:block h-[540px]">
-            {/* Soft glow behind cards */}
-            <div className="absolute inset-6 bg-gradient-to-br from-violet-200/25 via-cyan-200/15 to-transparent dark:from-violet-800/15 dark:via-cyan-800/10 rounded-3xl blur-2xl pointer-events-none" />
-
-            {WORKERS.map((w) => (
-              <div
-                key={w.label}
-                className={`absolute ${w.position} ${w.rotate} w-[47%] h-[47%]
-                  rounded-2xl overflow-hidden
-                  border border-white/60 dark:border-gray-700/50
-                  shadow-xl shadow-gray-300/50 dark:shadow-black/40
-                  transition-transform duration-300 hover:scale-[1.03] hover:z-10`}
-              >
-                <Image
-                  src={w.src}
-                  alt={w.alt}
-                  fill
-                  className="object-cover object-center"
-                  sizes="240px"
-                  priority={w.label === 'Healthcare' || w.label === 'Business'}
-                />
-                {/* Bottom gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              </div>
-            ))}
-
-          </div>
-
         </div>
 
-        {/* Mobile: compact 4-column strip */}
-        <div className="lg:hidden mt-12 grid grid-cols-4 gap-2.5">
-          {WORKERS.map((w) => (
-            <div
-              key={w.label}
-              className="relative aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-md"
-            >
-              <Image
-                src={w.src}
-                alt={w.alt}
-                fill
-                className="object-cover object-top"
-                sizes="90px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        {/* ── Product preview card ── */}
+        <div className="relative mt-16 sm:mt-20 max-w-5xl mx-auto reveal-on-scroll">
+          {/* Glow */}
+          <div className="absolute -inset-4 bg-gradient-to-b from-accent/20 to-transparent rounded-3xl blur-3xl opacity-50 pointer-events-none" />
+
+          <div className="relative rounded-2xl border border-subtle bg-elevated shadow-elevated overflow-hidden">
+            {/* Window chrome */}
+            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-subtle bg-surface/50">
+              <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle/30" />
+              <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle/30" />
+              <span className="h-2.5 w-2.5 rounded-full bg-fg-subtle/30" />
+              <span className="ml-3 text-[11px] text-fg-subtle font-medium tracking-tight">
+                jobvero.com / matches
+              </span>
             </div>
-          ))}
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px]">
+              {/* Main: matches list */}
+              <div className="p-5 sm:p-6 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[13px] font-semibold text-fg">AI Job Matches</h3>
+                  <span className="text-[11px] text-fg-subtle">Updated · Now</span>
+                </div>
+                {MATCHES.map((m) => (
+                  <div
+                    key={m.name}
+                    className="group flex items-center gap-3 p-3 rounded-xl border border-subtle hover:border-strong bg-surface/60 transition-colors"
+                  >
+                    <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-subtle">
+                      <Image src={m.photo} alt={m.name} fill className="object-cover" sizes="40px" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-fg leading-tight truncate">
+                        {m.name}
+                      </p>
+                      <p className="text-[11.5px] text-fg-subtle mt-0.5 truncate">{m.role}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-soft text-accent text-[11px] font-semibold">
+                        <Check size={11} strokeWidth={2.5} />
+                        {m.match}%
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Side panel */}
+              <div className="hidden lg:flex flex-col gap-4 p-6 border-l border-subtle bg-surface/30">
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-fg-subtle font-semibold mb-2">
+                    {t('statsJobSeekers')}
+                  </p>
+                  <p className="font-display text-2xl text-fg">27M+</p>
+                </div>
+                <div className="hairline" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-fg-subtle font-semibold mb-2">
+                    {t('statsSuccessRate')}
+                  </p>
+                  <p className="font-display text-2xl text-fg">95%</p>
+                </div>
+                <div className="hairline" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-fg-subtle font-semibold mb-2">
+                    {t('statsFasterHiring')}
+                  </p>
+                  <p className="font-display text-2xl text-fg">
+                    4<span className="text-fg-subtle text-base">×</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

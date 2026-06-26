@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const TOKEN_URL  = 'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire';
@@ -163,6 +164,10 @@ async function fetchFT(url: string, forceRefresh = false): Promise<Response> {
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   if (!process.env.FT_CLIENT_ID || !process.env.FT_CLIENT_SECRET) {
     console.error('[france-travail] ❌ Missing credentials: FT_CLIENT_ID or FT_CLIENT_SECRET not set in .env.local');
     return NextResponse.json(

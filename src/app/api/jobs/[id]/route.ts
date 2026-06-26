@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 const ADZUNA_APP_ID  = process.env.ADZUNA_APP_ID;
 const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY;
@@ -7,6 +8,10 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } },
 ) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { callOpenRouter } from '@/lib/openrouter';
+import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
 
 const MODEL = 'anthropic/claude-sonnet-4.6';
 
@@ -29,7 +30,7 @@ const LANG_CONFIG: Record<string, {
   },
 };
 
-export async function POST(req: Request) {
+async function handler(req: Request) {
   try {
     const { workExperience, education, skills, targetLanguage } = await req.json();
     const lang = targetLanguage && LANG_CONFIG[targetLanguage] ? targetLanguage : 'fr';
@@ -77,3 +78,5 @@ Return a JSON object with exactly this structure (same field names, same array l
     return NextResponse.json({ error: 'Translation failed' }, { status: 500 });
   }
 }
+
+export const POST = withFeatureCheck('CV_BUILDER_AI', handler);
