@@ -13,12 +13,12 @@ const nextConfig = {
   // pdf-parse and mammoth use Node.js built-ins (fs, path, canvas) —
   // mark them as server-only so Next.js doesn't attempt to bundle them for the edge runtime
   experimental: {
-    serverComponentsExternalPackages: ['pdf-parse', 'mammoth', 'puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['pdf-parse', 'mammoth', 'puppeteer', 'puppeteer-core', '@sparticuz/chromium-min'],
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
       const existing = Array.isArray(config.externals) ? config.externals : [];
-      config.externals = [...existing, '@sparticuz/chromium', 'puppeteer-core'];
+      config.externals = [...existing, '@sparticuz/chromium-min', 'puppeteer-core'];
     }
     return config;
   },

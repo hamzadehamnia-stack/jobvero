@@ -7,13 +7,15 @@ async function launchBrowser() {
       // fall through to puppeteer-core
     }
   }
+  const CHROMIUM_PACK_URL =
+    'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
   const [puppeteerCore, chromium] = await Promise.all([
     import('puppeteer-core'),
-    import('@sparticuz/chromium'),
+    import('@sparticuz/chromium-min'),
   ]);
   return puppeteerCore.default.launch({
     args:           chromium.default.args,
-    executablePath: await chromium.default.executablePath(),
+    executablePath: await chromium.default.executablePath(CHROMIUM_PACK_URL),
     headless:       true,
   });
 }
