@@ -14,6 +14,44 @@ import {
   Download, Zap, Menu,
 } from 'lucide-react';
 import InsightsView from './InsightsView';
+import DOMPurify from 'dompurify';
+
+// ─── Email HTML sanitization ──────────────────────────────────────────────────
+
+// Force all links to open in a new tab safely
+if (typeof window !== 'undefined') {
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A') {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+}
+
+const EMAIL_SANITIZE_CONFIG = {
+  // Whitelist of tags normal in email HTML — anything else is stripped
+  ALLOWED_TAGS: [
+    'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'hr',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'a', 'img',
+  ],
+  // Whitelist of attributes — event handlers (onerror, onclick…) are not listed, so stripped
+  ALLOWED_ATTR: [
+    'href', 'src', 'alt', 'title', 'width', 'height', 'style', 'class',
+    'colspan', 'rowspan', 'align', 'valign', 'border', 'cellpadding', 'cellspacing',
+    'target', 'rel',
+  ],
+  ALLOW_DATA_ATTR: false,
+  FORCE_BODY: true,
+  // DOMPurify blocks javascript: URLs in href/src by default
+};
+
+function sanitizeEmailHtml(html: string): string {
+  if (typeof window === 'undefined') return '';
+  return String(DOMPurify.sanitize(html, EMAIL_SANITIZE_CONFIG));
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -629,7 +667,7 @@ function MessageCard({ message, senderName, emailAlias, onReply, onDelete }: {
           {/<[a-z][\s\S]*>/i.test(message.body) ? (
             <div
               className="text-[15px] leading-[1.65] text-gray-800 dark:text-gray-200 [&_strong]:font-semibold [&_em]:italic [&_u]:underline [&_a]:text-violet-600 [&_a]:underline [&_br]:block"
-              dangerouslySetInnerHTML={{ __html: message.body }}
+              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(message.body) }}
             />
           ) : (
             <p className="text-[15px] leading-[1.65] text-gray-800 dark:text-gray-200 whitespace-pre-line">
