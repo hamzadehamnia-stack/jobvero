@@ -15,6 +15,13 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pdf-parse', 'mammoth', 'puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const existing = Array.isArray(config.externals) ? config.externals : [];
+      config.externals = [...existing, '@sparticuz/chromium', 'puppeteer-core'];
+    }
+    return config;
+  },
 };
 
 module.exports = withNextIntl(nextConfig);
