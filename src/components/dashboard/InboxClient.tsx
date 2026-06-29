@@ -737,7 +737,7 @@ function ReplyBox({ thread, onSend, onClose, userId, aiDraft }: {
 
   useEffect(() => {
     if (!aiDraft || !bodyRef.current) return;
-    bodyRef.current.innerHTML = aiDraft;
+    bodyRef.current.innerHTML = sanitizeEmailHtml(aiDraft);
     setBodyText(aiDraft);
     bodyRef.current.focus();
   }, [aiDraft]);
