@@ -25,9 +25,13 @@ const SUPABASE_ORIGIN = (() => {
 const CSP_DIRECTIVES = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
+  // Google Fonts: generated CV/cover-letter HTML may carry a <link rel=stylesheet>
+  // to fonts.googleapis.com (see the CV prompts in api/generate-cv). Without these
+  // two origins the CSP would silently strip the typography from every generated
+  // document. The sanitiser in lib/sanitizeHtml.ts allows <link> only for this host.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://fonts.gstatic.com",
   `connect-src 'self'${SUPABASE_ORIGIN ? ` ${SUPABASE_ORIGIN} ${SUPABASE_ORIGIN.replace(/^https:/, 'wss:')}` : ''}`,
   "worker-src 'self' blob:",
   "frame-src 'self'",
