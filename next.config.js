@@ -29,6 +29,9 @@ const nextConfig = {
           // bare origin. Prevents dashboard URLs (which embed record ids) from
           // leaking to job boards and company sites the user clicks through to.
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Never let the browser second-guess Content-Type. Without this, a
+          // response carrying user-derived content can be sniffed as script.
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
         ],
       },
     ];
