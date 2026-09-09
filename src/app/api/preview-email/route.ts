@@ -11,6 +11,17 @@ const PREVIEW_LINK = 'https://getjobvero.com/auth/reset-password?token=PREVIEW_T
 const PREVIEW_OTP  = '12345678';
 
 export async function GET(request: Request) {
+  // Development-only template previewer. It renders no user data, so this is
+  // surface reduction rather than a leak fix: it exposed the exact wording and
+  // markup of our auth emails, which is what a convincing phishing clone is
+  // built from. api/email-finder/test already applies this same gate.
+  if (process.env.NODE_ENV === 'production') {
+    return new Response(JSON.stringify({ error: 'disabled in prod' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const { searchParams } = new URL(request.url);
   const type   = searchParams.get('type')   || 'reset';
   const locale = (searchParams.get('locale') || 'en') as Locale;

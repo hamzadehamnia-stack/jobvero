@@ -127,8 +127,18 @@ export async function POST(req: Request) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword',
     ];
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|docx|doc)$/i)) {
+    // Both the declared type and the extension have to be acceptable. The
+    // previous condition was `!allowedTypes.includes(type) && !name.match(...)`,
+    // an OR in disguise: either check passing was enough, so any content at all
+    // got through under the name "cv.pdf".
+    const extensionOk = /\.(pdf|docx|doc)$/i.test(file.name);
+    const typeOk      = allowedTypes.includes(file.type) || file.type === '';
+    if (!extensionOk || !typeOk) {
       return NextResponse.json({ error: 'Only PDF and Word files are supported' }, { status: 400 });
+    }
+
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'File is empty' }, { status: 400 });
     }
 
     if (file.size > 5 * 1024 * 1024) {
@@ -136,7 +146,23 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    // Content sniffing, because neither the filename nor the browser-supplied
+    // Content-Type is evidence of anything. A PDF starts with %PDF-, and .docx
+    // is a zip so it starts with PK. This is what decides which parser runs.
+    const magic     = buffer.subarray(0, 4);
+    const looksPDF  = magic.toString('latin1', 0, 4) === '%PDF';
+    const looksZip  = magic[0] === 0x50 && magic[1] === 0x4b; // PK — .docx
+    const looksDoc  = magic.readUInt32BE(0) === 0xd0cf11e0;   // legacy .doc (OLE2)
+
+    if (!looksPDF && !looksZip && !looksDoc) {
+      return NextResponse.json(
+        { error: 'That file is not a readable PDF or Word document.' },
+        { status: 400 },
+      );
+    }
+
+    const isPDF = looksPDF;
 
     let parsed: unknown;
 
