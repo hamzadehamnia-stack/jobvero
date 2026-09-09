@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverError } from '@/lib/apiError';
 import { createClient } from '@/lib/supabase/server';
 
 const ADZUNA_APP_ID  = process.env.ADZUNA_APP_ID;
@@ -67,10 +68,8 @@ export async function GET(req: Request) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {
-    console.error('[jobs/search]', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Search failed' },
-      { status: 500 },
-    );
+    // Never echo err.message here: `url` carries app_id and app_key, and a URL
+    // or fetch error can embed the URL it failed on.
+    return serverError('jobs/search', err, 'Search failed');
   }
 }

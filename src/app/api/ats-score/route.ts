@@ -56,7 +56,7 @@ async function handler(req: Request) {
   } catch (err: unknown) {
     console.error('ATS score error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Analysis failed' },
+      { error: 'Analysis failed' },
       { status: 500 },
     );
   }

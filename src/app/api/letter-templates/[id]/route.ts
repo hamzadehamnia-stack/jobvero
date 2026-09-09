@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
+import { serverError } from '@/lib/apiError';
 import { NextResponse } from 'next/server';
 
 export async function PUT(
@@ -17,7 +18,7 @@ export async function PUT(
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError('letter-templates/[id]', error, 'Request failed');
   return NextResponse.json({ ok: true });
 }
 
@@ -36,6 +37,6 @@ export async function DELETE(
     .eq('id', id)
     .eq('user_id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError('letter-templates/[id]', error, 'Request failed');
   return NextResponse.json({ ok: true });
 }

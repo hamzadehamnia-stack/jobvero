@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('[generate-cv-pdf]', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'PDF generation failed' },
+      { error: 'PDF generation failed' },
       { status: 500 },
     );
   }

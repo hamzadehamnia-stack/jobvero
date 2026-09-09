@@ -81,7 +81,7 @@ Return ONLY the HTML (no \`\`\`html fences, no explanations). Start directly wit
   } catch (err: unknown) {
     console.error('Cover letter generation error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Generation failed' },
+      { error: 'Generation failed' },
       { status: 500 }
     );
   }

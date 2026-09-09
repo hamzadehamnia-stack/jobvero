@@ -465,7 +465,7 @@ ${preferences.fontStyle ? `FONT HINT: ${preferences.fontStyle}` : ''}
   } catch (err: unknown) {
     console.error('CV generation error:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate CV';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: 'CV generation failed' }, { status: 500 });
   }
 }
 

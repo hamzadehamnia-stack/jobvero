@@ -71,7 +71,7 @@ Scoring guide: 75-100 strong match, 50-74 partial match, 0-49 weak match.`;
     return NextResponse.json(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to analyze CV match';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Match scoring failed' }, { status: 500 });
   }
 }
 

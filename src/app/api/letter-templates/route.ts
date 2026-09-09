@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
+import { serverError } from '@/lib/apiError';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -12,7 +13,7 @@ export async function GET() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError('letter-templates', error, 'Request failed');
   return NextResponse.json({ templates: data ?? [] });
 }
 
@@ -32,6 +33,6 @@ export async function POST(req: Request) {
     .select('id')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError('letter-templates', error, 'Request failed');
   return NextResponse.json({ id: data.id });
 }

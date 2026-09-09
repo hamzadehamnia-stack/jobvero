@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend }       from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import { escapeHtml }  from '@/lib/escapeHtml';
+import { serverError } from '@/lib/apiError';
 
 const resend       = new Resend(process.env.RESEND_API_KEY);
 const SUPPORT_TO   = 'hamzadehamnia@gmail.com';
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
 
     if (adminErr) {
       console.error('[support] admin email error:', adminErr);
-      return NextResponse.json({ error: `Envoi échoué : ${adminErr.message}` }, { status: 500 });
+      return serverError('support', adminErr, 'Envoi échoué');
     }
 
     // ── Confirmation to user (non-fatal) ────────────────────────────────────
@@ -118,6 +119,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[support]', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur interne' }, { status: 500 });
+    return serverError('support', err, 'Erreur interne');
   }
 }
