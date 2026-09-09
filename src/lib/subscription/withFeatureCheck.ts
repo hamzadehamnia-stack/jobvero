@@ -34,6 +34,11 @@ export function withFeatureCheck(feature: FeatureKey, handler: RouteHandler): Ro
     const access = await canUseFeature(user.id, feature, supabase);
 
     if (!access.allowed) {
+      // A blocked account is not a paywall — do not offer an upgrade path.
+      if (access.reason === 'blocked') {
+        return Response.json({ error: 'Account blocked', reason: 'blocked' }, { status: 403 });
+      }
+
       return Response.json(
         {
           error:     'Feature locked',

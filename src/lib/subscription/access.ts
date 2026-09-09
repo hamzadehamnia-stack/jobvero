@@ -5,7 +5,7 @@ import { FEATURES, type FeatureKey, type Tier, type FeatureTierKey } from './fea
 
 export type AccessResult =
   | { allowed: true;  creditsRequired: number }
-  | { allowed: false; reason: 'trial_expired' | 'tier_locked' | 'no_credits' | 'limit_reached'; upgradeTo?: 'pro' | 'premium' };
+  | { allowed: false; reason: 'blocked' | 'trial_expired' | 'tier_locked' | 'no_credits' | 'limit_reached'; upgradeTo?: 'pro' | 'premium' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,13 +40,21 @@ export async function canUseFeature(
   // 1. Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_plan, trial_ends_at, ai_credits_remaining')
+    .select('subscription_plan, trial_ends_at, ai_credits_remaining, is_blocked')
     .eq('id', userId)
     .single();
 
   // No profile row yet → treat as active trial with full credits
   if (!profile) {
     return { allowed: true, creditsRequired: 0 };
+  }
+
+  // 2. Blocked accounts. Until now this flag was only enforced in middleware.ts,
+  // whose matcher excludes /api — so a banned user kept full API access and the
+  // ban was cosmetic. Checked here, before any tier or credit logic, so no
+  // feature path can skip it.
+  if (profile.is_blocked === true) {
+    return { allowed: false, reason: 'blocked' };
   }
 
   // 2. Effective tier

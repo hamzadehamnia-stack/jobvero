@@ -7,8 +7,13 @@ import { dropMalformedAuthCookies } from './src/lib/supabase/cookies';
 const intlMiddleware = createIntlMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-  // Run next-intl locale routing first
-  const intlResponse = intlMiddleware(request);
+  const pathname = request.nextUrl.pathname;
+  const isApi    = pathname.startsWith('/api');
+
+  // next-intl must never see an /api request: it would rewrite or redirect it
+  // to a locale-prefixed path and break every endpoint. /api is in the matcher
+  // only so the is_blocked gate below can cover it.
+  const intlResponse = isApi ? null : intlMiddleware(request);
 
   // Build response (carry over intl headers/cookies)
   let response = intlResponse ?? NextResponse.next({ request });
@@ -62,10 +67,36 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const pathname  = request.nextUrl.pathname;
-  const locale    = pathname.split('/')[1] || 'en';
+  const locale      = pathname.split('/')[1] || 'en';
   const isDashboard = /^\/[a-z]{2}\/dashboard(\/|$)/.test(pathname);
   const isBlocked   = /^\/[a-z]{2}\/blocked(\/|$)/.test(pathname);
+
+  // One profile read, reused by every gate below (previously two queries).
+  // Only fetched when there is a verified session and a gate actually needs it.
+  const needsBlockCheck = !!user && (isApi || isDashboard || isBlocked);
+  let userIsBlocked = false;
+  if (needsBlockCheck) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_blocked')
+      .eq('id', user!.id)
+      .maybeSingle();
+    userIsBlocked = profile?.is_blocked === true;
+  }
+
+  // ── /api ───────────────────────────────────────────────────────────────────
+  // The only gate applied here is is_blocked. Authentication itself stays with
+  // each route handler: webhooks and the cron job authenticate with a shared
+  // secret rather than a user session, so an unauthenticated /api request must
+  // be passed through untouched.
+  if (isApi) {
+    if (userIsBlocked) {
+      return NextResponse.json({ error: 'Account blocked', reason: 'blocked' }, { status: 403 });
+    }
+    return response;
+  }
+
+  // ── pages ──────────────────────────────────────────────────────────────────
 
   // Unauthenticated → redirect to login for dashboard routes
   if (isDashboard && !user) {
@@ -73,34 +104,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // Authenticated user on a dashboard route → check is_blocked
-  if (user && isDashboard) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_blocked')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.is_blocked) {
-      return NextResponse.redirect(new URL(`/${locale}/blocked`, request.url));
-    }
+  if (user && isDashboard && userIsBlocked) {
+    return NextResponse.redirect(new URL(`/${locale}/blocked`, request.url));
   }
 
   // Authenticated, not blocked, on /blocked → redirect back to dashboard
-  if (user && isBlocked) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_blocked')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.is_blocked) {
-      return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
-    }
+  if (user && isBlocked && !userIsBlocked) {
+    return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url));
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
+  // /api is included so the is_blocked gate covers API routes; the handler
+  // above skips next-intl for those paths.
+  matcher: ['/((?!_next|_vercel|.*\\..*).*)'],
 };
