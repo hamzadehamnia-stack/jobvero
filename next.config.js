@@ -32,6 +32,9 @@ const nextConfig = {
           // Never let the browser second-guess Content-Type. Without this, a
           // response carrying user-derived content can be sniffed as script.
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Clickjacking: the app is never meant to be framed. Legacy header for
+          // old browsers; CSP frame-ancestors in middleware.ts is the modern one.
+          { key: 'X-Frame-Options', value: 'DENY' },
         ],
       },
     ];
