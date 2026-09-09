@@ -1,5 +1,6 @@
 import { JobContext } from '../types';
 import { isValidEmailFormat, isBlacklisted, normalizeEmail } from '../utils/email-validate';
+import { safeFetch } from '@/lib/ssrfGuard';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'deepseek/deepseek-chat';
@@ -14,14 +15,18 @@ interface ExtractResult {
 
 async function fetchAndClean(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, {
+    // safeFetch, not fetch: `url` originates from the request body (jobUrl /
+    // companyCareersUrl), so the caller picks the host we connect to. It
+    // rejects private, loopback and link-local targets — including cloud
+    // metadata at 169.254.169.254 — and re-validates every redirect hop, which
+    // the previous `redirect: 'follow'` did not.
+    const res = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; JobveroBot/1.0; +https://getjobvero.com)',
         Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en;q=0.9,fr;q=0.8',
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      redirect: 'follow',
     });
 
     if (!res.ok) return null;
