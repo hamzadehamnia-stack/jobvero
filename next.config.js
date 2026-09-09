@@ -42,6 +42,14 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), geolocation=(), microphone=(self), payment=(), usb=(), interest-cohort=()',
           },
+          // Pin the origin to HTTPS for 2 years. Vercel already redirects to
+          // HTTPS, but the redirect itself is the window an SSL-strip attack
+          // needs; HSTS closes it after the first visit. Browsers ignore this
+          // header over plain HTTP, so local dev is unaffected.
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
         ],
       },
     ];
