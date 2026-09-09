@@ -17,6 +17,22 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['pdf-parse', 'mammoth', 'puppeteer', 'puppeteer-core', '@sparticuz/chromium-min'],
   },
+  // Security headers applied to every route.
+  // Note: Content-Security-Policy is NOT set here — it is emitted per-request
+  // from middleware.ts because it carries a per-response nonce.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Send the full URL only to same-origin targets; cross-origin gets the
+          // bare origin. Prevents dashboard URLs (which embed record ids) from
+          // leaking to job boards and company sites the user clicks through to.
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       const existing = Array.isArray(config.externals) ? config.externals : [];
