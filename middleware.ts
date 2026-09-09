@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './src/i18n/routing';
+import { dropMalformedAuthCookies } from './src/lib/supabase/cookies';
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -19,7 +20,7 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll();
+          return dropMalformedAuthCookies(request.cookies.getAll());
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
@@ -32,9 +33,34 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Read session from cookies (no network call — reliable right after OAuth callback)
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
+  // getUser(), not getSession(). getSession() only decodes the auth cookie --
+  // it never verifies the signature -- so a forged cookie carrying any payload
+  // would satisfy the `user` checks below and walk past both the dashboard gate
+  // and the is_blocked gate. getUser() validates the token against the Supabase
+  // auth server, which is the only way to know the session is real.
+  //
+  // This costs one network call per matched request. That is the documented
+  // trade-off and it is the reason Supabase tells you not to trust getSession()
+  // in server code.
+  //
+  // The try/catch is not optional: @supabase/ssr throws while *parsing* a
+  // malformed auth cookie (before any signature check), and because this
+  // middleware matches every non-API route, an unhandled throw turns into a 500
+  // on every page. A user with a corrupted cookie would be locked out of the
+  // whole site with no in-app way to recover. Treat any failure as "not signed
+  // in" and clear the bad cookie so the next request is clean.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    user = null;
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')) {
+        response.cookies.set(cookie.name, '', { path: '/', maxAge: 0 });
+      }
+    }
+  }
 
   const pathname  = request.nextUrl.pathname;
   const locale    = pathname.split('/')[1] || 'en';
