@@ -9,8 +9,19 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: '**' }, // company logos from any CDN
+      // Company logos come from Adzuna / JSearch / France Travail, which return
+      // arbitrary CDN URLs (see pickLogo in JobsClient.tsx). The host cannot be
+      // enumerated ahead of time, so the wildcard stays — but note it makes
+      // /_next/image a remote fetcher. https only: an http:// target such as a
+      // link-local metadata address is rejected before any request is made.
+      { protocol: 'https', hostname: '**' },
     ],
+    // Never rasterise remote SVG: it can carry script and would then be served
+    // from our own origin. This is the Next.js default; pinned explicitly so a
+    // future edit has to opt in deliberately.
+    dangerouslyAllowSVG: false,
+    // Anything that slips through is downloaded, not rendered inline on our origin.
+    contentDispositionType: 'attachment',
   },
   // pdf-parse and mammoth use Node.js built-ins (fs, path, canvas) —
   // mark them as server-only so Next.js doesn't attempt to bundle them for the edge runtime
