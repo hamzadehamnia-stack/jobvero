@@ -3,6 +3,22 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+const DEFAULT_NEXT = '/en/dashboard';
+
+// `next` arrives from a query param or a cookie, so it is attacker-controlled,
+// and it gets concatenated onto our origin to build the post-login redirect.
+// Accept only a single-slash absolute path: that rules out an absolute URL
+// (`https://evil.com`, which would build a malformed URL and 500) and a
+// protocol-relative one (`//evil.com`). Backslashes are rejected too, since
+// browsers normalise them to slashes in an authority position.
+function safeNext(value: string | undefined | null): string {
+  if (!value) return DEFAULT_NEXT;
+  if (!value.startsWith('/')) return DEFAULT_NEXT;
+  if (value.startsWith('//')) return DEFAULT_NEXT;
+  if (value.includes('\\'))   return DEFAULT_NEXT;
+  return value;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
@@ -10,7 +26,7 @@ export async function GET(request: NextRequest) {
   // Cookie fallback: Supabase strips custom query params during OAuth redirect,
   // so next/intent are stored in short-lived cookies before signInWithOAuth.
   const cookieStore = cookies();
-  const next   = searchParams.get('next')   ?? cookieStore.get('oauth_next')?.value   ?? '/en/dashboard';
+  const next   = safeNext(searchParams.get('next') ?? cookieStore.get('oauth_next')?.value);
   const intent = searchParams.get('intent') ?? cookieStore.get('oauth_intent')?.value ?? null;
 
   const locale = next.split('/')[1] || 'en';
