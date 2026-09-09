@@ -8,6 +8,7 @@ import {
   Copy, Check, Download, Send, Mail, AlertCircle, Bookmark, BookOpen, X as XIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 import { getSearchEngine, ENGINE_LABELS, type Engine } from '@/lib/jobEngineRouter';
 import JobCard from './JobCard';
@@ -562,7 +563,7 @@ function CoverLetterModal({
               <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
                 <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Aperçu de votre lettre</p>
               </div>
-              <div className="max-h-48 overflow-y-auto" dangerouslySetInnerHTML={{ __html: html }} />
+              <div className="max-h-48 overflow-y-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(html) }} />
             </div>
           </div>
 
@@ -639,7 +640,7 @@ function CoverLetterModal({
 
           <div
             className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(html) }}
           />
         </div>
 

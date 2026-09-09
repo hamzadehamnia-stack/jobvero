@@ -8,6 +8,7 @@ import {
   Save, Loader2, CheckCircle, AlertCircle, FileText, ArrowLeft,
 } from 'lucide-react';
 import Toast, { type ToastData } from '@/components/ui/Toast';
+import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
 import SavedCVsList from './SavedCVsList';
 import StepMode, { type CVMode } from './StepMode';
 import StepPersonal from './StepPersonal';
@@ -893,7 +894,7 @@ export default function CVBuilderClient() {
           {generatedHTML && !generating && (
             <>
               <div className="bg-white rounded-2xl shadow-xl shadow-gray-300/30 dark:shadow-black/30 overflow-hidden">
-                <div ref={previewRef} className="cv-preview" dangerouslySetInnerHTML={{ __html: generatedHTML }} />
+                <div ref={previewRef} className="cv-preview" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(generatedHTML) }} />
               </div>
 
               {/* Modify CV with AI */}
@@ -1001,7 +1002,7 @@ export default function CVBuilderClient() {
           </div>
           <div className="p-4">
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div ref={previewRef} dangerouslySetInnerHTML={{ __html: generatedHTML }} />
+              <div ref={previewRef} dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(generatedHTML) }} />
             </div>
           </div>
         </div>
