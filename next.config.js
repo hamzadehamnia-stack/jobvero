@@ -35,6 +35,13 @@ const nextConfig = {
           // Clickjacking: the app is never meant to be framed. Legacy header for
           // old browsers; CSP frame-ancestors in middleware.ts is the modern one.
           { key: 'X-Frame-Options', value: 'DENY' },
+          // Least privilege on device APIs. microphone=self is required by the
+          // interview coach (getUserMedia in InterviewCoachClient); camera and
+          // geolocation are never used by this app, so deny them outright.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), geolocation=(), microphone=(self), payment=(), usb=(), interest-cohort=()',
+          },
         ],
       },
     ];
