@@ -2,6 +2,42 @@ const createNextIntlPlugin = require('next-intl/plugin');
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+// ─── Content-Security-Policy ──────────────────────────────────────────────────
+// Every client-side fetch in this app is same-origin (/api/*, see ENGINE_URLS in
+// JobsClient.tsx); Supabase is the only external origin the browser talks to.
+//
+// script-src keeps 'unsafe-inline' and 'unsafe-eval' on purpose: the anti-FOUC
+// script in layout.tsx is inline, and moving to a nonce requires threading it
+// through next-intl's middleware response, which cannot be regression-tested
+// without an authenticated session. So script-src is NOT the XSS control here --
+// sanitising the dangerouslySetInnerHTML sinks is. What this policy does buy is
+// the set of directives that block XSS *escalation* and cost nothing:
+// base-uri (base-tag hijacking), object-src, form-action (credential
+// exfiltration to a foreign endpoint) and frame-ancestors (clickjacking).
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin;
+  } catch {
+    return '';
+  }
+})();
+
+const CSP_DIRECTIVES = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src 'self'${SUPABASE_ORIGIN ? ` ${SUPABASE_ORIGIN} ${SUPABASE_ORIGIN.replace(/^https:/, 'wss:')}` : ''}`,
+  "worker-src 'self' blob:",
+  "frame-src 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  'upgrade-insecure-requests',
+].join('; ');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Do not advertise the framework — reduces fingerprinting for targeted CVE probing
@@ -29,8 +65,6 @@ const nextConfig = {
     serverComponentsExternalPackages: ['pdf-parse', 'mammoth', 'puppeteer', 'puppeteer-core', '@sparticuz/chromium-min'],
   },
   // Security headers applied to every route.
-  // Note: Content-Security-Policy is NOT set here — it is emitted per-request
-  // from middleware.ts because it carries a per-response nonce.
   async headers() {
     return [
       {
@@ -61,6 +95,7 @@ const nextConfig = {
             key: 'Strict-Transport-Security',
             value: 'max-age=63072000; includeSubDomains; preload',
           },
+          { key: 'Content-Security-Policy', value: CSP_DIRECTIVES },
         ],
       },
     ];
