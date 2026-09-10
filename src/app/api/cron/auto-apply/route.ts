@@ -56,8 +56,27 @@ export async function GET(request: Request) {
 
   console.log(`[cron/auto-apply] Done. applied=${totalApplied} failed=${totalFailed} users=${userIds.length}`);
 
+  // Housekeeping: rate-limit buckets are never read once their window closes,
+  // but the rows stay behind — one per identity per route per window. Piggy-
+  // backing on the existing daily cron avoids introducing a second schedule.
+  // Never fatal: a failed purge must not turn a successful auto-apply run into
+  // an error response, it just means the table is purged tomorrow instead.
+  let purged: number | null = null;
+  try {
+    const { data, error } = await adminSupabase.rpc('purge_expired_rate_limits');
+    if (error) {
+      console.warn('[cron/auto-apply] rate-limit purge failed:', error.message);
+    } else {
+      purged = typeof data === 'number' ? data : null;
+      console.log(`[cron/auto-apply] purged ${purged ?? '?'} expired rate-limit rows`);
+    }
+  } catch (err) {
+    console.warn('[cron/auto-apply] rate-limit purge threw:', err);
+  }
+
   return Response.json({
     ran:     userIds.length,
+    purgedRateLimitRows: purged,
     applied: totalApplied,
     failed:  totalFailed,
     results: results.map(r => ({
