@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { FEATURES, type FeatureKey, type Tier, type FeatureTierKey } from './features';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -133,37 +134,61 @@ export async function canUseFeature(
 
 // ─── consumeFeature ───────────────────────────────────────────────────────────
 
+/**
+ * Charge the user for one use of a feature and record it.
+ *
+ * Returns false when the charge did not happen — insufficient balance, a
+ * missing profile, or the RPC failing. The caller must not run the handler on
+ * false; a paywall that proceeds when it could not collect is not a paywall.
+ *
+ * Three things changed here after the audit found this path was inert:
+ *
+ * 1. It uses the service-role client, not the caller's. decrement_ai_credits
+ *    grants EXECUTE to service_role alone, precisely so the browser cannot
+ *    reach it — an RLS-scoped client is refused.
+ * 2. It is called for every use, including credits: 0 on premium tiers. The
+ *    old code only fired when creditsRequired > 0, and gated the feature_usage
+ *    write on a `limit` key that no entry in FEATURES actually has, so the
+ *    audit trail was never written at all.
+ * 3. Failures are returned instead of discarded. The original
+ *    `.then(() => undefined)` swallowed the PGRST202 raised by the missing
+ *    function every single time, which is why nobody noticed for months.
+ */
 export async function consumeFeature(
   userId: string,
   feature: FeatureKey,
-  supabase: SupabaseClient,
   creditsRequired: number,
-): Promise<void> {
-  const tasks: Promise<unknown>[] = [];
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
 
-  // Deduct credits via atomic RPC (prevents race conditions)
-  if (creditsRequired > 0) {
-    tasks.push(
-      supabase.rpc('decrement_ai_credits', {
-        p_user_id: userId,
-        p_amount:  creditsRequired,
-      }).then(() => undefined) as Promise<unknown>,
-    );
+    const { data, error } = await admin.rpc('decrement_ai_credits', {
+      p_user_id: userId,
+      p_feature: feature,
+      p_amount:  creditsRequired,
+    });
+
+    if (error) {
+      console.error(`[consumeFeature] ${feature}: RPC failed —`, error.message);
+      return false;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row.consumed !== 'boolean') {
+      console.error(`[consumeFeature] ${feature}: unexpected payload`, data);
+      return false;
+    }
+
+    if (!row.consumed) {
+      // canUseFeature already checked the balance, so reaching here means it
+      // moved in between — two concurrent requests for the last credit, or an
+      // admin adjustment. The row lock inside the function decides the winner.
+      console.warn(`[consumeFeature] ${feature}: refused, remaining=${row.remaining}`);
+    }
+
+    return row.consumed;
+  } catch (err) {
+    console.error(`[consumeFeature] ${feature}: unavailable —`, err);
+    return false;
   }
-
-  // Track usage for features with time-based limits
-  const featureConfig = FEATURES[feature];
-  const hasTimeLimit  = Object.values(featureConfig).some(
-    (c) => 'limit' in c && c.limit !== null && c.limit !== undefined,
-  );
-  if (hasTimeLimit) {
-    tasks.push(
-      supabase
-        .from('feature_usage')
-        .insert({ user_id: userId, feature_key: feature })
-        .then(() => undefined) as Promise<unknown>,
-    );
-  }
-
-  await Promise.all(tasks);
 }
