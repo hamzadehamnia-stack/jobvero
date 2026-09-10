@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { enforceRateLimit, rateLimitKey, tooManyRequests } from '@/lib/rateLimit';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 
 // Waitlist signups are stored in Postgres (see 20260909_waitlist.sql).
 //
@@ -16,6 +18,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 limit — bounds what we accept and store
 
 export async function POST(req: NextRequest) {
+  // Public and unauthenticated, so the bucket is keyed by hashed IP. Throttled
+  // before the body is read: this is the one route here where the abuse worth
+  // stopping is volume itself, not the cost of the work.
+  const decision = await enforceRateLimit(
+    rateLimitKey(RATE_LIMITS.WAITLIST.name, null, req),
+    RATE_LIMITS.WAITLIST.windows,
+  );
+  if (!decision.allowed) return tooManyRequests(decision.retryAfter);
+
   const body  = await req.json().catch(() => null);
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
 

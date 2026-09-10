@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
 import { Resend }       from 'resend';
-import { createClient } from '@/lib/supabase/server';
 import { escapeHtml }  from '@/lib/escapeHtml';
 import { serverError } from '@/lib/apiError';
+import { withRateLimit, type AuthedContext } from '@/lib/withRateLimit';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 
 const resend       = new Resend(process.env.RESEND_API_KEY);
 const SUPPORT_TO   = 'hamzadehamnia@gmail.com';
 const SUPPORT_FROM = 'support@getjobvero.com';
 
-export async function POST(req: Request) {
+// Auth and throttling are handled by the wrapper; it resolved the session
+// already, so this handler no longer calls getUser() itself.
+async function handler(req: Request, { user, supabase }: AuthedContext) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const { subject, message } = await req.json() as { subject: string; message: string };
 
     if (!subject?.trim() || !message?.trim()) {
@@ -122,3 +121,5 @@ export async function POST(req: Request) {
     return serverError('support', err, 'Erreur interne');
   }
 }
+
+export const POST = withRateLimit(RATE_LIMITS.SUPPORT, handler);

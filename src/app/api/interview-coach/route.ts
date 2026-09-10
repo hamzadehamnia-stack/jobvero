@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { withRateLimit, type AuthedContext } from '@/lib/withRateLimit';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 import { NextResponse } from 'next/server';
 import { streamOpenRouter } from '@/lib/openrouter';
 
@@ -60,12 +61,10 @@ function cvToText(content: Record<string, unknown>): string {
   return parts.join('\n\n');
 }
 
-export async function POST(req: Request) {
+// Auth and throttling are handled by the wrapper; `user` and `supabase` are the
+// session it already resolved, so this handler no longer calls getUser().
+async function handler(req: Request, { user, supabase }: AuthedContext) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const {
       messages,
       jobDescription,
@@ -149,3 +148,5 @@ Conduct the interview entirely in ${lang}. Be specific, constructive, and profes
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMITS.INTERVIEW_COACH, handler);
