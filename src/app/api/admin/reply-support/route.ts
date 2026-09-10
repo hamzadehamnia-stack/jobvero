@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend }       from 'resend';
 import { requireAdmin } from '../_guard';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 const resend       = new Resend(process.env.RESEND_API_KEY);
 const SUPPORT_FROM = 'support@getjobvero.com';
@@ -27,11 +28,13 @@ export async function POST(req: Request) {
 
   try {
     // ── 1. Send reply email to user ─────────────────────────────────────────
-    const safeReply = replyText.trim()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
+    const safeReply = escapeHtml(replyText.trim()).replace(/\n/g, '<br>');
+    // `subject` is the ticket subject the *user* wrote, echoed back into an
+    // email we send them. It was interpolated raw. Also tolerate it being
+    // absent: the field is not required by the validation above, so
+    // `subject.trim()` used to throw a 500 on a reply with no subject.
+    const rawSubject  = (subject ?? '').trim();
+    const safeSubject = escapeHtml(rawSubject);
 
     const replyHtml = `
       <div style="font-family:Arial,sans-serif;max-width:600px;color:#1a1a2e;">
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
           <h2 style="margin:0;color:#fff;font-size:20px;">💬 Réponse de l'équipe Jobvero</h2>
         </div>
         <div style="background:#f9fafb;padding:28px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">En réponse à votre demande : <strong>${subject.trim()}</strong></p>
+          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">En réponse à votre demande : <strong>${safeSubject}</strong></p>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
           <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;line-height:1.8;color:#374151;">${safeReply}</div>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 16px;">
@@ -51,7 +54,7 @@ export async function POST(req: Request) {
     const { error: emailErr } = await resend.emails.send({
       from:    `Jobvero Support <${SUPPORT_FROM}>`,
       to:      [userEmail],
-      subject: `Re: ${subject.trim()}`,
+      subject: `Re: ${rawSubject}`,
       html:    replyHtml,
     });
 
@@ -62,7 +65,7 @@ export async function POST(req: Request) {
 
     // ── 2. Save reply into the user's Inbox (message_threads + messages) ────
     // Find or create a support thread for this user
-    const SUPPORT_SUBJECT = `[Support] ${subject.trim()}`;
+    const SUPPORT_SUBJECT = `[Support] ${rawSubject}`;
 
     let threadId: string | null = null;
 
@@ -116,7 +119,7 @@ export async function POST(req: Request) {
         direction:  'inbound',
         from_email: SUPPORT_FROM,
         to_email:   userEmail,
-        subject:    `Re: ${subject.trim()}`,
+        subject:    `Re: ${rawSubject}`,
         body:       replyText.trim(),
         read:       false,
       });

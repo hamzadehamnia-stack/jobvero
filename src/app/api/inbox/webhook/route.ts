@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { timingSafeCompare } from '@/lib/timingSafe';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 
 // Service-role client — bypasses RLS for inbound webhook inserts
@@ -447,8 +448,7 @@ async function handleAliasEmail(
 // (see cloudflare-email-worker/). Payload: { from, to, subject, text, html, messageId }
 
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-webhook-secret');
-  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+  if (!timingSafeCompare(req.headers.get('x-webhook-secret'), WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

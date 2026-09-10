@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -17,6 +18,10 @@ export async function POST(req: Request) {
     });
 
     const page = await browser.newPage();
+    // `html` is caller-supplied and rendered by a real browser inside the
+    // deployment. Without this, an <iframe> or <img> pointing at an internal
+    // address renders that response into the PDF returned to the caller.
+    await applyPdfNetworkAllowlist(page);
 
     // Wrap the CV HTML in a minimal document with A4 dimensions
     const fullHtml = `<!DOCTYPE html>
@@ -32,7 +37,13 @@ export async function POST(req: Request) {
 <body>${html}</body>
 </html>`;
 
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+    // 'load' + a settle delay, matching lib/htmlToPdfBuffer.ts. Puppeteer 24.43
+    // narrowed setContent's waitUntil to 'load' | 'domcontentloaded', so
+    // 'networkidle0' no longer type-checks. 'load' already waits for
+    // stylesheets and images — which is what this document needs — and the
+    // delay covers webfont swap-in, the thing networkidle0 was buying here.
+    await page.setContent(fullHtml, { waitUntil: 'load' });
+    await new Promise(resolve => setTimeout(resolve, 800));
     await page.setViewport({ width: 794, height: 1123 });
 
     const pdf = await page.pdf({

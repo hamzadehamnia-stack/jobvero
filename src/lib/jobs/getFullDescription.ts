@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { callOpenRouter } from '@/lib/openrouter';
+import { safeFetch } from '@/lib/ssrfGuard';
 
 const AI_MODEL      = 'deepseek/deepseek-chat';
 const SCRAPE_MIN    = 400;
@@ -54,11 +55,15 @@ export async function getFullDescription(
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT);
-      const res = await fetch(input.redirectUrl, {
+      // safeFetch, not fetch: redirectUrl arrives in the body of
+      // POST /api/jobs/full-description, so the caller picks the host. Same
+      // exposure as the email-finder scraper — private, loopback and
+      // link-local targets are refused and every redirect hop is re-checked,
+      // which the previous redirect: 'follow' did not do.
+      const res = await safeFetch(input.redirectUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
-        redirect: 'follow',
         signal: controller.signal,
       });
       clearTimeout(timer);

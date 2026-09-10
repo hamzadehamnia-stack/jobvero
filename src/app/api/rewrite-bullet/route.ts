@@ -71,7 +71,7 @@ Format: version1|||version2|||version3`;
     return NextResponse.json({ versions: versions.slice(0, 3) });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to rewrite bullet';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Rewrite failed' }, { status: 500 });
   }
 }
 

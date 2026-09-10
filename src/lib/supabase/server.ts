@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { dropMalformedAuthCookies } from './cookies';
 
 export async function createClient() {
   const cookieStore = cookies();
@@ -9,7 +10,7 @@ export async function createClient() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return dropMalformedAuthCookies(cookieStore.getAll());
         },
         setAll(cookiesToSet) {
           try {

@@ -5,7 +5,7 @@ import { FEATURES, type FeatureKey, type Tier, type FeatureTierKey } from './fea
 
 export type AccessResult =
   | { allowed: true;  creditsRequired: number }
-  | { allowed: false; reason: 'trial_expired' | 'tier_locked' | 'no_credits' | 'limit_reached'; upgradeTo?: 'pro' | 'premium' };
+  | { allowed: false; reason: 'blocked' | 'trial_expired' | 'tier_locked' | 'no_credits' | 'limit_reached'; upgradeTo?: 'pro' | 'premium' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,22 +40,45 @@ export async function canUseFeature(
   // 1. Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_plan, trial_ends_at, ai_credits_remaining')
+    .select('subscription_plan, trial_ends_at, ai_credits_remaining, is_blocked')
     .eq('id', userId)
     .single();
 
-  // No profile row yet → treat as active trial with full credits
-  if (!profile) {
-    return { allowed: true, creditsRequired: 0 };
+  // No profile row → evaluate as the free tier, not as unrestricted access.
+  //
+  // This used to `return { allowed: true, creditsRequired: 0 }`, i.e. every
+  // feature unlocked and no credits deducted, for anyone whose profile row was
+  // missing or simply unreadable. That is fail-open on the paywall: the row is
+  // read through the caller's RLS-scoped client, so anything that makes it come
+  // back empty -- a row deleted, a provisioning step that never ran, an RLS
+  // change -- silently granted Premium-exclusive features for free and forever.
+  //
+  // Falling through with null fields resolves to tier 'free' via
+  // getEffectiveTier(null, null), which is the correct reading of an account we
+  // have no subscription record for. Free-tier features keep working, so a
+  // not-yet-provisioned user is not locked out.
+  const effectiveProfile = profile ?? {
+    subscription_plan:    null,
+    trial_ends_at:        null,
+    ai_credits_remaining: 0,
+    is_blocked:           false,
+  };
+
+  // 2. Blocked accounts. Until now this flag was only enforced in middleware.ts,
+  // whose matcher excludes /api — so a banned user kept full API access and the
+  // ban was cosmetic. Checked here, before any tier or credit logic, so no
+  // feature path can skip it.
+  if (effectiveProfile.is_blocked === true) {
+    return { allowed: false, reason: 'blocked' };
   }
 
-  // 2. Effective tier
-  const effectiveTier  = getEffectiveTier(profile.subscription_plan, profile.trial_ends_at);
+  // 3. Effective tier
+  const effectiveTier  = getEffectiveTier(effectiveProfile.subscription_plan, effectiveProfile.trial_ends_at);
   const featureTierKey = toFeatureTierKey(effectiveTier);
   const featureConfig  = FEATURES[feature];
   const tierConfig     = featureConfig[featureTierKey];
 
-  // 3. Access gate
+  // 4. Access gate
   if (!tierConfig.access) {
     // Find the cheapest tier that grants access
     const proGrants     = (featureConfig.pro     as { access: boolean }).access;
@@ -68,20 +91,20 @@ export async function canUseFeature(
     };
   }
 
-  // 4. Credit check (credits > 0 means it costs something)
+  // 5. Credit check (credits > 0 means it costs something)
   const creditsRequired =
     'credits' in tierConfig && typeof tierConfig.credits === 'number'
       ? tierConfig.credits
       : 0;
 
   if (creditsRequired > 0) {
-    const remaining = profile.ai_credits_remaining ?? 0;
+    const remaining = effectiveProfile.ai_credits_remaining ?? 0;
     if (remaining < creditsRequired) {
       return { allowed: false, reason: 'no_credits', upgradeTo: 'pro' };
     }
   }
 
-  // 5. Time-based usage limit (e.g. cover letters: 1/week on free)
+  // 6. Time-based usage limit (e.g. cover letters: 1/week on free)
   if ('limit' in tierConfig && tierConfig.limit !== null && tierConfig.limit !== undefined) {
     const { count, period } = tierConfig.limit as { count: number; period: 'week' | 'month' };
     const sinceMs = period === 'week'

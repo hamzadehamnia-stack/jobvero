@@ -1,13 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { runAutoApplyForUser } from '@/lib/auto-apply/runForUser';
+import { timingSafeCompare } from '@/lib/timingSafe';
 
 // Allow up to 5 minutes — batch may process many users sequentially
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
   // ── Auth: verify Vercel cron secret ──────────────────────────────────────
+  // Constant-time: `!==` short-circuits at the first differing byte, so
+  // response timing leaks the secret one character at a time. This endpoint
+  // runs auto-apply for every active user with a service-role client, so it is
+  // the last one that should be brute-forceable.
   const authHeader = request.headers.get('Authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected   = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
+  if (!timingSafeCompare(authHeader, expected)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -27,6 +27,7 @@ import {
   Check, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { logApplicationEvent } from '@/lib/applicationEvents';
+import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Job, ColumnId } from './types';
@@ -236,7 +237,7 @@ function CoverLetterModal({ html, onClose }: { html: string; onClose: () => void
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: html }} />
+            dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(html) }} />
         </div>
       </div>
     </div>

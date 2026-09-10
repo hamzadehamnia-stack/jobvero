@@ -39,7 +39,7 @@ export async function GET(
   } catch (err) {
     console.error('[jobs/id]', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed' },
+      { error: 'Failed' },
       { status: 500 },
     );
   }

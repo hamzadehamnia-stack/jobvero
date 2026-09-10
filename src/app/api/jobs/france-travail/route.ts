@@ -274,6 +274,8 @@ export async function GET(req: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[france-travail] ❌ unhandled error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // FT_CLIENT_ID / FT_CLIENT_SECRET are used to build this request; never
+    // return the raw error, which may embed the URL or upstream response.
+    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
   }
 }

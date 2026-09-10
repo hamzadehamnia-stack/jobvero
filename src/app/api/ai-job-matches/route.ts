@@ -317,6 +317,6 @@ export async function GET(req: Request) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[ai-job-matches] unhandled error:', msg);
-    return NextResponse.json({ error: `Internal error: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

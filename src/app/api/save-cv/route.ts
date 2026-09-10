@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { serverError } from '@/lib/apiError';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -28,6 +29,6 @@ export async function POST(req: NextRequest) {
     .select('id')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError('save-cv', error, 'Save failed');
   return NextResponse.json({ id: data.id });
 }

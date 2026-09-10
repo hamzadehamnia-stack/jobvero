@@ -105,6 +105,6 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[compose] unhandled error:', message, err);
-    return NextResponse.json({ error: `Internal server error: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

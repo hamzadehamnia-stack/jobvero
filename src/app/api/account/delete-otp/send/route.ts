@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { serverError } from '@/lib/apiError';
 
 export async function POST() {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ export async function POST() {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError('account/delete-otp/send', error, 'Could not send the code');
   }
 
   return NextResponse.json({

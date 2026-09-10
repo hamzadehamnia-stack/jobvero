@@ -43,7 +43,7 @@ STRICT RULES:
   } catch (err: unknown) {
     console.error('CV data modification error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Modification failed' },
+      { error: 'Modification failed' },
       { status: 500 },
     );
   }

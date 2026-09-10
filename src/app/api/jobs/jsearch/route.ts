@@ -166,7 +166,7 @@ export async function GET(req: Request) {
   } catch (err) {
     console.error('[jsearch]', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Search failed' },
+      { error: 'Search failed' },
       { status: 500 },
     );
   }

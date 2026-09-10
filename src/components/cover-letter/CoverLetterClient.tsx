@@ -8,6 +8,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import Toast, { type ToastData } from '@/components/ui/Toast';
+import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
 import SavedLettersList from './SavedLettersList';
 import TemplatesTab from './TemplatesTab';
 
@@ -531,7 +532,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
                 <div
                   ref={previewRef}
                   className="cover-letter-preview"
-                  dangerouslySetInnerHTML={{ __html: generatedHTML }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(generatedHTML) }}
                 />
               </div>
 
@@ -621,7 +622,7 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
           </div>
           <div className="p-4">
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div ref={previewRef} dangerouslySetInnerHTML={{ __html: generatedHTML }} />
+              <div ref={previewRef} dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(generatedHTML) }} />
             </div>
           </div>
         </div>

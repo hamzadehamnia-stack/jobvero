@@ -1,3 +1,5 @@
+import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
+
 async function launchBrowser() {
   if (process.env.NODE_ENV === 'development') {
     try {
@@ -25,6 +27,9 @@ export async function htmlToPdfBuffer(html: string): Promise<Buffer> {
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
+    // Same reasoning as api/generate-pdf: the HTML rendered here originates
+    // outside this process, so the browser's network access is allowlisted.
+    await applyPdfNetworkAllowlist(page);
     await page.setViewport({ width: 794, height: 1123 });
     await page.setContent(html, { waitUntil: 'load' });
     await new Promise(resolve => setTimeout(resolve, 800));

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { Resend }       from 'resend';
 import { createClient } from '@/lib/supabase/server';
+import { escapeHtml }  from '@/lib/escapeHtml';
+import { serverError } from '@/lib/apiError';
 
 const resend       = new Resend(process.env.RESEND_API_KEY);
 const SUPPORT_TO   = 'hamzadehamnia@gmail.com';
@@ -38,11 +40,12 @@ export async function POST(req: Request) {
     const email = user.email ?? '';
 
     const dateStr = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
-    const safeMsg = message.trim()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
+    // The message was already escaped; name, email and subject were not, even
+    // though all three are user-controlled and land in the same HTML.
+    const safeMsg     = escapeHtml(message.trim()).replace(/\n/g, '<br>');
+    const safeName    = escapeHtml(name);
+    const safeEmail   = escapeHtml(email);
+    const safeSubject = escapeHtml(subject.trim());
 
     // ── Email to admin ──────────────────────────────────────────────────────
     const adminHtml = `
@@ -52,9 +55,9 @@ export async function POST(req: Request) {
         </div>
         <div style="background:#f9fafb;padding:28px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
           <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;width:80px;">Nom</td><td style="padding:8px 0;color:#111827;">${name}</td></tr>
-            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;">Email</td><td style="padding:8px 0;"><a href="mailto:${email}" style="color:#7C3AED;">${email}</a></td></tr>
-            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;">Objet</td><td style="padding:8px 0;color:#111827;">${subject.trim()}</td></tr>
+            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;width:80px;">Nom</td><td style="padding:8px 0;color:#111827;">${safeName}</td></tr>
+            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;">Email</td><td style="padding:8px 0;"><a href="mailto:${safeEmail}" style="color:#7C3AED;">${safeEmail}</a></td></tr>
+            <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;">Objet</td><td style="padding:8px 0;color:#111827;">${safeSubject}</td></tr>
             <tr><td style="padding:8px 0;font-weight:600;color:#6b7280;">Date</td><td style="padding:8px 0;color:#111827;">${dateStr}</td></tr>
           </table>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
 
     if (adminErr) {
       console.error('[support] admin email error:', adminErr);
-      return NextResponse.json({ error: `Envoi échoué : ${adminErr.message}` }, { status: 500 });
+      return serverError('support', adminErr, 'Envoi échoué');
     }
 
     // ── Confirmation to user (non-fatal) ────────────────────────────────────
@@ -84,10 +87,10 @@ export async function POST(req: Request) {
           <h2 style="margin:0;color:#fff;font-size:20px;">✅ Votre message a bien été reçu</h2>
         </div>
         <div style="background:#f9fafb;padding:28px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 16px;color:#374151;">Bonjour <strong>${name}</strong>,</p>
+          <p style="margin:0 0 16px;color:#374151;">Bonjour <strong>${safeName}</strong>,</p>
           <p style="margin:0 0 16px;color:#374151;">Votre message a été envoyé. Nous vous répondons sous <strong>24–48h</strong>.</p>
           <div style="background:#ede9fe;border-left:4px solid #7C3AED;border-radius:0 8px 8px 0;padding:14px 16px;margin:20px 0;">
-            <p style="margin:0;font-size:13px;color:#5b21b6;font-weight:600;">Objet : ${subject.trim()}</p>
+            <p style="margin:0;font-size:13px;color:#5b21b6;font-weight:600;">Objet : ${safeSubject}</p>
           </div>
           <p style="margin:20px 0 0;color:#6b7280;font-size:13px;">L'équipe Jobvero 💜</p>
         </div>
@@ -116,6 +119,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[support]', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur interne' }, { status: 500 });
+    return serverError('support', err, 'Erreur interne');
   }
 }
