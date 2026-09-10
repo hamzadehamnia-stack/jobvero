@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateEmailAlias, generateJobveroId } from '@/lib/userIdentity';
+import { timingSafeCompare } from '@/lib/timingSafe';
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,8 +10,10 @@ const admin = createClient(
 );
 
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
+  // Constant-time: `!==` leaks the secret one byte at a time through response
+  // timing. This route runs with the service-role client, so it is worth the
+  // same care as the inbox webhook.
+  if (!timingSafeCompare(req.headers.get('x-admin-secret'), process.env.ADMIN_SECRET)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

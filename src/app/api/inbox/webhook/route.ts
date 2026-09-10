@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { timingSafeCompare } from '@/lib/timingSafe';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 
 // Service-role client — bypasses RLS for inbound webhook inserts
@@ -447,21 +447,8 @@ async function handleAliasEmail(
 // Receives forwarded inbound emails from the Cloudflare Email Worker
 // (see cloudflare-email-worker/). Payload: { from, to, subject, text, html, messageId }
 
-// Constant-time secret comparison. `!==` on strings short-circuits at the first
-// differing byte, so response time leaks how many leading characters were right
-// — enough to recover the secret byte by byte given enough requests. The length
-// check first is deliberate: timingSafeEqual throws on mismatched lengths, and
-// the length of a shared secret is not the part worth hiding.
-function secretMatches(provided: string | null, expected: string | undefined): boolean {
-  if (!provided || !expected) return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 export async function POST(req: Request) {
-  if (!secretMatches(req.headers.get('x-webhook-secret'), WEBHOOK_SECRET)) {
+  if (!timingSafeCompare(req.headers.get('x-webhook-secret'), WEBHOOK_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
