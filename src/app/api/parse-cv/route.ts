@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { callOpenRouter } from '@/lib/openrouter';
-import { createClient } from '@/lib/supabase/server';
+import { withRateLimit } from '@/lib/withRateLimit';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 
 const MODEL = 'anthropic/claude-sonnet-4.6';
 
@@ -112,12 +113,10 @@ async function parseViaPDFVision(buffer: Buffer): Promise<unknown> {
   return JSON.parse(json);
 }
 
-export async function POST(req: Request) {
+// Auth and throttling are handled by the wrapper; it resolved the session
+// already, so this handler no longer calls getUser() itself.
+async function handler(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -220,3 +219,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMITS.PARSE_CV, handler);

@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { withRateLimit } from '@/lib/withRateLimit';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 
 const VOICE_MAP: Record<string, string> = {
   fr: 'nova',
@@ -8,12 +9,10 @@ const VOICE_MAP: Record<string, string> = {
   pt: 'nova',
 };
 
-export async function POST(req: Request) {
+// Auth and throttling are handled by the wrapper; it resolved the session
+// already, so this handler no longer calls getUser() itself.
+async function handler(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({ error: 'TTS not configured' }, { status: 503 });
     }
@@ -53,3 +52,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(RATE_LIMITS.TEXT_TO_SPEECH, handler);
