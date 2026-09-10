@@ -32,7 +32,13 @@ export async function POST(req: Request) {
 <body>${html}</body>
 </html>`;
 
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+    // 'load' + a settle delay, matching lib/htmlToPdfBuffer.ts. Puppeteer 24.43
+    // narrowed setContent's waitUntil to 'load' | 'domcontentloaded', so
+    // 'networkidle0' no longer type-checks. 'load' already waits for
+    // stylesheets and images — which is what this document needs — and the
+    // delay covers webfont swap-in, the thing networkidle0 was buying here.
+    await page.setContent(fullHtml, { waitUntil: 'load' });
+    await new Promise(resolve => setTimeout(resolve, 800));
     await page.setViewport({ width: 794, height: 1123 });
 
     const pdf = await page.pdf({
