@@ -334,7 +334,10 @@ function CoverLetterModal({
 
   const handleCopy = async () => {
     const tmp = document.createElement('div');
-    tmp.innerHTML = html;
+    // Sanitise even here. The element is detached so no script runs, but
+    // assigning innerHTML still kicks off resource loads for tags like
+    // <img src=... onerror=...>, and this `html` is LLM output.
+    tmp.innerHTML = sanitizeDocumentHtml(html);
     const text = tmp.textContent || tmp.innerText || '';
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -1049,7 +1052,7 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
       setCoverLetterJob(job);
       setCoverLetterHtml(data.coverLetterHtml);
       const tmp = document.createElement('div');
-      tmp.innerHTML = data.coverLetterHtml ?? '';
+      tmp.innerHTML = sanitizeDocumentHtml(data.coverLetterHtml ?? '');
       setCoverLetterText((tmp.textContent || tmp.innerText || '').trim());
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Application failed', 'error');
