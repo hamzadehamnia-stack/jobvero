@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -17,6 +18,10 @@ export async function POST(req: Request) {
     });
 
     const page = await browser.newPage();
+    // `html` is caller-supplied and rendered by a real browser inside the
+    // deployment. Without this, an <iframe> or <img> pointing at an internal
+    // address renders that response into the PDF returned to the caller.
+    await applyPdfNetworkAllowlist(page);
 
     // Wrap the CV HTML in a minimal document with A4 dimensions
     const fullHtml = `<!DOCTYPE html>
