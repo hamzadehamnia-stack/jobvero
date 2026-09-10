@@ -47,6 +47,26 @@ const nextConfig = {
   // Do not advertise the framework — reduces fingerprinting for targeted CVE probing
   poweredByHeader: false,
   images: {
+    // The Image Optimization API is switched off deliberately, and this is a
+    // security decision rather than a performance one.
+    //
+    // Next.js 14.2.x no longer receives security patches -- every advisory
+    // against it is fixed in the 15.5.x line -- and 14.2.35 is still exposed to
+    // GHSA-2xp9-vwfh-vxw4: unauthenticated remote code execution in the Image
+    // Optimization API when AVIF files are used (>=10.0.0 <15.5.24).
+    //
+    // That advisory is directly reachable here, because remotePatterns below
+    // accepts any https host: anyone could point /_next/image at an AVIF file
+    // on a server they control. Turning the optimizer off removes the
+    // vulnerable code path entirely, and closes the open image proxy at the
+    // same time.
+    //
+    // Cost: images are served at their original size instead of being resized
+    // and re-encoded. Nothing breaks -- next/image renders the src directly.
+    //
+    // REMOVE THIS once Next.js is upgraded to >= 15.5.24, and re-evaluate
+    // remotePatterns at that point.
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       // Company logos come from Adzuna / JSearch / France Travail, which return
