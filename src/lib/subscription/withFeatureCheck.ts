@@ -50,7 +50,19 @@ export function withFeatureCheck(feature: FeatureKey, handler: RouteHandler): Ro
     }
 
     // ── Consume credits / record usage (before handler to prevent farming) ─
-    await consumeFeature(user.id, feature, supabase, access.creditsRequired);
+    //
+    // The result is now acted on. This call used to be fire-and-forget, which
+    // meant the handler ran whether or not the charge succeeded — and since the
+    // RPC did not exist, it never succeeded. Denying on failure is the only
+    // safe reading: a paywall that serves the request when it could not collect
+    // is not a paywall.
+    const charged = await consumeFeature(user.id, feature, access.creditsRequired);
+    if (!charged) {
+      return Response.json(
+        { error: 'Feature locked', reason: 'no_credits', upgradeTo: 'pro' },
+        { status: 403 },
+      );
+    }
 
     // ── Run original handler ─────────────────────────────────────────────
     return handler(req);
