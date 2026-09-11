@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
+import { measureContentHeight, PDF_PAGE_WIDTH_PX } from '@/lib/pdfPageSize';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -23,19 +24,35 @@ export async function POST(req: Request) {
     // address renders that response into the PDF returned to the caller.
     await applyPdfNetworkAllowlist(page);
 
-    // Wrap the CV HTML in a minimal document with A4 dimensions
+    // Wrap the document at the template's layout width. `@page` no longer sets
+    // `size`: with a fixed A4 sheet, a CV or letter that filled a third of the
+    // page produced a PDF with two thirds of blank paper under it. `margin: 0`
+    // stays — it suppresses Chromium's default print margins, which have
+    // nothing to do with the sheet size.
     const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 794px; background: #fff; }
-  @page { size: A4; margin: 0; }
+  html, body { width: ${PDF_PAGE_WIDTH_PX}px; background: #fff; }
+  @page { margin: 0; }
+  /* CV templates pin min-height:1123px on their wrapper so the on-screen
+     preview looks like a full sheet. On a content-sized page that pin is
+     exactly the blank space being removed, so it is dropped for the PDF only.
+     Flex children still stretch to their row, so a full-height sidebar stays
+     full-height on the shorter page. */
+  body, body * { min-height: 0 !important; }
 </style>
 </head>
 <body>${html}</body>
 </html>`;
+
+    // Viewport before setContent, not after. It used to be set afterwards, so
+    // the document was laid out at Chromium's default 800×600 and only then
+    // reflowed — which would make any height measured here describe the wrong
+    // layout.
+    await page.setViewport({ width: PDF_PAGE_WIDTH_PX, height: 1123 });
 
     // 'load' + a settle delay, matching lib/htmlToPdfBuffer.ts. Puppeteer 24.43
     // narrowed setContent's waitUntil to 'load' | 'domcontentloaded', so
@@ -44,10 +61,14 @@ export async function POST(req: Request) {
     // delay covers webfont swap-in, the thing networkidle0 was buying here.
     await page.setContent(fullHtml, { waitUntil: 'load' });
     await new Promise(resolve => setTimeout(resolve, 800));
-    await page.setViewport({ width: 794, height: 1123 });
+
+    // Measured after the fonts have settled, so the height reflects the final
+    // layout rather than a fallback face with different metrics.
+    const contentHeight = await measureContentHeight(page);
 
     const pdf = await page.pdf({
-      format: 'A4',
+      width: `${PDF_PAGE_WIDTH_PX}px`,
+      height: `${contentHeight}px`,
       printBackground: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' },
     });
