@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
-import { measureContentHeight, PDF_PAGE_WIDTH_PX } from '@/lib/pdfPageSize';
+import {
+  measureContentHeight,
+  markAtomicBlocks,
+  A4_PAGE_HEIGHT_PX,
+  PAGE_BREAK_CSS,
+  PDF_PAGE_WIDTH_PX,
+} from '@/lib/pdfPageSize';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -43,6 +49,7 @@ export async function POST(req: Request) {
      Flex children still stretch to their row, so a full-height sidebar stays
      full-height on the shorter page. */
   body, body * { min-height: 0 !important; }
+  ${PAGE_BREAK_CSS}
 </style>
 </head>
 <body>${html}</body>
@@ -66,12 +73,25 @@ export async function POST(req: Request) {
     // layout rather than a fallback face with different metrics.
     const contentHeight = await measureContentHeight(page);
 
-    const pdf = await page.pdf({
-      width: `${PDF_PAGE_WIDTH_PX}px`,
-      height: `${contentHeight}px`,
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
+    // Two modes, matching lib/htmlToPdfBuffer.ts. A document that fits on one
+    // sheet gets a page sized to it, so nothing blank hangs underneath;
+    // anything longer falls back to real A4 pagination, because a single
+    // continuous page several sheets tall prints badly and these documents do
+    // get printed.
+    const margin = { top: '0', right: '0', bottom: '0', left: '0' };
+    let pdf: Uint8Array;
+
+    if (contentHeight <= A4_PAGE_HEIGHT_PX) {
+      pdf = await page.pdf({
+        width: `${PDF_PAGE_WIDTH_PX}px`,
+        height: `${contentHeight}px`,
+        printBackground: true,
+        margin,
+      });
+    } else {
+      await markAtomicBlocks(page);
+      pdf = await page.pdf({ format: 'A4', printBackground: true, margin });
+    }
 
     await browser.close();
 
