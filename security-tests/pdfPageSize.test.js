@@ -124,6 +124,82 @@ function cv(entries) {
   </div></div>`;
 }
 
+// ─── Cover letters ────────────────────────────────────────────────────────────
+//
+// A different shape from a CV: no sidebar, no min-height pin, just a business
+// letter. Built to the spec the generate-cover-letter prompt gives the model —
+// Helvetica Neue, padding 40px 48px, sender top-right, date, recipient block,
+// salutation, body, closing, signature, 13px/1.7 in #1a1a2e.
+
+const LETTER_PARA = `I have followed your work on developer tooling for several years, and the
+role you advertised reads like the job I have been growing into. At ACME I led the
+platform team through a migration to a service architecture, cut p95 latency by
+forty percent, and took the on-call rotation from a rota nobody wanted to one the
+team volunteers for. The billing rewrite I shipped now processes two million events
+a day without an incident.`;
+
+function letter(paragraphs, extraLines = 0) {
+  const body = Array.from({ length: paragraphs }, () =>
+    `<p style="margin-bottom:16px">${LETTER_PARA}</p>`).join('');
+  // Short lines give finer granularity than a whole paragraph, so a letter can
+  // be landed inside the 8% tolerance band for testing.
+  const extra = Array.from({ length: extraLines }, (_, i) =>
+    `<p style="margin-bottom:0">Enclosure ${i + 1}: portfolio and references available on request.</p>`).join('');
+  return `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;padding:40px 48px;font-size:13px;line-height:1.7;color:#1a1a2e;">
+  <div style="text-align:right;margin-bottom:24px">
+    <div style="font-weight:600">Jane Doe</div><div>jane.doe@example.com</div>
+  </div>
+  <div style="margin-bottom:24px">12 September 2026</div>
+  <div style="margin-bottom:28px"><div style="font-weight:600">Hiring Team</div><div>ACME Technologies</div><div>Paris, France</div></div>
+  <p style="margin-bottom:16px">Dear Hiring Team,</p>
+  ${body}${extra}
+  <p style="margin-bottom:8px">Kind regards,</p>
+  <p style="font-weight:600">Jane Doe</p>
+</div>`;
+}
+
+// Byte-for-byte the wrapper /api/generate-pdf builds, so the letter path is
+// exercised as the route actually renders it rather than approximated.
+const routeWrapper = (html) => `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: ${PDF_PAGE_WIDTH_PX}px; background: #fff; }
+  @page { margin: 0; }
+  body, body * { min-height: 0 !important; }
+  ${PAGE_BREAK_CSS}
+</style>
+</head>
+<body>${html}</body>
+</html>`;
+
+async function renderLetter(browser, html) {
+  const page = await browser.newPage();
+  try {
+    await page.setViewport({ width: PDF_PAGE_WIDTH_PX, height: A4_PAGE_HEIGHT_PX });
+    await page.setContent(routeWrapper(html), { waitUntil: 'load' });
+    await new Promise((r) => setTimeout(r, 300));
+
+    const contentHeight = await measureContentHeight(page);
+    const strategy = choosePageStrategy(contentHeight);
+    const margin = { top: '0', right: '0', bottom: '0', left: '0' };
+
+    let pdf;
+    if (strategy.mode === 'fitted') {
+      pdf = await page.pdf({
+        width: `${PDF_PAGE_WIDTH_PX}px`, height: `${strategy.heightPx}px`,
+        printBackground: true, margin,
+      });
+    } else {
+      await markAtomicBlocks(page);
+      pdf = await page.pdf({ format: 'A4', printBackground: true, scale: strategy.scale, margin });
+    }
+    return { contentHeight, strategy, buf: Buffer.from(pdf) };
+  } finally { await page.close(); }
+}
+
 function geometry(buf) {
   const s = buf.toString('latin1');
   const boxes = [...s.matchAll(/\/MediaBox\s*\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]/g)]
@@ -268,6 +344,59 @@ const check = (name, ok, detail = '') => {
         check('scale never shrinks text below 92%', strategy.scale >= 0.92,
           `(${(strategy.scale * 100).toFixed(1)}%)`);
         check('job entries marked unbreakable', atomic > 0, `(${atomic} blocks)`);
+      }
+    }
+    // ── Cover letters ───────────────────────────────────────────────────────
+    // /api/generate-pdf serves letters as well as saved CVs, and a letter has
+    // none of a CV's structure — so the three bands are re-checked on that
+    // shape rather than assumed to carry over.
+    console.log('\n\n########  COVER LETTERS  ########');
+
+    const letterCases = [
+      { label: 'REAL LETTER (3 paragraphs, the prompt spec)', paras: 3,  lines: 0, mode: 'fitted',    pages: 1 },
+      { label: 'LETTER FILLING ~1 PAGE',                      paras: 7,  lines: 0, mode: 'fitted',    pages: 1 },
+      { label: 'LETTER JUST OVER 1 PAGE (tolerance band)',    paras: 7,  lines: 2, mode: 'paginated', pages: 1 },
+      { label: 'LONG LETTER (2 pages)',                       paras: 12, lines: 0, mode: 'paginated', pages: 2 },
+    ];
+
+    for (const { label, paras, lines, mode, pages: expectPages } of letterCases) {
+      console.log(`\n=== ${label} ===`);
+      const { contentHeight, strategy, buf } = await renderLetter(browser, letter(paras, lines));
+      const g = geometry(buf);
+      const box = g.boxes[0];
+      const overflowPct = ((contentHeight - A4_PAGE_HEIGHT_PX) / A4_PAGE_HEIGHT_PX * 100);
+
+      console.log(`  content height : ${contentHeight}px  (${contentHeight <= A4_PAGE_HEIGHT_PX
+        ? `${(contentHeight / A4_PAGE_HEIGHT_PX * 100).toFixed(0)}% of a sheet`
+        : `+${overflowPct.toFixed(1)}% over one sheet`})`);
+      console.log(`  mode           : ${strategy.mode === 'fitted'
+        ? 'fitted to content'
+        : `A4 pagination, scale ${(strategy.scale * 100).toFixed(1)}%`}`);
+      console.log(`  result         : ${g.pages} page(s), ${box.w.toFixed(0)}×${box.h.toFixed(0)}pt`);
+
+      check(`took the ${mode} branch`, strategy.mode === mode, `(${strategy.mode})`);
+      check(`lands on ${expectPages} sheet(s)`, g.pages === expectPages, `(got ${g.pages})`);
+      check('width is A4 (595pt)', Math.abs(box.w - A4_W_PT) <= 2, `(${box.w.toFixed(1)}pt)`);
+
+      if (mode === 'fitted') {
+        check('height equals the measured content',
+          Math.abs(box.h - contentHeight * PX_PER_PT) <= 2,
+          `(${box.h.toFixed(1)}pt vs ${(contentHeight * PX_PER_PT).toFixed(1)}pt)`);
+        check('no blank tail below the signature', box.h <= A4_H_PT + 1, `(${box.h.toFixed(1)}pt)`);
+      } else {
+        check('EVERY page is a true A4 sheet',
+          g.boxes.every((b) => Math.abs(b.w - A4_W_PT) <= 2 && Math.abs(b.h - A4_H_PT) <= 2),
+          `(${g.boxes.map((b) => `${b.w.toFixed(0)}×${b.h.toFixed(0)}`).join(', ')})`);
+        check('scale stays above 92%', strategy.scale >= 0.92, `(${(strategy.scale * 100).toFixed(1)}%)`);
+      }
+
+      // The band the case is meant to exercise, asserted explicitly so a
+      // rendering shift that moves a letter into a different band is caught
+      // rather than silently passing under the wrong branch.
+      if (label.includes('tolerance band')) {
+        check('overflow really is inside the 8% tolerance',
+          overflowPct > 0 && overflowPct <= 8, `(+${overflowPct.toFixed(1)}%)`);
+        check('absorbed onto a single sheet instead of spilling', g.pages === 1);
       }
     }
   } finally { await browser.close(); }
