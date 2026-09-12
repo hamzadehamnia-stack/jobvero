@@ -4,7 +4,7 @@ import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
 import {
   measureContentHeight,
   markAtomicBlocks,
-  A4_PAGE_HEIGHT_PX,
+  choosePageStrategy,
   PAGE_BREAK_CSS,
   PDF_PAGE_WIDTH_PX,
 } from '@/lib/pdfPageSize';
@@ -73,24 +73,28 @@ export async function POST(req: Request) {
     // layout rather than a fallback face with different metrics.
     const contentHeight = await measureContentHeight(page);
 
-    // Two modes, matching lib/htmlToPdfBuffer.ts. A document that fits on one
-    // sheet gets a page sized to it, so nothing blank hangs underneath;
-    // anything longer falls back to real A4 pagination, because a single
-    // continuous page several sheets tall prints badly and these documents do
-    // get printed.
-    const margin = { top: '0', right: '0', bottom: '0', left: '0' };
+    // Same strategy as lib/htmlToPdfBuffer.ts: cut the page to the content when
+    // it fits on one sheet, otherwise lay it on true A4 sheets, shrinking
+    // slightly rather than spilling a couple of lines onto an extra one.
+    const margin   = { top: '0', right: '0', bottom: '0', left: '0' };
+    const strategy = choosePageStrategy(contentHeight);
     let pdf: Uint8Array;
 
-    if (contentHeight <= A4_PAGE_HEIGHT_PX) {
+    if (strategy.mode === 'fitted') {
       pdf = await page.pdf({
         width: `${PDF_PAGE_WIDTH_PX}px`,
-        height: `${contentHeight}px`,
+        height: `${strategy.heightPx}px`,
         printBackground: true,
         margin,
       });
     } else {
       await markAtomicBlocks(page);
-      pdf = await page.pdf({ format: 'A4', printBackground: true, margin });
+      pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        scale: strategy.scale,
+        margin,
+      });
     }
 
     await browser.close();
