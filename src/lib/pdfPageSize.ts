@@ -22,6 +22,62 @@ export const PDF_PAGE_WIDTH_PX = 794;
 export const A4_PAGE_HEIGHT_PX = 1123;
 
 /**
+ * How much overflow past a whole number of A4 pages is absorbed by shrinking
+ * the document instead of spilling onto another sheet.
+ *
+ * A CV that runs a few pixels past one page would otherwise produce a second
+ * sheet holding a couple of lines. Rather than widen the page — which yields a
+ * PDF that is not A4 and gets rescaled by whatever printer opens it — the
+ * content is scaled down so it lands on a whole number of true A4 sheets.
+ *
+ * 8% is the ceiling on that shrink. It bounds the smallest scale at
+ * 1 / 1.08 ≈ 0.93 for a one-page document, and 2 / 2.08 ≈ 0.96 for two pages,
+ * so text never shrinks to the point of being visibly smaller.
+ *
+ * Worth being clear-eyed about the limit: a tolerance moves the boundary, it
+ * does not remove the case. Content overflowing by more than 8% still spills,
+ * and that last sheet is then ~8% full at worst instead of ~0%. Raising the
+ * tolerance shrinks text; lowering it brings the near-empty sheet back.
+ */
+const OVERFLOW_TOLERANCE = 0.08;
+
+export type PdfPageStrategy =
+  /** Page cut to the content — a short CV with no blank paper under it. */
+  | { mode: 'fitted'; heightPx: number }
+  /** True A4 sheets. `scale` < 1 pulls a slight overflow back onto `pages`. */
+  | { mode: 'paginated'; pages: number; scale: number };
+
+/**
+ * Decide how to lay the document out, from its measured height.
+ *
+ * Three outcomes:
+ *   fits one sheet          -> page sized to the content
+ *   overflows a little      -> A4, scaled down to land on whole sheets
+ *   overflows substantially -> A4, unscaled, paginated normally
+ */
+export function choosePageStrategy(contentHeightPx: number): PdfPageStrategy {
+  if (contentHeightPx <= A4_PAGE_HEIGHT_PX) {
+    return { mode: 'fitted', heightPx: contentHeightPx };
+  }
+
+  const naturalPages = Math.ceil(contentHeightPx / A4_PAGE_HEIGHT_PX);
+
+  // Could it be pulled back onto one fewer sheet without shrinking too far?
+  const tighterPages = naturalPages - 1;
+  const spillover    = contentHeightPx - tighterPages * A4_PAGE_HEIGHT_PX;
+
+  if (tighterPages >= 1 && spillover <= A4_PAGE_HEIGHT_PX * OVERFLOW_TOLERANCE) {
+    return {
+      mode:  'paginated',
+      pages: tighterPages,
+      scale: (tighterPages * A4_PAGE_HEIGHT_PX) / contentHeightPx,
+    };
+  }
+
+  return { mode: 'paginated', pages: naturalPages, scale: 1 };
+}
+
+/**
  * Print hygiene for documents that span more than one page.
  *
  * Inert on a single-page export — a fragmentation rule has nothing to act on

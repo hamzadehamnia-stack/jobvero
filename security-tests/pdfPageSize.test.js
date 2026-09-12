@@ -69,6 +69,25 @@ async function measureContentHeight(page) {
   return height > 0 ? height : A4_PAGE_HEIGHT_PX;
 }
 
+const OVERFLOW_TOLERANCE = 0.08;
+
+function choosePageStrategy(contentHeightPx) {
+  if (contentHeightPx <= A4_PAGE_HEIGHT_PX) {
+    return { mode: 'fitted', heightPx: contentHeightPx };
+  }
+  const naturalPages = Math.ceil(contentHeightPx / A4_PAGE_HEIGHT_PX);
+  const tighterPages = naturalPages - 1;
+  const spillover    = contentHeightPx - tighterPages * A4_PAGE_HEIGHT_PX;
+  if (tighterPages >= 1 && spillover <= A4_PAGE_HEIGHT_PX * OVERFLOW_TOLERANCE) {
+    return {
+      mode: 'paginated',
+      pages: tighterPages,
+      scale: (tighterPages * A4_PAGE_HEIGHT_PX) / contentHeightPx,
+    };
+  }
+  return { mode: 'paginated', pages: naturalPages, scale: 1 };
+}
+
 async function markAtomicBlocks(page) {
   await page.evaluate(() => {
     const MAX_ATOMIC_HEIGHT_PX = 260;
@@ -122,7 +141,8 @@ async function render(browser, html) {
 
     const contentHeight = await measureContentHeight(page);
     const margin = { top: '0', right: '0', bottom: '0', left: '0' };
-    const paginated = contentHeight > A4_PAGE_HEIGHT_PX;
+    const strategy = choosePageStrategy(contentHeight);
+    const paginated = strategy.mode === 'paginated';
 
     const sidebar = await page.evaluate(() => {
       const s = document.getElementById('sidebar');
@@ -135,16 +155,15 @@ async function render(browser, html) {
     let pdf;
     if (!paginated) {
       pdf = await page.pdf({
-        width: `${PDF_PAGE_WIDTH_PX}px`, height: `${contentHeight}px`,
+        width: `${PDF_PAGE_WIDTH_PX}px`, height: `${strategy.heightPx}px`,
         printBackground: true, margin,
       });
-    } else {
-      await markAtomicBlocks(page);
-      const atomic = await page.evaluate(() => document.querySelectorAll('[data-pdf-atomic]').length);
-      pdf = await page.pdf({ format: 'A4', printBackground: true, margin });
-      return { contentHeight, paginated, sidebar, atomic, buf: Buffer.from(pdf) };
+      return { contentHeight, strategy, paginated, sidebar, atomic: 0, buf: Buffer.from(pdf) };
     }
-    return { contentHeight, paginated, sidebar, atomic: 0, buf: Buffer.from(pdf) };
+    await markAtomicBlocks(page);
+    const atomic = await page.evaluate(() => document.querySelectorAll('[data-pdf-atomic]').length);
+    pdf = await page.pdf({ format: 'A4', printBackground: true, scale: strategy.scale, margin });
+    return { contentHeight, strategy, paginated, sidebar, atomic, buf: Buffer.from(pdf) };
   } finally { await page.close(); }
 }
 
@@ -158,7 +177,38 @@ const check = (name, ok, detail = '') => {
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 
   try {
-    console.log('=== document mode (the quirks-mode root cause) ===');
+    // Pure logic, no browser — so the tolerance boundaries are pinned exactly
+    // rather than depending on how a sample document happens to render.
+    console.log('=== page strategy across the thresholds ===');
+    {
+      const A4 = A4_PAGE_HEIGHT_PX;
+      const rows = [
+        ['well under one page',        500,               'fitted',    1, 1],
+        ['exactly one page',           A4,                'fitted',    1, 1],
+        ['one pixel over',             A4 + 1,            'paginated', 1, 0.999],
+        ['4% over  (the reported case)', 1170,            'paginated', 1, 0.960],
+        ['8% over  (tolerance edge)',   Math.floor(A4 * 1.08), 'paginated', 1, 0.926],
+        ['9% over  (past tolerance)',   Math.ceil(A4 * 1.09),  'paginated', 2, 1],
+        ['exactly two pages',           A4 * 2,           'paginated', 2, 1],
+        ['2 pages + 5%',                Math.floor(A4 * 2.05), 'paginated', 2, 0.976],
+        ['2 pages + 30%',               Math.floor(A4 * 2.30), 'paginated', 3, 1],
+      ];
+      for (const [label, h, mode, pages, scale] of rows) {
+        const s = choosePageStrategy(h);
+        const gotPages = s.mode === 'fitted' ? 1 : s.pages;
+        const gotScale = s.mode === 'fitted' ? 1 : s.scale;
+        check(`${label} (${h}px)`,
+          s.mode === mode && gotPages === pages && Math.abs(gotScale - scale) < 0.005,
+          `-> ${s.mode}, ${gotPages} page(s), scale ${(gotScale * 100).toFixed(1)}%`);
+      }
+      check('tolerance never shrinks text below 92%',
+        rows.every(([, h]) => {
+          const s = choosePageStrategy(h);
+          return s.mode === 'fitted' || s.scale >= 0.92;
+        }));
+    }
+
+    console.log('\n=== document mode (the quirks-mode root cause) ===');
     {
       const page = await browser.newPage();
       await page.setContent(cv(1), { waitUntil: 'load' });
@@ -175,18 +225,18 @@ const check = (name, ok, detail = '') => {
     const cases = [
       { label: 'SHORT CV (~1/3 page)',        entries: 1,  mode: 'fitted'    },
       { label: 'CV FILLING ~1 PAGE',          entries: 8,  mode: 'fitted'    },
-      { label: 'CV JUST OVER 1 PAGE',         entries: 9,  mode: 'paginated' },
-      { label: 'LONG CV (2-3 pages)',         entries: 22, mode: 'paginated' },
+      { label: 'CV JUST OVER 1 PAGE',         entries: 9,  mode: 'paginated', pages: 1 },
+      { label: 'LONG CV (2-3 pages)',         entries: 22, mode: 'paginated', pages: 3 },
     ];
 
-    for (const { label, entries, mode } of cases) {
+    for (const { label, entries, mode, pages: expectPages } of cases) {
       console.log(`\n=== ${label} ===`);
-      const { contentHeight, paginated, sidebar, atomic, buf } = await render(browser, cv(entries));
+      const { contentHeight, strategy, paginated, sidebar, atomic, buf } = await render(browser, cv(entries));
       const g = geometry(buf);
       const box = g.boxes[0];
 
       console.log(`  content height : ${contentHeight}px  (A4 = ${A4_PAGE_HEIGHT_PX}px)`);
-      console.log(`  mode           : ${paginated ? 'A4 pagination' : 'fitted to content'}`);
+      console.log(`  mode           : ${paginated ? `A4 pagination, scale ${(strategy.scale * 100).toFixed(1)}%` : 'fitted to content'}`);
       console.log(`  result         : ${g.pages} page(s), ${box.w.toFixed(0)}×${box.h.toFixed(0)}pt`);
       if (paginated) console.log(`  atomic blocks  : ${atomic}`);
 
@@ -208,14 +258,15 @@ const check = (name, ok, detail = '') => {
             `(${removed.toFixed(0)}pt ≈ ${(removed / A4_H_PT * 100).toFixed(0)}% of a sheet)`);
         }
       } else {
-        check('spans several pages', g.pages >= 2, `(got ${g.pages})`);
-        console.log(`  last page fill : ${(((contentHeight % A4_PAGE_HEIGHT_PX) || A4_PAGE_HEIGHT_PX) / A4_PAGE_HEIGHT_PX * 100).toFixed(0)}%`);
         check('EVERY page is a true A4 sheet',
           g.boxes.every((b) => Math.abs(b.w - A4_W_PT) <= 2 && Math.abs(b.h - A4_H_PT) <= 2),
           `(${g.boxes.map((b) => `${b.w.toFixed(0)}×${b.h.toFixed(0)}`).join(', ')})`);
-        check('page count matches the content, nothing dropped',
-          g.pages === Math.ceil(contentHeight / A4_PAGE_HEIGHT_PX),
-          `(${g.pages} vs ${Math.ceil(contentHeight / A4_PAGE_HEIGHT_PX)} expected)`);
+        check('page count is the one the strategy asked for',
+          g.pages === strategy.pages, `(${g.pages} vs ${strategy.pages})`);
+        check(`lands on ${expectPages} sheet(s) as intended`,
+          g.pages === expectPages, `(got ${g.pages})`);
+        check('scale never shrinks text below 92%', strategy.scale >= 0.92,
+          `(${(strategy.scale * 100).toFixed(1)}%)`);
         check('job entries marked unbreakable', atomic > 0, `(${atomic} blocks)`);
       }
     }
