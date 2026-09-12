@@ -2,28 +2,39 @@
 //
 // Run it:  node security-tests/pdfPageSize.test.js
 //
-// The PDF page used to be a fixed A4 sheet, so a CV filling a third of it came
-// out with two thirds of blank paper underneath. The page is now sized to the
-// content. This renders a short and a long CV through the same sequence the
-// library uses, then reads the real geometry back out of the produced PDF
-// bytes (/MediaBox) rather than trusting the options that were passed in.
+// The export has two modes:
+//   content fits on one A4 sheet -> page sized to the content (no blank space)
+//   content is taller than that  -> real A4 pagination, so it still prints
 //
-// Mirrors measureContentHeight/withDoctype from those files (TypeScript, @/
-// alias). KEEP IN SYNC.
+// Renders through the same sequence as the library and reads the geometry back
+// out of the produced PDF bytes (/MediaBox), rather than trusting the options
+// that were passed in.
+//
+// Mirrors measureContentHeight / markAtomicBlocks / withDoctype / the injected
+// CSS from those files (TypeScript, @/ alias). KEEP IN SYNC.
 
 const puppeteer = require('puppeteer');
 
-const PDF_PAGE_WIDTH_PX = 794;      // A4 width at 96dpi === 595pt. NOT 595px.
+const PDF_PAGE_WIDTH_PX  = 794;      // A4 width at 96dpi === 595pt. NOT 595px.
+const A4_PAGE_HEIGHT_PX  = 1123;
 const PX_PER_PT = 72 / 96;
+const A4_W_PT = 595, A4_H_PT = 842;
 
 const withDoctype = (html) =>
   /^\s*<!doctype/i.test(html) ? html : `<!DOCTYPE html>\n${html}`;
 
-// Mirrors the style tag injected by lib/htmlToPdfBuffer.ts.
+const PAGE_BREAK_CSS = `
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }
+  li, tr, img, svg, figure, table { break-inside: avoid; page-break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+  [data-pdf-atomic] { break-inside: avoid; page-break-inside: avoid; }
+`;
+
 const PDF_CSS = `
   @page { margin: 0; }
   html, body { margin: 0; padding: 0; }
   body, body * { min-height: 0 !important; }
+  ${PAGE_BREAK_CSS}
 `;
 
 async function measureContentHeight(page) {
@@ -55,11 +66,24 @@ async function measureContentHeight(page) {
     }
   }
   const height = Math.ceil(Math.max(...candidates));
-  return height > 0 ? height : 1123;
+  return height > 0 ? height : A4_PAGE_HEIGHT_PX;
 }
 
-// A CV the way the model emits it: raw HTML starting with the fonts <link>,
-// no doctype, no <html> wrapper.
+async function markAtomicBlocks(page) {
+  await page.evaluate(() => {
+    const MAX_ATOMIC_HEIGHT_PX = 260;
+    const blocks = document.body?.querySelectorAll('div, section, article, li, tr');
+    if (!blocks) return;
+    for (const el of Array.from(blocks)) {
+      const h = el.getBoundingClientRect().height;
+      if (h > 0 && h <= MAX_ATOMIC_HEIGHT_PX) el.setAttribute('data-pdf-atomic', '');
+    }
+  });
+}
+
+// A CV shaped like the real templates: raw HTML with no doctype (the model is
+// told to start at the fonts <link>), a flex wrapper pinned to a full sheet via
+// min-height, and a sidebar that relies on flex stretch for its height.
 function cv(entries) {
   const block = (i) => `
     <div style="margin-bottom:18px">
@@ -70,8 +94,6 @@ function cv(entries) {
         Cut p95 latency by 40%, owned the on-call rotation, mentored four engineers.
       </p>
     </div>`;
-  // Reproduces the real template shape: flex wrapper pinned to a full A4 sheet
-  // via min-height, plus a sidebar that relies on flex stretch for its height.
   return `<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet">
   <div id="wrapper" style="font-family:Inter,Arial,sans-serif;max-width:794px;margin:0 auto;background:#fff;display:flex;min-height:1123px;box-sizing:border-box;">
   <div id="sidebar" style="width:220px;flex-shrink:0;background:#1a1a2e;padding:32px 20px;box-sizing:border-box;min-height:1123px;"></div>
@@ -90,24 +112,18 @@ function geometry(buf) {
   return { boxes, pages: (s.match(/\/Type\s*\/Page[^s]/g) || []).length };
 }
 
-async function render(browser, html, { legacy = false } = {}) {
+async function render(browser, html) {
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: PDF_PAGE_WIDTH_PX, height: 1123 });
-    await page.setContent(legacy ? html : withDoctype(html), { waitUntil: 'load' });
+    await page.setViewport({ width: PDF_PAGE_WIDTH_PX, height: A4_PAGE_HEIGHT_PX });
+    await page.setContent(withDoctype(html), { waitUntil: 'load' });
     await new Promise((r) => setTimeout(r, 300));
-
-    if (legacy) {
-      await page.addStyleTag({ content: `@page { size: A4; margin: 0; } html, body { margin: 0; padding: 0; }` });
-      const pdf = await page.pdf({
-        format: 'A4', printBackground: true, preferCSSPageSize: true,
-        margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      });
-      return { buf: Buffer.from(pdf) };
-    }
-
     await page.addStyleTag({ content: PDF_CSS });
+
     const contentHeight = await measureContentHeight(page);
+    const margin = { top: '0', right: '0', bottom: '0', left: '0' };
+    const paginated = contentHeight > A4_PAGE_HEIGHT_PX;
+
     const sidebar = await page.evaluate(() => {
       const s = document.getElementById('sidebar');
       const w = document.getElementById('wrapper');
@@ -115,13 +131,20 @@ async function render(browser, html, { legacy = false } = {}) {
         ? { sidebar: Math.round(s.getBoundingClientRect().height), wrapper: Math.round(w.getBoundingClientRect().height) }
         : null;
     });
-    const pdf = await page.pdf({
-      width: `${PDF_PAGE_WIDTH_PX}px`,
-      height: `${contentHeight}px`,
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
-    return { contentHeight, sidebar, buf: Buffer.from(pdf) };
+
+    let pdf;
+    if (!paginated) {
+      pdf = await page.pdf({
+        width: `${PDF_PAGE_WIDTH_PX}px`, height: `${contentHeight}px`,
+        printBackground: true, margin,
+      });
+    } else {
+      await markAtomicBlocks(page);
+      const atomic = await page.evaluate(() => document.querySelectorAll('[data-pdf-atomic]').length);
+      pdf = await page.pdf({ format: 'A4', printBackground: true, margin });
+      return { contentHeight, paginated, sidebar, atomic, buf: Buffer.from(pdf) };
+    }
+    return { contentHeight, paginated, sidebar, atomic: 0, buf: Buffer.from(pdf) };
   } finally { await page.close(); }
 }
 
@@ -132,12 +155,10 @@ const check = (name, ok, detail = '') => {
 };
 
 (async () => {
-  const A4_H_PT = 842, A4_W_PT = 595;
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 
   try {
-    // The root cause, pinned so it cannot silently come back.
-    console.log('=== document mode ===');
+    console.log('=== document mode (the quirks-mode root cause) ===');
     {
       const page = await browser.newPage();
       await page.setContent(cv(1), { waitUntil: 'load' });
@@ -149,39 +170,53 @@ const check = (name, ok, detail = '') => {
       check('withDoctype puts it in standards mode', after === 'CSS1Compat', `(${after})`);
     }
 
-    for (const [label, entries] of [['SHORT CV (~1/3 page)', 1], ['LONG CV (~2.5 pages)', 22]]) {
+    // Entry counts chosen to land one case either side of the A4 threshold and
+    // one comfortably beyond it.
+    const cases = [
+      { label: 'SHORT CV (~1/3 page)',        entries: 1,  mode: 'fitted'    },
+      { label: 'CV FILLING ~1 PAGE',          entries: 8,  mode: 'fitted'    },
+      { label: 'CV JUST OVER 1 PAGE',         entries: 9,  mode: 'paginated' },
+      { label: 'LONG CV (2-3 pages)',         entries: 22, mode: 'paginated' },
+    ];
+
+    for (const { label, entries, mode } of cases) {
       console.log(`\n=== ${label} ===`);
-      const html = cv(entries);
+      const { contentHeight, paginated, sidebar, atomic, buf } = await render(browser, cv(entries));
+      const g = geometry(buf);
+      const box = g.boxes[0];
 
-      const before = geometry((await render(browser, html, { legacy: true })).buf);
-      const { contentHeight, sidebar, buf } = await render(browser, html);
-      const after = geometry(buf);
-      const box = after.boxes[0];
+      console.log(`  content height : ${contentHeight}px  (A4 = ${A4_PAGE_HEIGHT_PX}px)`);
+      console.log(`  mode           : ${paginated ? 'A4 pagination' : 'fitted to content'}`);
+      console.log(`  result         : ${g.pages} page(s), ${box.w.toFixed(0)}×${box.h.toFixed(0)}pt`);
+      if (paginated) console.log(`  atomic blocks  : ${atomic}`);
 
-      console.log(`  content height measured : ${contentHeight}px`);
-      console.log(`  BEFORE (fixed A4)       : ${before.pages} page(s), ${before.boxes[0].w.toFixed(0)}×${before.boxes[0].h.toFixed(0)}pt`);
-      console.log(`  AFTER  (content-sized)  : ${after.pages} page(s), ${box.w.toFixed(0)}×${box.h.toFixed(0)}pt`);
-
-      check('width still A4 (595pt)', Math.abs(box.w - A4_W_PT) <= 2, `(${box.w.toFixed(1)}pt)`);
-      check('height equals the measured content',
-        Math.abs(box.h - contentHeight * PX_PER_PT) <= 2,
-        `(${box.h.toFixed(1)}pt vs ${(contentHeight * PX_PER_PT).toFixed(1)}pt)`);
-      check('exactly one page, no trailing blank sheet', after.pages === 1, `(got ${after.pages})`);
-
-      // The min-height override must not leave the coloured sidebar floating
-      // above white space — flex stretch has to keep it the full page height.
-      check('sidebar still spans the whole page',
+      check(`took the ${mode} branch`, paginated === (mode === 'paginated'));
+      check('width is A4 (595pt)', Math.abs(box.w - A4_W_PT) <= 2, `(${box.w.toFixed(1)}pt)`);
+      check('sidebar spans the full wrapper',
         sidebar && Math.abs(sidebar.sidebar - sidebar.wrapper) <= 1,
-        sidebar ? `(sidebar ${sidebar.sidebar}px vs wrapper ${sidebar.wrapper}px)` : '(not found)');
+        sidebar ? `(${sidebar.sidebar}px vs ${sidebar.wrapper}px)` : '(not found)');
 
-      if (entries === 1) {
-        const removed = A4_H_PT - box.h;
-        check('the blank space is gone', box.h < A4_H_PT * 0.5,
-          `(removed ${removed.toFixed(0)}pt ≈ ${(removed / A4_H_PT * 100).toFixed(0)}% of an A4 sheet)`);
+      if (mode === 'fitted') {
+        check('exactly one page', g.pages === 1, `(got ${g.pages})`);
+        check('height equals the measured content',
+          Math.abs(box.h - contentHeight * PX_PER_PT) <= 2,
+          `(${box.h.toFixed(1)}pt vs ${(contentHeight * PX_PER_PT).toFixed(1)}pt)`);
+        check('never taller than an A4 sheet', box.h <= A4_H_PT + 1, `(${box.h.toFixed(1)}pt)`);
+        if (entries === 1) {
+          const removed = A4_H_PT - box.h;
+          check('blank space removed', box.h < A4_H_PT * 0.5,
+            `(${removed.toFixed(0)}pt ≈ ${(removed / A4_H_PT * 100).toFixed(0)}% of a sheet)`);
+        }
       } else {
-        check('long CV not truncated', box.h > A4_H_PT * 2,
-          `(${(box.h / A4_H_PT).toFixed(2)}× A4, one continuous page)`);
-        check('old behaviour paginated it', before.pages >= 3, `(was ${before.pages} pages)`);
+        check('spans several pages', g.pages >= 2, `(got ${g.pages})`);
+        console.log(`  last page fill : ${(((contentHeight % A4_PAGE_HEIGHT_PX) || A4_PAGE_HEIGHT_PX) / A4_PAGE_HEIGHT_PX * 100).toFixed(0)}%`);
+        check('EVERY page is a true A4 sheet',
+          g.boxes.every((b) => Math.abs(b.w - A4_W_PT) <= 2 && Math.abs(b.h - A4_H_PT) <= 2),
+          `(${g.boxes.map((b) => `${b.w.toFixed(0)}×${b.h.toFixed(0)}`).join(', ')})`);
+        check('page count matches the content, nothing dropped',
+          g.pages === Math.ceil(contentHeight / A4_PAGE_HEIGHT_PX),
+          `(${g.pages} vs ${Math.ceil(contentHeight / A4_PAGE_HEIGHT_PX)} expected)`);
+        check('job entries marked unbreakable', atomic > 0, `(${atomic} blocks)`);
       }
     }
   } finally { await browser.close(); }

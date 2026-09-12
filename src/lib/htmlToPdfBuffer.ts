@@ -1,5 +1,11 @@
 import { applyPdfNetworkAllowlist } from '@/lib/pdfPageGuard';
-import { measureContentHeight, PDF_PAGE_WIDTH_PX } from '@/lib/pdfPageSize';
+import {
+  measureContentHeight,
+  markAtomicBlocks,
+  A4_PAGE_HEIGHT_PX,
+  PAGE_BREAK_CSS,
+  PDF_PAGE_WIDTH_PX,
+} from '@/lib/pdfPageSize';
 
 async function launchBrowser() {
   if (process.env.NODE_ENV === 'development') {
@@ -69,6 +75,7 @@ export async function htmlToPdfBuffer(html: string): Promise<Buffer> {
            Flex children still stretch to their row, so a full-height sidebar
            stays full-height — simply on a shorter page. */
         body, body * { min-height: 0 !important; }
+        ${PAGE_BREAK_CSS}
       `,
     });
 
@@ -77,11 +84,31 @@ export async function htmlToPdfBuffer(html: string): Promise<Buffer> {
     // fallback face with different metrics.
     const contentHeight = await measureContentHeight(page);
 
+    // Two modes, because a CV is both a screen document and a printed one.
+    //
+    // Fits on one sheet  -> size the page to the content, so a short CV has no
+    //                       blank third of a page hanging under it.
+    // Longer than that   -> real A4 pagination. A single continuous page 2-3
+    //                       sheets tall reads fine on screen but prints badly:
+    //                       the driver scales or splits it wherever it likes,
+    //                       and people do print CVs for interviews.
+    const margin = { top: '0', right: '0', bottom: '0', left: '0' };
+
+    if (contentHeight <= A4_PAGE_HEIGHT_PX) {
+      const pdfBuffer = await page.pdf({
+        width:           `${PDF_PAGE_WIDTH_PX}px`,
+        height:          `${contentHeight}px`,
+        printBackground: true,
+        margin,
+      });
+      return Buffer.from(pdfBuffer);
+    }
+
+    await markAtomicBlocks(page);
     const pdfBuffer = await page.pdf({
-      width:           `${PDF_PAGE_WIDTH_PX}px`,
-      height:          `${contentHeight}px`,
+      format:          'A4',
       printBackground: true,
-      margin:          { top: '0', right: '0', bottom: '0', left: '0' },
+      margin,
     });
     return Buffer.from(pdfBuffer);
   } finally {

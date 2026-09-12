@@ -18,6 +18,37 @@
  */
 export const PDF_PAGE_WIDTH_PX = 794;
 
+/** A4 height at 96 dpi, in CSS pixels. The threshold between the two modes. */
+export const A4_PAGE_HEIGHT_PX = 1123;
+
+/**
+ * Print hygiene for documents that span more than one page.
+ *
+ * Inert on a single-page export — a fragmentation rule has nothing to act on
+ * when there is nothing to fragment — so it is injected unconditionally rather
+ * than branching.
+ *
+ * `[data-pdf-atomic]` is set by markAtomicBlocks() below; the rest is the
+ * standard set: never strand a heading at the foot of a page, never split a
+ * list item or table row, and never leave one or two orphaned lines of a
+ * paragraph behind.
+ */
+export const PAGE_BREAK_CSS = `
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  li, tr, img, svg, figure, table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  p { orphans: 3; widows: 3; }
+  [data-pdf-atomic] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+`;
+
 // Structural type so this works with both puppeteer and puppeteer-core.
 interface MeasurablePage {
   $(selector: string): Promise<{
@@ -95,5 +126,40 @@ export async function measureContentHeight(page: MeasurablePage): Promise<number
 
   // Chromium rejects a zero-height page; fall back to A4 height if the document
   // measured as empty rather than emitting something unopenable.
-  return height > 0 ? height : 1123;
+  return height > 0 ? height : A4_PAGE_HEIGHT_PX;
+}
+
+/**
+ * Tag blocks small enough to sit on one page, so a page break never lands in
+ * the middle of one.
+ *
+ * `break-inside: avoid` cannot simply be applied to every div: the outer CV
+ * wrapper is a div too, and making the whole document unbreakable would either
+ * force it onto one page or drop everything past the first page. So only
+ * blocks under a threshold are marked — a job entry, an education line, a
+ * skills group.
+ *
+ * The threshold is deliberately low. An atomic block that does not fit in the
+ * space left on a page gets pushed whole to the next one, leaving that gap
+ * blank; capping the size caps how much white space a single push can create.
+ * At 260px that is at most ~23% of a page, and only on pages where a break
+ * actually falls inside a block.
+ *
+ * Called only when the document is about to be paginated — on a single-page
+ * export there are no breaks to protect.
+ */
+export async function markAtomicBlocks(page: MeasurablePage): Promise<void> {
+  await page.evaluate(() => {
+    const MAX_ATOMIC_HEIGHT_PX = 260;
+
+    const blocks = document.body?.querySelectorAll('div, section, article, li, tr');
+    if (!blocks) return;
+
+    for (const el of Array.from(blocks)) {
+      const height = el.getBoundingClientRect().height;
+      if (height > 0 && height <= MAX_ATOMIC_HEIGHT_PX) {
+        el.setAttribute('data-pdf-atomic', '');
+      }
+    }
+  });
 }
