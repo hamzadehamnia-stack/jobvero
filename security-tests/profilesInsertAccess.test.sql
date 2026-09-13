@@ -361,12 +361,58 @@ begin
 
 
   -- ─── Report, and roll everything back ──────────────────────────────────────
+  --
+  -- Every check writes exactly one line, starting with "ok " or "FAIL ", and
+  -- bumps exactly one of v_ok / v_fail. The log is split into lines and each
+  -- line is classified on its own: a line starting with neither counts as a
+  -- failure. The classified counts must agree with the counters, and their
+  -- total with the number of checks this file runs — loop iterations included —
+  -- so a branch that writes nothing, a check that never ran, or a NULL that
+  -- wiped the log is reported as a failure instead of passing.
+  --
+  -- Adding or removing a check means updating c_expected_checks.
 
-  raise exception using
-    errcode = 'JVT00',
-    message = case
-                when v_fail = 0 then format('RESULT: all %s checks passed — test data rolled back', v_ok)
-                else format('RESULT: %s FAILED, %s ok — test data rolled back', v_fail, v_ok)
-              end || v_log;
+  declare
+    c_expected_checks constant integer := 37;
+    v_counted_ok      constant integer := v_ok;
+    v_counted_fail    constant integer := v_fail;
+    v_unclassified    integer;
+    v_total           integer;
+  begin
+    select count(*) filter (where line like 'ok %'),
+           count(*) filter (where line like 'FAIL %'),
+           count(*) filter (where line not like 'ok %' and line not like 'FAIL %')
+      into v_ok, v_fail, v_unclassified
+      from regexp_split_to_table(coalesce(v_log, ''), E'\n') as line
+     where line <> '';
+
+    v_total := v_ok + v_fail + v_unclassified;
+
+    if v_ok <> v_counted_ok or v_fail <> v_counted_fail then
+      v_log  := coalesce(v_log, '')
+             || format(E'\nFAIL  REPORT counters say %s ok / %s FAIL, the log holds %s ok / %s FAIL',
+                       v_counted_ok, v_counted_fail, v_ok, v_fail);
+      v_fail := v_fail + 1;
+    end if;
+
+    if v_unclassified > 0 then
+      v_fail := v_fail + v_unclassified;
+      v_log  := coalesce(v_log, '')
+             || format(E'\nFAIL  REPORT %s log line(s) start with neither "ok" nor "FAIL"', v_unclassified);
+    end if;
+
+    if v_total <> c_expected_checks then
+      v_fail := v_fail + 1;
+      v_log  := coalesce(v_log, '')
+             || format(E'\nFAIL  REPORT expected %s checks, the log holds %s', c_expected_checks, v_total);
+    end if;
+
+    raise exception using
+      errcode = 'JVT00',
+      message = case
+                  when v_fail = 0 then format('RESULT: all %s checks passed — test data rolled back', v_ok)
+                  else format('RESULT: %s FAILED, %s ok — test data rolled back', v_fail, v_ok)
+                end || coalesce(v_log, '');
+  end;
 end;
 $test$;
