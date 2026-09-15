@@ -6,17 +6,23 @@
 // Guarded: the number of checks that ran must equal EXPECTED_CHECKS.
 
 import { isDeepStrictEqual } from 'node:util';
+import { FEATURES } from '../src/lib/entitlements.ts';
 import {
+  FEATURE_SWITCH,
   countInputChars,
   mayCallModel,
   readFailureInjection,
   readIdempotencyKey,
+  readSwitchOverride,
   refusalForFeature,
   refusalForReserveError,
   reservationOutcome,
+  switchRefusal,
+  toggleOff,
+  withSwitchesOff,
 } from '../src/lib/ai/rules.ts';
 
-const EXPECTED_CHECKS = 29;
+const EXPECTED_CHECKS = 37;
 
 let passed = 0;
 let failed = 0;
@@ -137,6 +143,38 @@ check('development honours the two known failures',
   ['handler-throws', 'error-response']);
 check('an unknown value or no header injects nothing, even in development',
   [readFailureInjection('drop-table', 'development'), readFailureInjection(null, 'development')], [null, null]);
+
+
+// ─── 7. Admin switches (brief §10.14 test 19) ─────────────────────────────────
+
+console.log('\n7. Admin switches');
+
+const featureKeys = Object.keys(FEATURES);
+const AI_DISABLED = { status: 503, body: { error: 'AI features are temporarily disabled', reason: 'ai_disabled' } };
+
+check('every feature has its own admin toggle, and no two features share one',
+  [Object.keys(FEATURE_SWITCH).sort(), new Set(Object.values(FEATURE_SWITCH)).size],
+  [[...featureKeys].sort(), featureKeys.length]);
+check('no settings row: every feature is on',
+  featureKeys.map((feature) => switchRefusal(null, feature)), featureKeys.map(() => null));
+check('ai_enabled false turns every feature off with a clear 503',
+  featureKeys.map((feature) => switchRefusal({ ai_enabled: false }, feature)), featureKeys.map(() => AI_DISABLED));
+check('a feature toggle turns off that feature and no other',
+  featureKeys.map((feature) => switchRefusal({ features: { ats_score: false } }, feature)?.body.reason ?? null),
+  featureKeys.map((feature) => (feature === 'ATS_SCORE' ? 'feature_disabled' : null)));
+check('only an explicit false turns a switch off',
+  [switchRefusal({ ai_enabled: 'false' }, 'ATS_SCORE'), switchRefusal({ ai_enabled: 0 }, 'ATS_SCORE'),
+   switchRefusal({ ai_enabled: null, features: { ats_score: null } }, 'ATS_SCORE'), toggleOff({ features: { ai_matches: 'off' } }, 'ai_matches')],
+  [null, null, null, false]);
+check('the test override is ignored in production and without NODE_ENV',
+  [readSwitchOverride('ai_enabled', 'production'), readSwitchOverride('ai_enabled', undefined)], [[], []]);
+check('in development the override lists switch keys and drops malformed ones',
+  readSwitchOverride(' ai_enabled , ats_score,DROP TABLE,', 'development'), ['ai_enabled', 'ats_score']);
+check('switches forced off answer as stored ones would',
+  [switchRefusal(withSwitchesOff(null, ['ai_enabled']), 'CV_BUILDER_AI')?.body.reason,
+   switchRefusal(withSwitchesOff({ features: { ats_score: true } }, ['ats_score']), 'ATS_SCORE')?.body.reason,
+   switchRefusal(withSwitchesOff({ ai_enabled: true }, []), 'ATS_SCORE')],
+  ['ai_disabled', 'feature_disabled', null]);
 
 
 // ─── Report ───────────────────────────────────────────────────────────────────

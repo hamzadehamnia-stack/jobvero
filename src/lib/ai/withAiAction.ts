@@ -13,12 +13,17 @@ import {
   mayCallModel,
   readFailureInjection,
   readIdempotencyKey,
+  readSwitchOverride,
   refusalForFeature,
   refusalForReserveError,
   reservationOutcome,
+  switchRefusal,
+  withSwitchesOff,
+  type AdminSwitches,
   type AiRefusal,
   type ReservationOutcome,
 } from './rules';
+import { loadAdminSwitches } from './switches';
 
 // ─── withAiAction ─────────────────────────────────────────────────────────────
 //
@@ -35,17 +40,18 @@ import {
 //
 // In order:
 //   1. auth                            401
-//   2. entitlements                    403 blocked / trial_expired / tier_locked
-//   3. per-user rate limit             429 (brief §10.9)
-//   4. catalogue row                   503 when missing or disabled
-//   5. idempotency key                 400 when malformed
+//   2. admin switches                  503 ai_disabled / feature_disabled
+//   3. entitlements                    403 blocked / trial_expired / tier_locked
+//   4. per-user rate limit             429 (brief §10.9)
+//   5. catalogue row                   503 when missing or disabled
+//   6. idempotency key                 400 when malformed
 //   then the handler runs, and ai.complete():
-//   6. call count                      500 past config.maxCalls (default 1)
-//   7. input size                      413, before anything is charged
-//   8. reserve_ai_credits              402 no credits, 409 in progress / already processed
-//   9. OpenRouter, with the model and max_tokens pinned from the catalogue
+//   7. call count                      500 past config.maxCalls (default 1)
+//   8. input size                      413, before anything is charged
+//   9. reserve_ai_credits              402 no credits, 409 in progress / already processed
+//  10. OpenRouter, with the model and max_tokens pinned from the catalogue
 //                                      502 on failure, and the charge refunded
-//  10. the call's cost: from the response, or pending for the ai-ledger cron
+//  11. the call's cost: from the response, or pending for the ai-ledger cron
 //
 // Settlement is decided when the handler returns: a 2xx answer settles the
 // charge, anything else refunds it — the user pays for what they received. A
@@ -61,7 +67,8 @@ import {
 //
 // Outside production, the X-AI-Test-Failure header makes the request fail after
 // the route has used the model (security-tests/aiBillingE2E.test.js), so the
-// refund paths are exercised on real routes. See readFailureInjection.
+// refund paths are exercised on real routes (readFailureInjection); and
+// X-AI-Test-Switch-Off forces admin switches off (readSwitchOverride).
 //
 // A dynamic route's context — { params } — reaches the handler as its third
 // argument.
@@ -161,7 +168,24 @@ export function withAiAction<Context = unknown>(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return answer({ status: 401, body: { error: 'Unauthorized', reason: 'unauthorized' } });
 
-    // ── 2. Entitlements ───────────────────────────────────────────────────────
+    const admin = createAdminClient();
+
+    // ── 2. Admin switches: ai_enabled, then the feature's own toggle ─────────
+    // A switch that cannot be read is not assumed on. Outside production a test
+    // can force switches off (see readSwitchOverride).
+    let switches: AdminSwitches | null;
+    try {
+      switches = await loadAdminSwitches(admin);
+    } catch (err) {
+      console.error(`${tag} ${String(err)}`);
+      return answer(UNAVAILABLE);
+    }
+    switches = withSwitchesOff(switches, readSwitchOverride(req.headers.get('x-ai-test-switch-off'), process.env.NODE_ENV));
+
+    const switchedOff = switchRefusal(switches, config.feature);
+    if (switchedOff) return answer(switchedOff);
+
+    // ── 3. Entitlements ───────────────────────────────────────────────────────
     // A profile that cannot be read is an outage, not a free account: telling a
     // paying user their trial has ended would be false.
     const { data: profile, error: profileError } = await supabase
@@ -179,12 +203,12 @@ export function withAiAction<Context = unknown>(
     if (!decision.allowed) return answer(refusalForFeature(decision) ?? UNAVAILABLE);
     const { tier } = decision;
 
-    // ── 3. Per-user rate limit, before anything is reserved ───────────────────
+    // ── 4. Per-user rate limit, before anything is reserved ───────────────────
     const limit = config.rateLimit ?? RATE_LIMITS.AI_ACTION;
     const rate  = await enforceRateLimit(rateLimitKey(limit.name, user.id, req), limit.windows);
     if (!rate.allowed) return tooManyRequests(rate.retryAfter);
 
-    // ── 4. Catalogue row: model and ceilings ──────────────────────────────────
+    // ── 5. Catalogue row: model and ceilings ──────────────────────────────────
     const { data: row, error: rowError } = await supabase
       .from('ai_action_costs')
       .select('model, max_tokens, max_input_chars, enabled, limits')
@@ -205,7 +229,7 @@ export function withAiAction<Context = unknown>(
       limits:        row.limits ?? {},
     };
 
-    // ── 5. Idempotency key: the client's, or a fresh one per request ──────────
+    // ── 6. Idempotency key: the client's, or a fresh one per request ──────────
     const idempotencyKey = readIdempotencyKey(req.headers.get('idempotency-key'), () => crypto.randomUUID());
     if (!idempotencyKey) {
       return answer({ status: 400, body: { error: 'Invalid Idempotency-Key header', reason: 'invalid_request' } });
@@ -215,7 +239,6 @@ export function withAiAction<Context = unknown>(
     const injection = readFailureInjection(req.headers.get('x-ai-test-failure'), process.env.NODE_ENV);
 
     // ── The charge ────────────────────────────────────────────────────────────
-    const admin = createAdminClient();
     const state: { usageId: string | null; refusal: AiRefusal | null; calls: number } = {
       usageId: null,
       refusal: null,

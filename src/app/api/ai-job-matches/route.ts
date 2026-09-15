@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { toggleOff } from '@/lib/ai/rules';
+import { loadAdminSwitches } from '@/lib/ai/switches';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +165,18 @@ export async function GET(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // The admin toggle "AI Job Matches". No model is involved here, so the AI
+    // kill switch does not apply. A settings read that fails does not leave the
+    // feature on.
+    try {
+      if (toggleOff(await loadAdminSwitches(createAdminClient()), 'ai_matches')) {
+        return NextResponse.json({ error: 'This feature is temporarily disabled', reason: 'feature_disabled' }, { status: 503 });
+      }
+    } catch (err) {
+      console.error('[ai-job-matches]', String(err));
+      return NextResponse.json({ error: 'Temporarily unavailable', reason: 'unavailable' }, { status: 503 });
+    }
 
     const force = new URL(req.url).searchParams.get('force') === '1';
 

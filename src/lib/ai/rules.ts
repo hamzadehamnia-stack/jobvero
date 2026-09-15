@@ -5,7 +5,7 @@
 //
 // Type imports only, which Node's type stripping erases entirely.
 
-import type { FeatureDecision, PaidTier, Tier } from '../entitlements';
+import type { FeatureDecision, FeatureKey, PaidTier, Tier } from '../entitlements';
 
 export interface AiRefusal {
   status: number;
@@ -144,4 +144,68 @@ export type FailureInjection = 'handler-throws' | 'error-response';
 export function readFailureInjection(header: string | null, nodeEnv: string | undefined): FailureInjection | null {
   if (nodeEnv !== 'development' && nodeEnv !== 'test') return null;
   return header === 'handler-throws' || header === 'error-response' ? header : null;
+}
+
+// ─── Admin switches ───────────────────────────────────────────────────────────
+
+/** The switches stored in admin_settings.global. A switch that was never set is on. */
+export interface AdminSwitches {
+  ai_enabled?: unknown;
+  features?:   Record<string, unknown> | null;
+}
+
+/**
+ * The admin toggle that turns each AI feature off: exactly one per feature, and
+ * ai_enabled above all of them. A toggle the code does not read would be worse
+ * than none — it would look like it works.
+ */
+export const FEATURE_SWITCH: Record<FeatureKey, string> = {
+  AI_ASSISTANT_CHAT:  'assistant_chat',
+  CV_BUILDER_AI:      'cv_builder',
+  MODIFY_DOCUMENT_AI: 'modify_document',
+  COVER_LETTER_AI:    'cover_letter',
+  ATS_SCORE:          'ats_score',
+  APPLY_WITH_AI:      'apply_with_ai',
+  INTERVIEW_AI:       'interview_coach',
+  AUTO_APPLY:         'auto_apply',
+};
+
+/** Whether an admin toggle is off. Only an explicit false turns it off. */
+export function toggleOff(switches: AdminSwitches | null, key: string): boolean {
+  return switches?.features?.[key] === false;
+}
+
+/** 503 when the AI kill switch or the feature's own toggle is off, else null. */
+export function switchRefusal(switches: AdminSwitches | null, feature: FeatureKey): AiRefusal | null {
+  if (switches?.ai_enabled === false) {
+    return { status: 503, body: { error: 'AI features are temporarily disabled', reason: 'ai_disabled' } };
+  }
+  if (toggleOff(switches, FEATURE_SWITCH[feature])) {
+    return { status: 503, body: { error: 'This feature is temporarily disabled', reason: 'feature_disabled' } };
+  }
+  return null;
+}
+
+/**
+ * The switches a test forces off with the X-AI-Test-Switch-Off header: a
+ * comma-separated list of ai_enabled and toggle keys. Same allowlist as
+ * readFailureInjection — honoured only when NODE_ENV is development or test, so
+ * a test can check the switches without turning a feature off for every user.
+ */
+export function readSwitchOverride(header: string | null, nodeEnv: string | undefined): string[] {
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') return [];
+  if (!header) return [];
+  return header.split(',').map((key) => key.trim()).filter((key) => /^[a-z_]{1,40}$/.test(key));
+}
+
+/** The switches, with the given keys forced off. */
+export function withSwitchesOff(switches: AdminSwitches | null, keys: readonly string[]): AdminSwitches | null {
+  if (keys.length === 0) return switches;
+  const features: Record<string, unknown> = { ...(switches?.features ?? {}) };
+  let aiEnabled = switches?.ai_enabled;
+  for (const key of keys) {
+    if (key === 'ai_enabled') aiEnabled = false;
+    else features[key] = false;
+  }
+  return { ...switches, ai_enabled: aiEnabled, features };
 }

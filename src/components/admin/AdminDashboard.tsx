@@ -37,8 +37,9 @@ interface AdminUser {
 }
 
 interface AdminSettings {
-  features: Record<string, boolean>;
-  limits: Record<string, number>;
+  ai_enabled: boolean;
+  features:   Record<string, boolean>;
+  limits:     Record<string, number | null>;
 }
 
 interface AppLog {
@@ -613,11 +614,16 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
   const [notifResult,  setNotifResult]  = useState<string | null>(null);
   const [clearResult,  setClearResult]  = useState<string | null>(null);
   const [setup503, setSetup503] = useState(false);
+  const [loadError,  setLoadError]  = useState(false);
+  const [saveResult, setSaveResult] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/admin/settings');
       if (res.status === 503) { setSetup503(true); setLoading(false); return; }
+      // Never show the form over settings that could not be read: saving it
+      // would write placeholders over the real values.
+      if (!res.ok) { setLoadError(true); setLoading(false); return; }
       setSettings(await res.json() as AdminSettings);
       setLoading(false);
     })();
@@ -626,17 +632,31 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
   const saveSettings = async () => {
     if (!settings) return;
     setSaving(true);
-    await fetch('/api/admin/settings', {
+    setSaveResult(null);
+    const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
+    if (res.ok) {
+      const data = await res.json() as { settings: AdminSettings };
+      setSettings(data.settings);
+      setSaveResult('✓ Paramètres enregistrés');
+    } else {
+      setSaveResult('Erreur : paramètres non enregistrés');
+    }
     setSaving(false);
   };
 
+  const toggleAi = () => {
+    if (!settings) return;
+    setSettings({ ...settings, ai_enabled: !settings.ai_enabled });
+  };
+
+  // A toggle that was never saved is on, so the first click must turn it off.
   const toggleFeature = (key: string) => {
     if (!settings) return;
-    setSettings({ ...settings, features: { ...settings.features, [key]: !settings.features[key] } });
+    setSettings({ ...settings, features: { ...settings.features, [key]: !(settings.features[key] ?? true) } });
   };
 
   const updateLimit = (key: string, val: number) => {
@@ -667,17 +687,23 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
     setClearing(false);
   };
 
+  // One toggle per feature, each read by that feature's routes
+  // (FEATURE_SWITCH in lib/ai/rules, plus ai_matches for the job matches route).
   const featureLabels: Record<string, string> = {
     cv_builder:      'CV Builder AI',
+    modify_document: 'Modify Document AI',
     cover_letter:    'Cover Letter AI',
-    auto_apply:      'Auto Apply',
-    interview_coach: 'Interview Coach',
-    ai_matches:      'AI Job Matches',
+    apply_with_ai:   'Apply with AI',
+    assistant_chat:  'AI Assistant Chat',
     ats_score:       'ATS Score',
+    interview_coach: 'Interview Coach',
+    auto_apply:      'Auto Apply',
+    ai_matches:      'AI Job Matches',
   };
 
-  if (loading)  return <Spinner />;
-  if (setup503) return <SetupBanner />;
+  if (loading)   return <Spinner />;
+  if (setup503)  return <SetupBanner />;
+  if (loadError) return <p className="text-sm text-red-500">Impossible de lire les paramètres. Rechargez la page avant toute modification.</p>;
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -686,6 +712,17 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
       {/* Feature toggles */}
       <section className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Cpu size={15} /> Activer / Désactiver les features</h3>
+        {settings && (
+          <div className="flex items-center justify-between mb-4 px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-950/20">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Toute l&apos;IA</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Coupe-circuit : désactivée, chaque fonctionnalité IA répond 503.</p>
+            </div>
+            <button onClick={toggleAi} className={`transition-colors ${settings.ai_enabled ? 'text-violet-600' : 'text-red-500'}`}>
+              {settings.ai_enabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+            </button>
+          </div>
+        )}
         <div className="space-y-3">
           {settings && Object.entries(featureLabels).map(([key, label]) => {
             const on = settings.features[key] ?? true;
@@ -703,18 +740,15 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
 
       {/* Tier limits */}
       <section className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Crown size={15} /> Limites par tier</h3>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Crown size={15} /> Garde-fous</h3>
         {settings && (
           <div className="grid grid-cols-2 gap-4">
             {[
-              { key: 'pro_auto_apply_monthly',     label: 'Pro — Auto-apply/mois'      },
-              { key: 'pro_interviews_monthly',     label: 'Pro — Interviews/mois'       },
-              { key: 'premium_auto_apply_monthly', label: 'Premium — Auto-apply/mois'   },
-              { key: 'premium_interviews_monthly', label: 'Premium — Interviews/mois'   },
+              { key: 'auto_apply_monthly_guard', label: 'Auto-apply — candidatures/mois' },
             ].map(({ key, label }) => (
               <div key={key}>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">{label}</label>
-                <input type="number" min={0} value={settings.limits[key] ?? 0}
+                <input type="number" min={0} value={settings.limits[key] ?? ''}
                   onChange={e => updateLimit(key, Number(e.target.value))}
                   className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50" />
               </div>
@@ -725,6 +759,7 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
           {saving ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
           {saving ? 'Enregistrement…' : 'Enregistrer les paramètres'}
         </button>
+        {saveResult && <p className={`mt-2 text-xs ${saveResult.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{saveResult}</p>}
       </section>
 
       {/* Broadcast notification */}

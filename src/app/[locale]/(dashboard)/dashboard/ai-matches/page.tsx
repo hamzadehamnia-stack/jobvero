@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { toggleOff } from '@/lib/ai/rules';
+import { loadAdminSwitches } from '@/lib/ai/switches';
 import AIJobMatchesClient from '@/components/ai-job-matches/AIJobMatchesClient';
 import type { MatchResult } from '@/app/api/ai-job-matches/route';
 
@@ -8,7 +11,7 @@ export default async function AIJobMatchesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/');
 
-  const [{ data: profile }, { data: cv }, { data: cached }] = await Promise.all([
+  const [{ data: profile }, { data: cv }, { data: cached }, switchedOff] = await Promise.all([
     supabase
       .from('profiles')
       .select('target_job_title, target_countries, min_salary, full_name')
@@ -26,6 +29,9 @@ export default async function AIJobMatchesPage() {
       .select('results, cached_at')
       .eq('user_id', user.id)
       .maybeSingle(),
+    // Switched off from the admin screen, the page shows no cached matches
+    // either. A settings read that fails counts as off.
+    loadAdminSwitches(createAdminClient()).then((switches) => toggleOff(switches, 'ai_matches'), () => true),
   ]);
 
   const hasProfile = !!profile?.target_job_title?.trim();
@@ -35,7 +41,7 @@ export default async function AIJobMatchesPage() {
     ? Date.now() - new Date(cached.cached_at).getTime()
     : Infinity;
   const initialMatches: MatchResult[] =
-    cached && cacheAgeMs < 60 * 60 * 1000 ? (cached.results as MatchResult[]) ?? [] : [];
+    !switchedOff && cached && cacheAgeMs < 60 * 60 * 1000 ? (cached.results as MatchResult[]) ?? [] : [];
 
   return (
     <AIJobMatchesClient
