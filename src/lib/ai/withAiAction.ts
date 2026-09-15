@@ -1,29 +1,25 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { enforceRateLimit, rateLimitKey, tooManyRequests } from '@/lib/rateLimit';
 import { RATE_LIMITS, type RouteRateLimit } from '@/lib/rateLimitConfig';
-import { FEATURES, checkFeatureAccess, resolveTier, type FeatureKey, type PaidTier } from '@/lib/entitlements';
+import type { FeatureKey } from '@/lib/entitlements';
 import type { ORMessage } from '@/lib/openrouter';
+import { authorizeAiRequest } from './authorize';
+import { recordAiCall } from './ledger';
 import { callOpenRouterMetered, UpstreamError, type MeteredCompletion } from './openrouterMetered';
+import { AiRefusalError, answer } from './refusal';
 import type { StreamUsage } from './sse';
 import {
   countInputChars,
   mayCallModel,
   readFailureInjection,
   readIdempotencyKey,
-  readSwitchOverride,
-  refusalForFeature,
   refusalForReserveError,
   reservationOutcome,
-  switchRefusal,
-  withSwitchesOff,
-  type AdminSwitches,
   type AiRefusal,
   type ReservationOutcome,
 } from './rules';
-import { loadAdminSwitches } from './switches';
+
+export { isAiRefusal } from './refusal';
 
 // ─── withAiAction ─────────────────────────────────────────────────────────────
 //
@@ -39,11 +35,8 @@ import { loadAdminSwitches } from './switches';
 //   );
 //
 // In order:
-//   1. auth                            401
-//   2. admin switches                  503 ai_disabled / feature_disabled
-//   3. entitlements                    403 blocked / trial_expired / tier_locked
-//   4. per-user rate limit             429 (brief §10.9)
-//   5. catalogue row                   503 when missing or disabled
+//   1-5. authorizeAiRequest: auth 401, admin switches 503, entitlements 403,
+//        per-user rate limit 429, catalogue row 503
 //   6. idempotency key                 400 when malformed
 //   then the handler runs, and ai.complete():
 //   7. call count                      500 past config.maxCalls (default 1)
@@ -73,7 +66,7 @@ import { loadAdminSwitches } from './switches';
 // A dynamic route's context — { params } — reaches the handler as its third
 // argument.
 //
-// Not for sessions (interview_session, chat: step 2e), auto_apply (charged by
+// Not for sessions (chat, interview: see sessionStream), auto_apply (charged by
 // the cron) or system_ actions (never charged). RequestAction excludes them.
 
 export type RequestAction =
@@ -113,38 +106,7 @@ export interface AiActionContext {
   complete(messages: ORMessage[], options?: { timeoutMs?: number }): Promise<string>;
 }
 
-const PROFILE_COLUMNS    = 'subscription_plan, subscription_status, trial_ends_at, ai_credits_remaining, is_blocked';
-const PAID_TIERS         = ['starter', 'pro', 'premium'] as const;
 const DEFAULT_TIMEOUT_MS = 60_000;
-
-const UNAVAILABLE:        AiRefusal = { status: 503, body: { error: 'Temporarily unavailable', reason: 'unavailable' } };
-const ACTION_UNAVAILABLE: AiRefusal = { status: 503, body: { error: 'This AI action is unavailable', reason: 'action_unavailable' } };
-
-class AiRefusalError extends Error {
-  readonly refusal: AiRefusal;
-
-  constructor(refusal: AiRefusal) {
-    super(refusal.body.reason);
-    this.name    = 'AiRefusalError';
-    this.refusal = refusal;
-  }
-}
-
-/**
- * True for a refusal raised by ai.complete (402, 409, 413, 502…). A route's
- * catch rethrows it instead of logging it: withAiAction sends the answer, and a
- * refusal is not an error.
- */
-export function isAiRefusal(err: unknown): boolean {
-  return err instanceof AiRefusalError;
-}
-
-function answer(refusal: AiRefusal): Response {
-  return NextResponse.json(refusal.body, {
-    status:  refusal.status,
-    headers: { 'Cache-Control': 'no-store' },
-  });
-}
 
 export function withAiAction<Context = unknown>(
   config:  AiActionOptions,
@@ -158,76 +120,18 @@ export function withAiAction<Context = unknown>(
     throw new Error(`${tag} maxCalls must be a positive integer, got ${String(config.maxCalls)}`);
   }
 
-  const cheapestTierForFeature: PaidTier | null =
-    PAID_TIERS.find((paid) => FEATURES[config.feature][paid]) ?? null;
-
   return async (req: Request, context: Context): Promise<Response> => {
-    const supabase = await createClient();
+    // ── 1-5. Auth, admin switches, entitlements, rate limit, catalogue ────────
+    const authorized = await authorizeAiRequest(req, {
+      feature:   config.feature,
+      action:    config.action,
+      rateLimit: config.rateLimit ?? RATE_LIMITS.AI_ACTION,
+      tag,
+    });
+    if (authorized instanceof Response) return authorized;
+    const { user, supabase, admin, tier, cheapestTierForFeature, catalogue } = authorized;
 
-    // ── 1. Auth ───────────────────────────────────────────────────────────────
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return answer({ status: 401, body: { error: 'Unauthorized', reason: 'unauthorized' } });
-
-    const admin = createAdminClient();
-
-    // ── 2. Admin switches: ai_enabled, then the feature's own toggle ─────────
-    // A switch that cannot be read is not assumed on. Outside production a test
-    // can force switches off (see readSwitchOverride).
-    let switches: AdminSwitches | null;
-    try {
-      switches = await loadAdminSwitches(admin);
-    } catch (err) {
-      console.error(`${tag} ${String(err)}`);
-      return answer(UNAVAILABLE);
-    }
-    switches = withSwitchesOff(switches, readSwitchOverride(req.headers.get('x-ai-test-switch-off'), process.env.NODE_ENV));
-
-    const switchedOff = switchRefusal(switches, config.feature);
-    if (switchedOff) return answer(switchedOff);
-
-    // ── 3. Entitlements ───────────────────────────────────────────────────────
-    // A profile that cannot be read is an outage, not a free account: telling a
-    // paying user their trial has ended would be false.
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select(PROFILE_COLUMNS)
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error(`${tag} profile read failed:`, profileError.message);
-      return answer(UNAVAILABLE);
-    }
-
-    const decision = checkFeatureAccess(resolveTier(profile), config.feature);
-    if (!decision.allowed) return answer(refusalForFeature(decision) ?? UNAVAILABLE);
-    const { tier } = decision;
-
-    // ── 4. Per-user rate limit, before anything is reserved ───────────────────
-    const limit = config.rateLimit ?? RATE_LIMITS.AI_ACTION;
-    const rate  = await enforceRateLimit(rateLimitKey(limit.name, user.id, req), limit.windows);
-    if (!rate.allowed) return tooManyRequests(rate.retryAfter);
-
-    // ── 5. Catalogue row: model and ceilings ──────────────────────────────────
-    const { data: row, error: rowError } = await supabase
-      .from('ai_action_costs')
-      .select('model, max_tokens, max_input_chars, enabled, limits')
-      .eq('action', config.action)
-      .maybeSingle();
-
-    if (rowError || !row) {
-      console.error(`${tag} catalogue row unavailable:`, rowError?.message ?? 'missing');
-      return answer(ACTION_UNAVAILABLE);
-    }
-    if (!row.enabled) return answer(ACTION_UNAVAILABLE);
-
-    const action: ActionConfig = {
-      action:        config.action,
-      model:         row.model,
-      maxTokens:     row.max_tokens,
-      maxInputChars: row.max_input_chars,
-      limits:        row.limits ?? {},
-    };
+    const action: ActionConfig = { action: config.action, ...catalogue };
 
     // ── 6. Idempotency key: the client's, or a fresh one per request ──────────
     const idempotencyKey = readIdempotencyKey(req.headers.get('idempotency-key'), () => crypto.randomUUID());
@@ -293,8 +197,6 @@ export function withAiAction<Context = unknown>(
       if (error) console.error(`${tag} settle failed for ${usageId}:`, error.message);
     };
 
-    // The cost of one call: from the response when it carries one; otherwise
-    // pending for the ai-ledger cron when there is a generation id to look up.
     const recordCall = async (
       usage:        StreamUsage | null,
       generationId: string | null,
@@ -302,24 +204,7 @@ export function withAiAction<Context = unknown>(
     ): Promise<void> => {
       const usageId = state.usageId;
       if (!usageId) return;
-
-      const common  = { p_usage_id: usageId, p_kind: 'model', p_model: action.model };
-      const costUsd = usage?.costUsd ?? null;
-
-      const { error } =
-        usage && costUsd !== null
-          ? await admin.rpc('record_ai_call', {
-              ...common,
-              p_prompt_tokens:     usage.promptTokens,
-              p_completion_tokens: usage.completionTokens,
-              p_cost_usd:          costUsd,
-              p_error:             failure,
-            })
-          : generationId
-            ? await admin.rpc('record_ai_call_pending', { ...common, p_generation_id: generationId, p_error: failure })
-            : await admin.rpc('record_ai_call', { ...common, p_error: failure ?? 'no cost and no generation id in the response' });
-
-      if (error) console.error(`${tag} cost logging failed for ${usageId}:`, error.message);
+      await recordAiCall(admin, { tag, usageId, kind: 'model', model: action.model, usage, generationId, failure });
     };
 
     const ai: AiActionContext = {
