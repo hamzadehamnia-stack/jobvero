@@ -49,10 +49,11 @@ export async function GET() {
       { data: dailyAppData   },
       { data: dailyApplyData },
     ] = await Promise.all([
-      admin.from('profiles').select('id',  { count: 'exact', head: true }),
-      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('subscription_plan', 'trial'),
-      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('subscription_plan', 'pro'),
-      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('subscription_plan', 'premium'),
+      // Test accounts (profiles.is_test_account) are not users
+      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false),
+      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'trial'),
+      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'pro'),
+      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'premium'),
       admin.from('cvs').select('id',       { count: 'exact', head: true }),
       admin.from('cover_letters').select('id', { count: 'exact', head: true }),
       admin.from('applications').select('id',  { count: 'exact', head: true }),
@@ -68,11 +69,16 @@ export async function GET() {
       admin.from('auto_apply_logs').select('created_at').gte('created_at', days7Str),
     ]);
 
-    // New-user counts via auth admin API
+    // New-user counts via auth admin API, test accounts excluded
     const { data: { users: allAuthUsers } } = await admin.auth.admin.listUsers({ page: 1, perPage: 10_000 });
-    const newToday = allAuthUsers.filter(u => u.created_at >= todayStr).length;
-    const new7d    = allAuthUsers.filter(u => u.created_at >= days7Str).length;
-    const new30d   = allAuthUsers.filter(u => u.created_at >= days30Str).length;
+    const { data: testAccounts, error: testAccountsError } = await admin
+      .from('profiles').select('id').eq('is_test_account', true);
+    if (testAccountsError) throw new Error(`test accounts: ${testAccountsError.message}`);
+    const testIds  = new Set((testAccounts ?? []).map(p => p.id as string));
+    const users    = allAuthUsers.filter(u => !testIds.has(u.id));
+    const newToday = users.filter(u => u.created_at >= todayStr).length;
+    const new7d    = users.filter(u => u.created_at >= days7Str).length;
+    const new30d   = users.filter(u => u.created_at >= days30Str).length;
 
     const mrr = ((proUsers ?? 0) * 27) + ((premiumUsers ?? 0) * 49);
 

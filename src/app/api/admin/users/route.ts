@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     // Get all profiles (service role bypasses RLS)
     const { data: profiles, error: profilesError } = await admin
       .from('profiles')
-      .select('id, subscription_plan, ai_credits_remaining, avatar_url, is_blocked');
+      .select('id, subscription_plan, ai_credits_remaining, avatar_url, is_blocked, is_test_account');
     if (profilesError) {
       console.error('[admin/users] profiles error:', profilesError.message, profilesError);
       return NextResponse.json({ error: `Profiles error: ${profilesError.message}` }, { status: 502 });
@@ -47,8 +47,8 @@ export async function GET(req: Request) {
     const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
     console.log(`[admin/users] fetched ${profiles?.length ?? 0} profiles`);
 
-    // Filter
-    let filtered = authUsers;
+    // Filter. Test accounts (profiles.is_test_account) are not users: never listed nor counted.
+    let filtered = authUsers.filter(u => !profileMap[u.id]?.is_test_account);
     if (search) {
       filtered = filtered.filter(u =>
         (u.email ?? '').toLowerCase().includes(search) ||
