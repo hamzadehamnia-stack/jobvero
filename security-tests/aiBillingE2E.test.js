@@ -9,7 +9,7 @@
 // The only test of the whole chain: the SQL tests exercise the functions, the
 // node tests the pure rules, this one the routes. It runs against the
 // production database — there is no other — as the dedicated test account
-// (profiles.is_test_account), reset to a 10-credit trial before each run. If no
+// (profiles.is_test_account), reset to a 20-credit trial before each run. If no
 // test account exists (they are deleted before launch), it creates one. The
 // letter template and cover letters it creates are deleted at the end.
 //
@@ -33,9 +33,10 @@ const { createServerClient } = require('@supabase/ssr');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 50;
+const EXPECTED_CHECKS = 68;
 // rewrite-bullet 1 + ats-score 1 + generate-cv 2 + jobs/apply 1 + letter adapt 1 + parse-cv 1
-const EXPECTED_DELTA  = -7;
+// + three chat sessions, one credit each
+const EXPECTED_DELTA  = -10;
 const TEST_NAME       = '[TEST] AI billing E2E';
 
 let passed = 0;
@@ -117,7 +118,7 @@ async function prepareTestAccount(admin) {
 
   const { error: resetError } = await admin.from('profiles').update({
     full_name:            TEST_NAME,
-    ai_credits_remaining: 10,
+    ai_credits_remaining: 20,
     trial_ends_at:        new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
     subscription_plan:    null,
     subscription_status:  null,
@@ -146,7 +147,7 @@ async function signIn(env, account) {
   if (error) throw error;
   await delay(200);
   if (jar.size === 0) throw new Error('sign-in produced no auth cookie');
-  return [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+  return { cookie: [...jar].map(([name, value]) => `${name}=${value}`).join('; '), client: ssr };
 }
 
 // A PDF of `pages` pages built by hand: Helvetica text, page 1 carrying a short
@@ -214,7 +215,7 @@ async function main() {
   await ensureServer();
 
   const account = await prepareTestAccount(admin);
-  const cookie  = await signIn(env, account);
+  const { cookie, client: userClient } = await signIn(env, account);
   const runId   = String(Date.now());
   const prefix  = `e2e-${runId}-`;
   const key     = (label) => `${prefix}${label}`;
@@ -427,6 +428,117 @@ async function main() {
     check('14 answers 200 with no description, rather than an invented one',
       r14.status === 200 && r14.json?.description === null && r14.json?.source === null, r14.json);
     check('14 charges nothing and leaves no ledger row', nothingCharged(r14), { before: r14.before.credits, after: r14.after.credits, row: r14.row });
+
+    // ── Chat: charged by conversation, one credit per session of 20 messages ─
+    const runChat = async (name, { messages, sessionId = null }, idempotencyKey, { headers = {}, leaveAfterFirstChunk = false } = {}) => {
+      const before  = await snapshot();
+      const started = Date.now();
+      const leave   = new AbortController();
+      const res = await fetch(`${BASE}/api/chat`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie, 'Idempotency-Key': idempotencyKey, ...headers },
+        body:    JSON.stringify({ messages, sessionId }),
+        signal:  leave.signal,
+      });
+      let text = '';
+      let json = null;
+      if (res.ok && res.body) {
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            text += decoder.decode(value, { stream: true });
+            if (leaveAfterFirstChunk && text.length > 0) {
+              leave.abort();
+              break;
+            }
+          }
+        } catch (err) {
+          if (err.name !== 'AbortError') throw err;
+        }
+        // The server records the call once it sees the client leave.
+        if (leaveAfterFirstChunk) await delay(4_000);
+      } else {
+        json = await res.json().catch(() => null);
+      }
+      const after   = await snapshot();
+      const session = res.headers.get('x-ai-session-id');
+      const { data: sessionRow } = session
+        ? await admin.from('ai_sessions').select('id, usage_id').eq('id', session).maybeSingle()
+        : { data: null };
+      const row = sessionRow
+        ? after.usage.find((u) => u.id === sessionRow.usage_id) ?? null
+        : after.usage.find((u) => u.idempotency_key === idempotencyKey) ?? null;
+      const calls = row ? after.calls.filter((c) => c.usage_id === row.id) : [];
+      const used  = res.headers.get('x-ai-session-messages-used');
+      const limit = res.headers.get('x-ai-session-messages-limit');
+      console.log(`\n${name}\n  HTTP ${res.status} in ${((Date.now() - started) / 1000).toFixed(1)} s · credits ${before.credits} → ${after.credits} · session ${session ?? '—'} (${used ?? '?'}/${limit ?? '?'}) · ledger ${row ? `${row.action} ${row.status}, ${row.credits_charged} credit(s), ${calls.length} call(s)` : 'no row'}`);
+      return { status: res.status, json, text, sessionId: session, used, limit, before, after, row, calls };
+    };
+
+    const firstQuestion = [{ role: 'user', content: 'Give me one tip to make a CV stand out, in one sentence.' }];
+
+    // ── 15. The first message opens a session: 1 credit ─────────────────────
+    const r15 = await runChat('15. chat, first message (opens a session, 1 credit)', { messages: firstQuestion }, key('chat-first'));
+    check('15 answers 200 with a streamed answer and a session id',
+      r15.status === 200 && r15.text.length > 0 && Boolean(r15.sessionId), { status: r15.status, json: r15.json });
+    check('15 debits exactly 1 credit', r15.after.credits === r15.before.credits - 1, [r15.before.credits, r15.after.credits]);
+    check('15 ledger row settled for 1 credit', settledFor(r15, 'chat', 1), r15.row);
+    check('15 the message counts 1 of 20, and its cost is logged',
+      r15.used === '1' && r15.limit === '20' && costLogged(r15.calls), { used: r15.used, limit: r15.limit, calls: r15.calls });
+
+    // ── 16. The next message in that session: no charge ─────────────────────
+    const r16 = await runChat('16. chat, second message in the same session', {
+      messages:  [...firstQuestion, { role: 'assistant', content: r15.text }, { role: 'user', content: 'And a second tip, in one sentence?' }],
+      sessionId: r15.sessionId,
+    }, key('chat-second'));
+    check('16 answers 200 in the same session', r16.status === 200 && r16.sessionId === r15.sessionId, { status: r16.status, session: r16.sessionId });
+    check('16 debits nothing and adds no ledger row',
+      r16.after.credits === r16.before.credits && r16.after.usage.length === r16.before.usage.length, [r16.before.credits, r16.after.credits]);
+    check('16 the session counts 2 messages, both calls logged on its one ledger row',
+      r16.used === '2' && r16.calls.length === 2, { used: r16.used, calls: r16.calls.length });
+
+    // ── 17. A session out of messages: the next message opens another ───────
+    const { error: exhaustError } = await admin.from('ai_sessions').update({ model_calls: 20 }).eq('id', r15.sessionId);
+    if (exhaustError) throw exhaustError;
+    const r17 = await runChat('17. chat, a session out of messages (the next one opens, 1 credit)',
+      { messages: firstQuestion, sessionId: r15.sessionId }, key('chat-exhausted'));
+    const { data: exhausted } = await admin.from('ai_sessions').select('ended_at, end_reason').eq('id', r15.sessionId).single();
+    check('17 answers 200 in a new session',
+      r17.status === 200 && Boolean(r17.sessionId) && r17.sessionId !== r15.sessionId, { status: r17.status, session: r17.sessionId });
+    check('17 debits exactly 1 credit', r17.after.credits === r17.before.credits - 1, [r17.before.credits, r17.after.credits]);
+    check('17 the spent session is closed for its call limit', Boolean(exhausted?.ended_at) && exhausted?.end_reason === 'call_limit', exhausted);
+
+    // ── 18. The client leaves after the first chunk: settled, not refunded ──
+    const r18 = await runChat('18. chat, the client leaves after the first chunk', {
+      messages: [{ role: 'user', content: 'Write a detailed 300-word guide to preparing for a behavioural interview.' }],
+    }, key('chat-leave'), { leaveAfterFirstChunk: true });
+    check('18 debits exactly 1 credit, and the charge stays settled',
+      r18.after.credits === r18.before.credits - 1 && r18.row?.status === 'settled', { credits: [r18.before.credits, r18.after.credits], row: r18.row });
+    check('18 the abandoned call is still in the ledger', r18.calls.length === 1, r18.calls);
+
+    // ── 19. A message over the model's input: refused before any charge ─────
+    const r19 = await runChat('19. chat, a message longer than the model takes',
+      { messages: [{ role: 'user', content: 'x'.repeat(30_000) }] }, key('chat-too-long'));
+    check('19 answers 413 input_too_large', r19.status === 413 && r19.json?.reason === 'input_too_large', r19.json);
+    check('19 charges nothing and leaves no ledger row', nothingCharged(r19), { before: r19.before.credits, after: r19.after.credits, row: r19.row });
+
+    // ── 20. The chat's admin toggle off ─────────────────────────────────────
+    const r20 = await runChat('20. chat with its admin toggle off', { messages: firstQuestion }, key('chat-switch'),
+      { headers: { 'X-AI-Test-Switch-Off': 'assistant_chat' } });
+    check('20 answers 503 feature_disabled', r20.status === 503 && r20.json?.reason === 'feature_disabled', r20.json);
+    check('20 charges nothing and leaves no ledger row', nothingCharged(r20), { before: r20.before.credits, after: r20.after.credits, row: r20.row });
+
+    // ── 21. The job description cache: out of reach of a signed-in user ─────
+    console.log('\n21. job_descriptions_cache, as a signed-in user');
+    const probeJob   = `e2e-cache-probe-${runId}`;
+    const cacheRead  = await userClient.from('job_descriptions_cache').select('job_id').limit(1);
+    const cacheWrite = await userClient.from('job_descriptions_cache').insert({ job_id: probeJob, description: 'x'.repeat(500), source: 'scrape' });
+    const { data: probeRows } = await admin.from('job_descriptions_cache').select('job_id').eq('job_id', probeJob);
+    check('21 a signed-in user cannot read the cache', Boolean(cacheRead.error), cacheRead.data);
+    check('21 nor write to it', Boolean(cacheWrite.error) && (probeRows ?? []).length === 0, { error: cacheWrite.error?.message, rows: probeRows });
 
     // ── End-to-end arithmetic ───────────────────────────────────────────────
     const final          = await snapshot();
