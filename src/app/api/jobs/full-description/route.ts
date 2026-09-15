@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     const result = await getFullDescription({
       jobId:       body.jobId,
       redirectUrl: body.redirectUrl,
-    }, supabase);
+    });
 
     return NextResponse.json({
       description: result?.description ?? null,

@@ -428,7 +428,7 @@ export async function runAutoApplyForUser(
     const descResult = await getFullDescription({
       jobId:       job.id,
       redirectUrl: job.redirect_url,
-    }, supabase).catch(() => null);
+    }).catch(() => null);
     const richDesc = descResult?.description ?? stripHtml(job.description ?? '').slice(0, 2000);
 
     // ── Premium: tailor CV + generate PDF ────────────────────────────────────

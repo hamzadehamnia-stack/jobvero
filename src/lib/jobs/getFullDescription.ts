@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { safeFetch } from '@/lib/ssrfGuard';
 
 const SCRAPE_MIN    = 400;
@@ -29,14 +29,18 @@ export interface FullDescriptionInput {
 // description" from a title and an excerpt invents an offer, and a candidate
 // applying to an invented offer is worse off than one reading the excerpt —
 // so when the page cannot be read, callers keep the excerpt they already have.
+//
+// The cache is shared by every user and feeds auto-apply's CV tailoring, so no
+// user may touch it: it is read and written with the service role only, and
+// clients hold no privilege on the table.
 export async function getFullDescription(
   input: FullDescriptionInput,
-  supabase: SupabaseClient,
 ): Promise<{ description: string; source: 'cache' | 'scrape' } | null> {
+  const cache = createAdminClient();
 
   // ── Level 1: Cache ─────────────────────────────────────────────────────────
   try {
-    const { data } = await supabase
+    const { data } = await cache
       .from('job_descriptions_cache')
       .select('description')
       .eq('job_id', input.jobId)
@@ -67,7 +71,7 @@ export async function getFullDescription(
         const html = await res.text();
         const text = extractText(html).slice(0, SCRAPE_MAX);
         if (text.length >= SCRAPE_MIN) {
-          await supabase.from('job_descriptions_cache').upsert(
+          await cache.from('job_descriptions_cache').upsert(
             { job_id: input.jobId, description: text, source: 'scrape' },
             { onConflict: 'job_id' },
           ).then(() => null, () => null);
