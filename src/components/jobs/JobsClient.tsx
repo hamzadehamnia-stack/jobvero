@@ -1047,7 +1047,6 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
 
       const data = await res.json();
       setCredits(c => Math.max(0, c - 1));
-      setSavedIds(prev => new Set([...prev, job.id]));
       setSelectedJob(null);
       setCoverLetterJob(job);
       setCoverLetterHtml(data.coverLetterHtml);

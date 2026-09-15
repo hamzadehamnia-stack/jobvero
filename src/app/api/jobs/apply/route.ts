@@ -4,30 +4,28 @@ import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 export const runtime     = 'nodejs';
 export const maxDuration = 90;
 
+// A cover letter for one job offer, saved with the user's letters. The route
+// records no application: tracking an offer belongs to the job tracker, which
+// itself calls this route for offers it already holds.
 async function handler(req: Request, ai: AiActionContext) {
   const { supabase, user } = ai;
 
-  const {
-    jobId, jobTitle, company, location, salary, jobDescription, jobUrl,
-  } = await req.json() as {
-    jobId: string;
-    jobTitle: string;
-    company: string;
-    location: string;
-    salary?: string;
+  const { jobTitle, company, location, jobDescription } = await req.json() as {
+    jobTitle:       string;
+    company:        string;
+    location:       string;
     jobDescription: string;
-    jobUrl?: string;
   };
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email, phone')
+    .select('full_name, phone')
     .eq('id', user.id)
     .single();
 
   const { data: cv } = await supabase
     .from('cvs')
-    .select('form_data, title')
+    .select('id, form_data')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -37,8 +35,8 @@ async function handler(req: Request, ai: AiActionContext) {
     : '';
 
   const userName  = profile?.full_name ?? user.email ?? 'Candidat';
-  const userEmail = profile?.email ?? user.email ?? '';
-  const userPhone = (profile as Record<string, unknown> | null)?.phone as string ?? '';
+  const userEmail = user.email ?? '';
+  const userPhone = profile?.phone ?? '';
   const today     = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const coverLetterText = await ai.complete([
@@ -107,33 +105,25 @@ Description: ${jobDescription.slice(0, 500)}`,
     .replace(/>/g, '&gt;');
   const coverLetterHtml = `<div style="font-family:Arial,sans-serif;padding:40px 50px;max-width:700px;color:#1a1a2e;font-size:13px;line-height:1.7;white-space:pre-line;">${escaped}</div>`;
 
-  const { error: insertError } = await supabase.from('job_applications').insert({
-    user_id: user.id,
-    title: jobTitle,
-    company,
-    location,
-    salary: salary ?? null,
-    status: 'applied',
-    url: jobUrl ?? null,
-    applied_at: new Date().toISOString(),
+  // The letter is what the user pays for. It is saved before the answer, and a
+  // failed save fails the request: the credit is refunded rather than charged
+  // for a letter the user could not find again.
+  const { error: saveError } = await supabase.from('cover_letters').insert({
+    user_id:      user.id,
+    job_title:    jobTitle,
+    company_name: company,
+    content:      coverLetterHtml,
+    language:     'fr',
+    tone:         'Professional',
+    cv_id:        cv?.id ?? null,
   });
 
-  if (insertError) {
-    console.error('[jobs/apply] insert error:', insertError);
+  if (saveError) {
+    console.error('[jobs/apply] cover letter save failed:', saveError.message);
+    return NextResponse.json({ error: 'Could not save the cover letter' }, { status: 500 });
   }
 
-  supabase.from('cover_letters').insert({
-    user_id: user.id,
-    job_title: jobTitle,
-    company_name: company,
-    html: coverLetterHtml,
-    tone: 'Professional',
-    language: 'en',
-  }).then(() => null, () => null);
-
-  void jobId;
-
-  return NextResponse.json({ coverLetterHtml, saved: !insertError });
+  return NextResponse.json({ coverLetterHtml });
 }
 
 export const POST = withAiAction({ feature: 'APPLY_WITH_AI', action: 'application' }, handler);
