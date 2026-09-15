@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 180;
 
 const LANG_CONFIG: Record<string, {
   name: string;
@@ -30,7 +30,7 @@ const LANG_CONFIG: Record<string, {
   },
 };
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { workExperience, education, skills, targetLanguage } = await req.json();
     const lang = targetLanguage && LANG_CONFIG[targetLanguage] ? targetLanguage : 'fr';
@@ -64,10 +64,10 @@ Return a JSON object with exactly this structure (same field names, same array l
   "skills": [array of translated skill strings]
 }`;
 
-    const raw = await callOpenRouter(MODEL, [
+    const raw = await ai.complete([
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userPrompt   },
-    ], 4000);
+    ], { timeoutMs: 150_000 });
 
     const cleaned    = raw.trim().replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
     const translated = JSON.parse(cleaned);
@@ -79,4 +79,4 @@ Return a JSON object with exactly this structure (same field names, same array l
   }
 }
 
-export const POST = withFeatureCheck('CV_BUILDER_AI', handler);
+export const POST = withAiAction({ feature: 'CV_BUILDER_AI', action: 'cv_transform' }, handler);

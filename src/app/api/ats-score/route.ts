@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'google/gemini-3-flash-preview';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
 export interface ATSResult {
   overall_score: number;
@@ -15,7 +15,7 @@ export interface ATSResult {
   recommendations: string[];
 }
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { cvText, jobDescription } = await req.json();
 
@@ -37,10 +37,10 @@ async function handler(req: Request) {
       'recommendations (array of 3-5 actionable string tips to improve the CV for this role). ' +
       'No explanation, no markdown, no code fences — pure JSON only.';
 
-    let raw = await callOpenRouter(MODEL, [
+    let raw = await ai.complete([
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: `JOB DESCRIPTION:\n${jobDescription}\n\nCV TEXT:\n${cvText}` },
-    ], 1024);
+    ]);
 
     raw = raw.replace(/^```json\n?/i, '').replace(/^```\n?/i, '').replace(/\n?```$/i, '').trim();
 
@@ -62,4 +62,4 @@ async function handler(req: Request) {
   }
 }
 
-export const POST = withFeatureCheck('ATS_SCORE', handler);
+export const POST = withAiAction({ feature: 'ATS_SCORE', action: 'match_score' }, handler);

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 180;
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { formData, instruction } = await req.json();
 
@@ -12,7 +12,7 @@ async function handler(req: Request) {
       return NextResponse.json({ error: 'Missing formData or instruction' }, { status: 400 });
     }
 
-    const raw = await callOpenRouter(MODEL, [
+    const raw = await ai.complete([
       {
         role: 'system',
         content: `You are a precision CV data editor. You receive structured CV data as JSON and a natural-language instruction. Apply the instruction surgically.
@@ -33,9 +33,9 @@ STRICT RULES:
         role: 'user',
         content: `INSTRUCTION: ${instruction}\n\nCV DATA (JSON):\n${JSON.stringify(formData, null, 2)}`,
       },
-    ], 5000);
+    ], { timeoutMs: 150_000 });
 
-    let cleaned = raw.trim()
+    const cleaned = raw.trim()
       .replace(/^```json\n?/i, '').replace(/^```\n?/i, '').replace(/\n?```$/i, '').trim();
 
     const modified = JSON.parse(cleaned);
@@ -49,4 +49,4 @@ STRICT RULES:
   }
 }
 
-export const POST = withFeatureCheck('MODIFY_DOCUMENT_AI', handler);
+export const POST = withAiAction({ feature: 'MODIFY_DOCUMENT_AI', action: 'cv_transform' }, handler);

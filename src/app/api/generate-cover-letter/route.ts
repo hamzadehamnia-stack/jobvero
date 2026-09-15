@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'deepseek/deepseek-v3.2';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const body = await req.json();
     const { jobTitle, companyName, jobDescription, tone, language, userName, userEmail } = body;
@@ -70,10 +70,10 @@ Format the output as clean HTML with inline styles. Make it look like a real bus
 
 Return ONLY the HTML (no \`\`\`html fences, no explanations). Start directly with the outer div.`;
 
-    let html = await callOpenRouter(MODEL, [
+    let html = await ai.complete([
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userPrompt   },
-    ], 2048);
+    ]);
 
     html = html.replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
 
@@ -87,4 +87,4 @@ Return ONLY the HTML (no \`\`\`html fences, no explanations). Start directly wit
   }
 }
 
-export const POST = withFeatureCheck('COVER_LETTER_AI', handler);
+export const POST = withAiAction({ feature: 'COVER_LETTER_AI', action: 'quick_write' }, handler);

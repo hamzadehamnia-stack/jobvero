@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 180;
 
 const DESCRIBE_PROMPT = `You are a CV builder AI assistant. A user has described their professional profile in free text — it may be a rough paragraph, bullet points, a structured narrative, or a mix. Extract all information and return a JSON object with exactly this structure.
 
@@ -67,17 +67,17 @@ EXTRACTION RULES:
 6. For internships or academic projects mentioned as work experience, include them with position = "Intern" or "Student Project" and note the institution as company.
 7. Generate the description field with professional language — do not copy the user's raw informal text verbatim; rewrite it in CV-appropriate tone.`;
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { description } = await req.json();
     if (!description || typeof description !== 'string' || !description.trim()) {
       return NextResponse.json({ error: 'No description provided' }, { status: 400 });
     }
 
-    const raw = await callOpenRouter(MODEL, [{
+    const raw = await ai.complete([{
       role: 'user',
       content: `${DESCRIBE_PROMPT}\n\nUSER DESCRIPTION:\n"""\n${description.slice(0, 8000)}\n"""`,
-    }], 3000);
+    }], { timeoutMs: 150_000 });
 
     const json = raw.trim()
       .replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
@@ -86,9 +86,8 @@ async function handler(req: Request) {
     return NextResponse.json({ data });
   } catch (err: unknown) {
     console.error('[/api/describe-cv]', err);
-    const message = err instanceof Error ? err.message : 'Failed to process description';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process description' }, { status: 500 });
   }
 }
 
-export const POST = withFeatureCheck('CV_BUILDER_AI', handler);
+export const POST = withAiAction({ feature: 'CV_BUILDER_AI', action: 'cv_transform' }, handler);

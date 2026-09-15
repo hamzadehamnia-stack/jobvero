@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 import { PALETTE_COLORS, type ColorPalette } from '@/components/cv-builder/types';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+// A full CV is up to 8000 output tokens from Sonnet. The model call gets 280 s
+// and the function 300 s, so the call times out before the platform kills it.
+export const maxDuration = 300;
 
 const SYSTEM_PROMPT = `You are a premium CV/resume designer with deep expertise in international hiring standards, ATS optimization, and typographic design. You produce visually stunning, professionally formatted CVs as clean, self-contained HTML using only inline styles.
 
@@ -350,7 +352,7 @@ function detectCareerStage(workExperience: Array<{ startDate: string; endDate: s
   return 'executive';
 }
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const body = await req.json();
     const { personalInfo, workExperience, education, skills, skillCategories, preferences } = body;
@@ -454,10 +456,10 @@ ${preferences.fontStyle ? `FONT HINT: ${preferences.fontStyle}` : ''}
       ? USA_SYSTEM_PROMPT.replace(/\bACCENT\b/g, palette.accent)
       : SYSTEM_PROMPT;
 
-    let html = await callOpenRouter(MODEL, [
+    let html = await ai.complete([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ], 8000);
+    ], { timeoutMs: 280_000 });
 
     html = html.trim().replace(/^```html\s*/i, '').replace(/\s*```$/i, '').trim();
 
@@ -469,4 +471,4 @@ ${preferences.fontStyle ? `FONT HINT: ${preferences.fontStyle}` : ''}
   }
 }
 
-export const POST = withFeatureCheck('CV_BUILDER_AI', handler);
+export const POST = withAiAction({ feature: 'CV_BUILDER_AI', action: 'cv_generation' }, handler);

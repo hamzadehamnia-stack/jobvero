@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
-import { callOpenRouter } from '@/lib/openrouter';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
-async function handler(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+async function handler(req: Request, ai: AiActionContext) {
+  const { supabase, user } = ai;
 
   const {
     jobId, jobTitle, company, location, salary, jobDescription, jobUrl,
@@ -44,7 +41,7 @@ async function handler(req: Request) {
   const userPhone = (profile as Record<string, unknown> | null)?.phone as string ?? '';
   const today     = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const coverLetterText = await callOpenRouter(MODEL, [
+  const coverLetterText = await ai.complete([
     {
       role: 'system',
       content: 'Tu es un expert en rédaction de lettres de motivation professionnelles françaises. Retourne UNIQUEMENT le texte brut de la lettre, sans HTML, sans markdown, sans balises, sans explications.',
@@ -97,7 +94,7 @@ Entreprise: ${company}
 Localisation: ${location || 'Non précisée'}
 Description: ${jobDescription.slice(0, 500)}`,
     },
-  ], 1024);
+  ]);
 
   const cleanedText = coverLetterText
     .replace(/^```[a-z]*\n?/i, '')
@@ -134,7 +131,9 @@ Description: ${jobDescription.slice(0, 500)}`,
     language: 'en',
   }).then(() => null, () => null);
 
+  void jobId;
+
   return NextResponse.json({ coverLetterHtml, saved: !insertError });
 }
 
-export const POST = withFeatureCheck('APPLY_WITH_AI', handler);
+export const POST = withAiAction({ feature: 'APPLY_WITH_AI', action: 'application' }, handler);

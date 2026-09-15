@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 import type { CVFormData } from '@/components/cv-builder/types';
 
-const MODEL = 'google/gemini-3-flash-preview';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { cvData, jobDescription } = await req.json() as {
       cvData: CVFormData;
@@ -59,9 +59,9 @@ Respond with a single JSON object — no markdown, no explanation, no extra text
 
 Scoring guide: 75-100 strong match, 50-74 partial match, 0-49 weak match.`;
 
-    const raw = (await callOpenRouter(MODEL, [
+    const raw = (await ai.complete([
       { role: 'user', content: prompt },
-    ], 1024))
+    ]))
       .trim()
       .replace(/^```json\s*/i, '')
       .replace(/\s*```$/i, '')
@@ -70,9 +70,9 @@ Scoring guide: 75-100 strong match, 50-74 partial match, 0-49 weak match.`;
     const result = JSON.parse(raw);
     return NextResponse.json(result);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to analyze CV match';
+    console.error('CV match scoring error:', err);
     return NextResponse.json({ error: 'Match scoring failed' }, { status: 500 });
   }
 }
 
-export const POST = withFeatureCheck('ATS_SCORE', handler);
+export const POST = withAiAction({ feature: 'ATS_SCORE', action: 'match_score' }, handler);

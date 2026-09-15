@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 180;
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { html, instruction } = await req.json();
 
@@ -12,7 +12,7 @@ async function handler(req: Request) {
       return NextResponse.json({ error: 'Missing content or instruction' }, { status: 400 });
     }
 
-    let modifiedHtml = await callOpenRouter(MODEL, [
+    let modifiedHtml = await ai.complete([
       {
         role: 'system',
         content:
@@ -24,7 +24,7 @@ async function handler(req: Request) {
         role: 'user',
         content: `INSTRUCTION: ${instruction}\n\nDOCUMENT HTML:\n${html}`,
       },
-    ], 2048);
+    ], { timeoutMs: 150_000 });
 
     modifiedHtml = modifiedHtml.trim()
       .replace(/^```html\n?/i, '').replace(/\n?```$/i, '').trim();
@@ -39,4 +39,4 @@ async function handler(req: Request) {
   }
 }
 
-export const POST = withFeatureCheck('MODIFY_DOCUMENT_AI', handler);
+export const POST = withAiAction({ feature: 'MODIFY_DOCUMENT_AI', action: 'cv_transform' }, handler);

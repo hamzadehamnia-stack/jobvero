@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'deepseek/deepseek-v3.2';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
 function countryStyle(targetCountry: string, language: string): string {
   const isFrench =
@@ -20,7 +20,7 @@ function countryStyle(targetCountry: string, language: string): string {
   return 'Use English. Start with a strong past-tense action verb (ex: Led, Built, Reduced, Delivered, Increased, Streamlined). ATS-optimized with metrics.';
 }
 
-async function handler(req: Request) {
+async function handler(req: Request, ai: AiActionContext) {
   try {
     const { bullet, jobTitle, company, targetCountry, language } = await req.json() as {
       bullet: string;
@@ -54,9 +54,9 @@ Return EXACTLY 3 versions separated by ||| with absolutely no other text or line
 
 Format: version1|||version2|||version3`;
 
-    const raw = await callOpenRouter(MODEL, [
+    const raw = await ai.complete([
       { role: 'user', content: prompt },
-    ], 512);
+    ]);
 
     const versions = raw
       .trim()
@@ -70,9 +70,9 @@ Format: version1|||version2|||version3`;
 
     return NextResponse.json({ versions: versions.slice(0, 3) });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to rewrite bullet';
+    console.error('Bullet rewrite error:', err);
     return NextResponse.json({ error: 'Rewrite failed' }, { status: 500 });
   }
 }
 
-export const POST = withFeatureCheck('MODIFY_DOCUMENT_AI', handler);
+export const POST = withAiAction({ feature: 'MODIFY_DOCUMENT_AI', action: 'quick_write' }, handler);
