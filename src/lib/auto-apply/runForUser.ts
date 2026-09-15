@@ -424,14 +424,10 @@ export async function runAutoApplyForUser(
       continue;
     }
 
-    // ── Full description (cache → scrape → AI) ────────────────────────────────
+    // ── Full description (cache → scrape; the Adzuna excerpt otherwise) ──────
     const descResult = await getFullDescription({
       jobId:       job.id,
       redirectUrl: job.redirect_url,
-      title,
-      company,
-      location,
-      excerpt:     desc,
     }, supabase).catch(() => null);
     const richDesc = descResult?.description ?? stripHtml(job.description ?? '').slice(0, 2000);
 

@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { callOpenRouter } from '@/lib/openrouter';
 import { safeFetch } from '@/lib/ssrfGuard';
 
-const AI_MODEL      = 'deepseek/deepseek-chat';
 const SCRAPE_MIN    = 400;
 const SCRAPE_MAX    = 8000;
 const SCRAPE_TIMEOUT = 10_000;
@@ -24,19 +22,17 @@ function extractText(html: string): string {
 export interface FullDescriptionInput {
   jobId:        string;
   redirectUrl?: string | null;
-  title:        string;
-  company:      string;
-  location?:    string;
-  salary?:      string;
-  contractType?: string;
-  sector?:      string;
-  excerpt:      string;
 }
 
+// The full text of a job offer: from the cache, else scraped from the offer's
+// own page. There is no AI level. A model asked to write "a complete job
+// description" from a title and an excerpt invents an offer, and a candidate
+// applying to an invented offer is worse off than one reading the excerpt —
+// so when the page cannot be read, callers keep the excerpt they already have.
 export async function getFullDescription(
   input: FullDescriptionInput,
   supabase: SupabaseClient,
-): Promise<{ description: string; source: 'cache' | 'scrape' | 'ai' } | null> {
+): Promise<{ description: string; source: 'cache' | 'scrape' } | null> {
 
   // ── Level 1: Cache ─────────────────────────────────────────────────────────
   try {
@@ -79,43 +75,9 @@ export async function getFullDescription(
         }
       }
     } catch {
-      // fall through to AI
+      // unreadable page: no description
     }
   }
 
-  // ── Level 3: AI ────────────────────────────────────────────────────────────
-  console.log(`[FULL-DESC] AI fallback jobId=${input.jobId}`);
-  try {
-    const parts: string[] = [
-      `Title: ${input.title}`,
-      `Company: ${input.company}`,
-    ];
-    if (input.location)     parts.push(`Location: ${input.location}`);
-    if (input.salary)       parts.push(`Salary: ${input.salary}`);
-    if (input.contractType) parts.push(`Contract type: ${input.contractType}`);
-    if (input.sector)       parts.push(`Sector: ${input.sector}`);
-    parts.push(`Excerpt: ${input.excerpt}`);
-
-    const description = await callOpenRouter(AI_MODEL, [
-      {
-        role: 'system',
-        content:
-          'You are a job description writer. Based on the real job data provided, write a ' +
-          'complete, professional, well-structured job description: brief intro, key ' +
-          'responsibilities, required qualifications, what the role offers. Use the excerpt ' +
-          'as factual basis — expand naturally but do NOT invent specific salary numbers or ' +
-          'facts not implied. Clean readable paragraphs. Match the language of the excerpt.',
-      },
-      { role: 'user', content: parts.join('\n') },
-    ], 800);
-
-    await supabase.from('job_descriptions_cache').upsert(
-      { job_id: input.jobId, description, source: 'ai' },
-      { onConflict: 'job_id' },
-    ).then(() => null, () => null);
-
-    return { description, source: 'ai' };
-  } catch {
-    return null;
-  }
+  return null;
 }

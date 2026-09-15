@@ -105,7 +105,7 @@ function DescriptionProgress({ pct }: { pct: number }) {
 
 interface FullDescriptionResponse {
   description?: string | null;
-  source?:      'cache' | 'scrape' | 'ai' | null;
+  source?:      'cache' | 'scrape' | null;
 }
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
