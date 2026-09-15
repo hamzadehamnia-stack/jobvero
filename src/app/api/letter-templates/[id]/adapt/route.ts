@@ -1,18 +1,19 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { callOpenRouter } from '@/lib/openrouter';
+import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
-const MODEL = 'anthropic/claude-sonnet-4.6';
+export const runtime     = 'nodejs';
+export const maxDuration = 90;
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+async function handler(req: Request, ai: AiActionContext, { params }: RouteContext) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { supabase, user } = ai;
 
+  // Looked up before anything is charged: a template that is not the user's is
+  // a free 404.
   const { data: template } = await supabase
     .from('letter_templates')
     .select('content, use_count')
@@ -27,7 +28,7 @@ export async function POST(
     return NextResponse.json({ error: 'jobTitle and companyName are required' }, { status: 400 });
   }
 
-  const adapted = await callOpenRouter(MODEL, [
+  const adapted = await ai.complete([
     {
       role: 'system',
       content: 'Tu es un expert en lettres de motivation. Réponds uniquement avec la lettre adaptée, sans commentaires ni explications.',
@@ -39,7 +40,7 @@ Lettre originale: ${template.content}
 Description du nouveau poste: ${description?.trim() || 'Non fournie'}
 Réponds uniquement avec la lettre adaptée, max 350 mots.`,
     },
-  ], 700);
+  ]);
 
   await supabase
     .from('letter_templates')
@@ -51,3 +52,5 @@ Réponds uniquement avec la lettre adaptée, max 350 mots.`,
 
   return NextResponse.json({ text: adapted });
 }
+
+export const POST = withAiAction<RouteContext>({ feature: 'COVER_LETTER_AI', action: 'letter_adapt' }, handler);

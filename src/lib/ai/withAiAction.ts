@@ -63,6 +63,9 @@ import {
 // the route has used the model (security-tests/aiBillingE2E.test.js), so the
 // refund paths are exercised on real routes. See readFailureInjection.
 //
+// A dynamic route's context — { params } — reaches the handler as its third
+// argument.
+//
 // Not for sessions (interview_session, chat: step 2e), auto_apply (charged by
 // the cron) or system_ actions (never charged). RequestAction excludes them.
 
@@ -136,10 +139,10 @@ function answer(refusal: AiRefusal): Response {
   });
 }
 
-export function withAiAction(
+export function withAiAction<Context = unknown>(
   config:  AiActionOptions,
-  handler: (req: Request, ai: AiActionContext) => Promise<Response>,
-): (req: Request) => Promise<Response> {
+  handler: (req: Request, ai: AiActionContext, context: Context) => Promise<Response>,
+): (req: Request, context: Context) => Promise<Response> {
   const tag      = `[ai/${config.action}]`;
   const maxCalls = config.maxCalls ?? 1;
 
@@ -151,7 +154,7 @@ export function withAiAction(
   const cheapestTierForFeature: PaidTier | null =
     PAID_TIERS.find((paid) => FEATURES[config.feature][paid]) ?? null;
 
-  return async (req: Request): Promise<Response> => {
+  return async (req: Request, context: Context): Promise<Response> => {
     const supabase = await createClient();
 
     // ── 1. Auth ───────────────────────────────────────────────────────────────
@@ -343,7 +346,7 @@ export function withAiAction(
     // ── Run the route, then settle or refund ──────────────────────────────────
     let response: Response;
     try {
-      response = await handler(req, ai);
+      response = await handler(req, ai, context);
 
       // Outside production only: fail after the route has used the model, through
       // the same code a real failure takes.
