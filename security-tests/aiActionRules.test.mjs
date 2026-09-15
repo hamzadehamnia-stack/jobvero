@@ -9,13 +9,14 @@ import { isDeepStrictEqual } from 'node:util';
 import {
   countInputChars,
   mayCallModel,
+  readFailureInjection,
   readIdempotencyKey,
   refusalForFeature,
   refusalForReserveError,
   reservationOutcome,
 } from '../src/lib/ai/rules.ts';
 
-const EXPECTED_CHECKS = 25;
+const EXPECTED_CHECKS = 29;
 
 let passed = 0;
 let failed = 0;
@@ -121,6 +122,21 @@ check('a route that declares two calls may make a second, not a third',
   [mayCallModel(1, 2), mayCallModel(2, 2)], [true, false]);
 check('an invalid maxCalls allows nothing',
   [mayCallModel(0, 0), mayCallModel(0, 1.5), mayCallModel(0, Number.NaN)], [false, false, false]);
+
+
+// ─── 6. Test failure injection, never in production ───────────────────────────
+
+console.log('\n6. Test failure injection');
+
+check('production honours no injection, whatever the header',
+  [readFailureInjection('handler-throws', 'production'), readFailureInjection('error-response', 'production')], [null, null]);
+check('an unset NODE_ENV honours nothing either',
+  [readFailureInjection('handler-throws', undefined), readFailureInjection('error-response', '')], [null, null]);
+check('development honours the two known failures',
+  [readFailureInjection('handler-throws', 'development'), readFailureInjection('error-response', 'test')],
+  ['handler-throws', 'error-response']);
+check('an unknown value or no header injects nothing, even in development',
+  [readFailureInjection('drop-table', 'development'), readFailureInjection(null, 'development')], [null, null]);
 
 
 // ─── Report ───────────────────────────────────────────────────────────────────

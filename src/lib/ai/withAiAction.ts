@@ -11,6 +11,7 @@ import type { StreamUsage } from './sse';
 import {
   countInputChars,
   mayCallModel,
+  readFailureInjection,
   readIdempotencyKey,
   refusalForFeature,
   refusalForReserveError,
@@ -57,6 +58,10 @@ import {
 // loop added by mistake — would cost money for nothing and go unnoticed, so it
 // is refused unless the route declares maxCalls. The refusal is a 500: it is a
 // bug in the route, never something the client did.
+//
+// Outside production, the X-AI-Test-Failure header makes the request fail after
+// the route has used the model (security-tests/aiBillingE2E.test.js), so the
+// refund paths are exercised on real routes. See readFailureInjection.
 //
 // Not for sessions (interview_session, chat: step 2e), auto_apply (charged by
 // the cron) or system_ actions (never charged). RequestAction excludes them.
@@ -203,6 +208,9 @@ export function withAiAction(
       return answer({ status: 400, body: { error: 'Invalid Idempotency-Key header', reason: 'invalid_request' } });
     }
 
+    // Test-only, and null in production: see readFailureInjection.
+    const injection = readFailureInjection(req.headers.get('x-ai-test-failure'), process.env.NODE_ENV);
+
     // ── The charge ────────────────────────────────────────────────────────────
     const admin = createAdminClient();
     const state: { usageId: string | null; refusal: AiRefusal | null; calls: number } = {
@@ -336,6 +344,15 @@ export function withAiAction(
     let response: Response;
     try {
       response = await handler(req, ai);
+
+      // Outside production only: fail after the route has used the model, through
+      // the same code a real failure takes.
+      if (injection && state.usageId) {
+        if (injection === 'handler-throws') {
+          throw new Error('injected failure: the handler threw after the model call');
+        }
+        response = NextResponse.json({ error: 'injected failure: error response after the model call' }, { status: 500 });
+      }
     } catch (err) {
       if (!(err instanceof AiRefusalError)) console.error(`${tag} handler failed:`, err);
       await refund(err instanceof Error ? err.message : String(err));

@@ -130,3 +130,18 @@ export function readIdempotencyKey(header: string | null, generate: () => string
   if (header === null || header === '') return generate();
   return IDEMPOTENCY_KEY.test(header) ? header : null;
 }
+
+export type FailureInjection = 'handler-throws' | 'error-response';
+
+/**
+ * The failure a test asks for with the X-AI-Test-Failure header, or null.
+ *
+ * Honoured only when NODE_ENV is 'development' or 'test' — an allowlist, so an
+ * unset NODE_ENV honours nothing. Every Vercel deployment, preview included,
+ * runs with NODE_ENV = 'production', and Next inlines the value at build time:
+ * in a production bundle the branch that uses this is dead code.
+ */
+export function readFailureInjection(header: string | null, nodeEnv: string | undefined): FailureInjection | null {
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') return null;
+  return header === 'handler-throws' || header === 'error-response' ? header : null;
+}
