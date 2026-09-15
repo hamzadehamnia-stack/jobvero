@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 90;
@@ -79,6 +79,7 @@ Return ONLY the HTML (no \`\`\`html fences, no explanations). Start directly wit
 
     return NextResponse.json({ html });
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('Cover letter generation error:', err);
     return NextResponse.json(
       { error: 'Generation failed' },

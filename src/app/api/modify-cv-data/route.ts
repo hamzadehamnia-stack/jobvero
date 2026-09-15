@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -41,6 +41,7 @@ STRICT RULES:
     const modified = JSON.parse(cleaned);
     return NextResponse.json({ formData: modified });
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('CV data modification error:', err);
     return NextResponse.json(
       { error: 'Modification failed' },

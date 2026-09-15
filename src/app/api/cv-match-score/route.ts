@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 import type { CVFormData } from '@/components/cv-builder/types';
 
 export const runtime     = 'nodejs';
@@ -70,6 +70,7 @@ Scoring guide: 75-100 strong match, 50-74 partial match, 0-49 weak match.`;
     const result = JSON.parse(raw);
     return NextResponse.json(result);
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('CV match scoring error:', err);
     return NextResponse.json({ error: 'Match scoring failed' }, { status: 500 });
   }

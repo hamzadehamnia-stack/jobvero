@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 90;
@@ -70,6 +70,7 @@ Format: version1|||version2|||version3`;
 
     return NextResponse.json({ versions: versions.slice(0, 3) });
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('Bullet rewrite error:', err);
     return NextResponse.json({ error: 'Rewrite failed' }, { status: 500 });
   }

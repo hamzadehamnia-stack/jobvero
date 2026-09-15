@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -31,6 +31,7 @@ async function handler(req: Request, ai: AiActionContext) {
 
     return NextResponse.json({ html: modifiedHtml });
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('Document modification error:', err);
     return NextResponse.json(
       { error: 'Modification failed' },

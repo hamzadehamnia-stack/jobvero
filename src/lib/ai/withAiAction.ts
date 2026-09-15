@@ -49,7 +49,9 @@ import {
 // Settlement is decided when the handler returns: a 2xx answer settles the
 // charge, anything else refunds it — the user pays for what they received. A
 // refusal raised inside ai.complete wins over whatever the handler returns, so
-// a route's own try/catch cannot turn a 402 into a 500.
+// a route's own try/catch cannot turn a 402 into a 500. A route that catches
+// errors lets refusals through with isAiRefusal(): they are answers, not errors,
+// and must not fill the error logs.
 //
 // A request action is priced for one upstream call. A second call — a retry
 // loop added by mistake — would cost money for nothing and go unnoticed, so it
@@ -111,6 +113,15 @@ class AiRefusalError extends Error {
     this.name    = 'AiRefusalError';
     this.refusal = refusal;
   }
+}
+
+/**
+ * True for a refusal raised by ai.complete (402, 409, 413, 502…). A route's
+ * catch rethrows it instead of logging it: withAiAction sends the answer, and a
+ * refusal is not an error.
+ */
+export function isAiRefusal(err: unknown): boolean {
+  return err instanceof AiRefusalError;
 }
 
 function answer(refusal: AiRefusal): Response {

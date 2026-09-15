@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -74,6 +74,7 @@ Return a JSON object with exactly this structure (same field names, same array l
 
     return NextResponse.json({ translated });
   } catch (err) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('CV translation error:', err);
     return NextResponse.json({ error: 'Translation failed' }, { status: 500 });
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 import { PALETTE_COLORS, type ColorPalette } from '@/components/cv-builder/types';
 
 export const runtime     = 'nodejs';
@@ -465,6 +465,7 @@ ${preferences.fontStyle ? `FONT HINT: ${preferences.fontStyle}` : ''}
 
     return NextResponse.json({ html });
   } catch (err: unknown) {
+    if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error
     console.error('CV generation error:', err);
     const msg = err instanceof Error ? err.message : 'Failed to generate CV';
     return NextResponse.json({ error: 'CV generation failed' }, { status: 500 });
