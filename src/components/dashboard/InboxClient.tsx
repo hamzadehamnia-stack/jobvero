@@ -778,7 +778,7 @@ function ReplyBox({ thread, onSend, onClose, userId, aiDraft }: {
       <div className="px-6 py-4">
         {aiDraft && (
           <div className="flex items-center gap-1.5 mb-2 text-[11px] text-indigo-400 dark:text-indigo-500">
-            <Zap size={11} /> Généré par Claude · Modifiable
+            <Zap size={11} /> Généré par l&apos;IA · Modifiable
           </div>
         )}
         {/* Rich text editor */}
@@ -1493,7 +1493,7 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                   <div className="mb-6 rounded-2xl border border-indigo-200/70 dark:border-indigo-700/40 bg-indigo-50/60 dark:bg-indigo-950/20 overflow-hidden max-w-full">
                     <div className="px-5 py-4">
                       <p className="text-[9px] font-bold tracking-widest uppercase text-indigo-500 dark:text-indigo-400 mb-2">
-                        Résumé IA · Claude Sonnet 4.6
+                        Résumé IA
                       </p>
                       <p className="text-[13px] text-gray-800 dark:text-indigo-200 leading-relaxed mb-3">
                         {selectedThread.ai_summary}

@@ -237,7 +237,7 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
               Career Assistant
             </h1>
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              Powered by Claude AI
+              Jobvero AI Assistant
             </p>
           </div>
         </div>

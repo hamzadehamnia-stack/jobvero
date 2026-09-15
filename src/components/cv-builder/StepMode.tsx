@@ -27,7 +27,7 @@ const MODES: {
     id: 'describe',
     icon: Sparkles,
     title: 'Describe my profile to AI',
-    desc: 'Write a few sentences about yourself — Claude fills all fields for you',
+    desc: 'Write a few sentences about yourself — AI fills all fields for you',
     badge: 'New',
     iconCls: 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-600 dark:text-cyan-400',
   },

@@ -714,7 +714,7 @@ export default function CVBuilderClient() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 dark:text-white">CV Builder</h1>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Powered by Claude AI</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Jobvero AI</p>
             </div>
           </div>
 
