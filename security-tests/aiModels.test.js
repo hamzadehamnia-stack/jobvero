@@ -2,10 +2,13 @@
 //
 // Run it:  node security-tests/aiModels.test.js
 //
-// ai_action_costs.model is sent as-is to OpenRouter. An id it does not know
-// makes every call of that action fail, and a failed call is refunded: the
-// ledger looks healthy while the feature is down. This checks each catalogue
-// row against the live list, GET https://openrouter.ai/api/v1/models.
+// ai_action_costs.model is sent as-is to OpenRouter, and so is each model an
+// action pins in its limits (limits.models: the interview's speech-to-text and
+// text-to-speech). An id it does not know makes every call of that kind fail,
+// and a failed call is refunded: the ledger looks healthy while the feature is
+// down. This checks each of them against the live list,
+// GET https://openrouter.ai/api/v1/models, asked for every output modality so
+// that speech models are listed along with text ones.
 //
 // Reads the catalogue with the service role key from .env.local; writes nothing.
 // Guarded: the number of checks that ran must equal EXPECTED_CHECKS.
@@ -16,9 +19,10 @@ const fs   = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
-const ROOT             = path.resolve(__dirname, '..');
-const EXPECTED_ACTIONS = 13;   // asserted by migration 20260914120000_ai_action_letter_adapt
-const EXPECTED_CHECKS  = 2 + EXPECTED_ACTIONS;
+const ROOT                 = path.resolve(__dirname, '..');
+const EXPECTED_ACTIONS     = 13;   // asserted by migration 20260914120000_ai_action_letter_adapt
+const EXPECTED_STEP_MODELS = 2;    // interview_session stt and tts, migration 20260915120600_ai_action_interview_voice
+const EXPECTED_CHECKS      = 2 + EXPECTED_ACTIONS + EXPECTED_STEP_MODELS;
 
 let passed = 0;
 let failed = 0;
@@ -58,13 +62,18 @@ async function main() {
   });
 
   const [catalogue, listing] = await Promise.all([
-    admin.from('ai_action_costs').select('action, model, enabled').order('action'),
-    fetch('https://openrouter.ai/api/v1/models', { signal: AbortSignal.timeout(30_000) }),
+    admin.from('ai_action_costs').select('action, model, enabled, limits').order('action'),
+    fetch('https://openrouter.ai/api/v1/models?output_modalities=all', { signal: AbortSignal.timeout(30_000) }),
   ]);
   if (catalogue.error) throw catalogue.error;
 
   const body = listing.ok ? await listing.json() : null;
   const ids  = new Set((body?.data ?? []).map((model) => model.id));
+
+  const listed = (name, id) => {
+    const listedAs = [...ids].find((known) => bare(known) === bare(id));
+    check(name, ids.has(id), listedAs ? `not listed; OpenRouter lists ${listedAs}` : 'not listed by OpenRouter');
+  };
 
   console.log('\nOpenRouter model list');
   check('the list is reachable and not empty', listing.ok && ids.size > 0, `HTTP ${listing.status}, ${ids.size} models`);
@@ -73,10 +82,16 @@ async function main() {
 
   console.log(`\nCatalogue models (${ids.size} listed by OpenRouter)`);
   for (const row of catalogue.data) {
-    const listedAs = [...ids].find((id) => bare(id) === bare(row.model));
-    check(`${row.action.padEnd(28)} ${row.model}${row.enabled ? '' : ' (disabled)'}`,
-      ids.has(row.model),
-      listedAs ? `not listed; OpenRouter lists ${listedAs}` : 'not listed by OpenRouter');
+    listed(`${row.action.padEnd(28)} ${row.model}${row.enabled ? '' : ' (disabled)'}`, row.model);
+  }
+
+  console.log('\nModels pinned in limits.models');
+  for (const row of catalogue.data) {
+    const steps = row.limits?.models;
+    if (typeof steps !== 'object' || steps === null) continue;
+    for (const [step, id] of Object.entries(steps)) {
+      listed(`${`${row.action}.${step}`.padEnd(28)} ${id}`, String(id));
+    }
   }
 
   const ran = passed + failed;
