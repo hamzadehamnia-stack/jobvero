@@ -48,7 +48,8 @@ export const RATE_LIMITS = {
   },
 
   // One call per turn while spoken replies are enabled. Capped independently of
-  // the coach because it can be driven on its own, without a session.
+  // the coach, which it does not share a window with; each call is also one of
+  // its interview session's tts_calls.
   TEXT_TO_SPEECH: {
     name: 'text-to-speech',
     windows: [{ seconds: HOUR, max: 150 }, { seconds: DAY, max: 250 }],

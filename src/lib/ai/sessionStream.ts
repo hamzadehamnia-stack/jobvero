@@ -15,7 +15,10 @@ import { AiRefusalError } from './refusal';
 //     of the last SSE chunk, or left pending on the generation id for the
 //     ai-ledger cron;
 //   · a turn that completed advances the session's turn counter. One cut short
-//     does not, so asking again replays the same turn.
+//     does not, nor one its route rejects (onComplete answering false), so
+//     asking again replays the same turn;
+//   · a turn given an endReason ends the session once it has advanced: an
+//     interview after its report. A session that has ended no longer advances.
 
 export interface SessionCharge {
   usageId:   string;
@@ -32,8 +35,10 @@ export async function streamSessionTurn(options: {
   maxTokens:     number;
   messages:      ORMessage[];
   clientSignal?: AbortSignal;
-  /** The whole answer, once a turn has completed. */
-  onComplete?:   (text: string) => Promise<void>;
+  /** The whole answer, once the stream completed. Answering false keeps the turn open. */
+  onComplete?:   (text: string) => Promise<boolean>;
+  /** Ends the session with this reason once the turn has completed and advanced. */
+  endReason?:    string;
 }): Promise<ReadableStream<Uint8Array>> {
   const { admin, tag, charge, model } = options;
 
@@ -75,15 +80,25 @@ export async function streamSessionTurn(options: {
 
           if (summary.error || summary.clientAborted) return;
 
-          const { error } = await admin.rpc('advance_ai_session_turn', { p_session_id: charge.sessionId });
-          if (error) console.error(`${tag} turn not advanced for ${charge.sessionId}:`, error.message);
-
           if (options.onComplete) {
+            let accepted = false;
             try {
-              await options.onComplete(summary.text);
+              accepted = await options.onComplete(summary.text);
             } catch (err) {
               console.error(`${tag} completing the turn failed:`, err);
             }
+            if (!accepted) return;
+          }
+
+          const { error } = await admin.rpc('advance_ai_session_turn', { p_session_id: charge.sessionId });
+          if (error) console.error(`${tag} turn not advanced for ${charge.sessionId}:`, error.message);
+
+          if (options.endReason) {
+            const { error: endError } = await admin.rpc('end_ai_session', {
+              p_session_id: charge.sessionId,
+              p_reason:     options.endReason,
+            });
+            if (endError) console.error(`${tag} session ${charge.sessionId} not ended:`, endError.message);
           }
         },
       },

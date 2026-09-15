@@ -66,10 +66,15 @@ interface SavedJobOption {
 }
 
 interface Props {
-  userId: string;
-  sessionsUsed: number;
-  sessionLimit: number;
-  plan: string;
+  /** What an interview costs, from the catalogue; null when it could not be read. */
+  creditsPerInterview: number | null;
+}
+
+type UpgradeReason = 'trial_expired' | 'tier_locked' | 'no_credits';
+
+interface Upgrade {
+  reason:     UpgradeReason;
+  upgradeTo?: 'pro' | 'premium';
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -132,6 +137,18 @@ function parseRecruiterResponse(text: string): {
   };
 }
 
+// A route's refusal: its message, and the upgrade to offer when the refusal is
+// about the plan or the credits. The modal does not offer Starter yet: an
+// upgrade to Starter opens it on its default.
+async function readRefusal(res: Response): Promise<{ message: string; upgrade: Upgrade | null }> {
+  const body    = (await res.json().catch(() => null)) as { error?: unknown; reason?: unknown; upgradeTo?: unknown } | null;
+  const message = typeof body?.error === 'string' ? body.error : `HTTP ${res.status}`;
+  const reason  = body?.reason;
+  if (reason !== 'no_credits' && reason !== 'trial_expired' && reason !== 'tier_locked') return { message, upgrade: null };
+  const upgradeTo = body?.upgradeTo;
+  return { message, upgrade: { reason, upgradeTo: upgradeTo === 'pro' || upgradeTo === 'premium' ? upgradeTo : undefined } };
+}
+
 const inputCls =
   'w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 ' +
   'bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white ' +
@@ -139,7 +156,7 @@ const inputCls =
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimit, plan }: Props) {
+export default function InterviewCoachClient({ creditsPerInterview }: Props) {
   const pathname = usePathname();
   const locale   = pathname?.split('/')[1] ?? 'en';
 
@@ -194,11 +211,12 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
   const settingsRef     = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
-  // ── Session & report ──────────────────────────────────────────────────────
-  const [finalReport,       setFinalReport]       = useState<FinalReport | null>(null);
-  const [sessionId,         setSessionId]         = useState<string | null>(null);
-  const [localSessionsUsed, setLocalSessionsUsed] = useState(sessionsUsed);
-  const [showUpgradeModal,  setShowUpgradeModal]  = useState(false);
+  // ── Interview & report ────────────────────────────────────────────────────
+  // The interview the server opened: its questions, transcriptions and spoken
+  // questions are all calls of its one session, none charged on its own.
+  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
+  const [upgrade,     setUpgrade]     = useState<Upgrade | null>(null);
+  const interviewIdRef = useRef<string | null>(null);
 
   // ── UI ────────────────────────────────────────────────────────────────────
   const [error,      setError]      = useState('');
@@ -242,13 +260,15 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
   }
 
   async function speakText(text: string) {
-    if (!isTtsEnabledRef.current || !text.trim()) return;
+    const interviewId = interviewIdRef.current;
+    if (!isTtsEnabledRef.current || !text.trim() || !interviewId) return;
     stopCurrentAudio();
     try {
+      // A language without a voice answers 422: the interview carries on in text.
       const res = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), language: settingsRef.current.language }),
+        body: JSON.stringify({ text: text.trim(), interviewId }),
       });
       if (!res.ok) return;
       const { audio, mimeType } = await res.json();
@@ -367,10 +387,13 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
   }
 
   async function transcribeAndSend(blob: Blob) {
+    const interviewId = interviewIdRef.current;
+    if (!interviewId) return;
     setIsTranscribing(true);
     try {
       const form = new FormData();
       form.append('audio', blob, 'audio.webm');
+      form.append('interviewId', interviewId);
       const res = await fetch('/api/speech-to-text', { method: 'POST', body: form });
       if (!res.ok) throw new Error('Transcription failed');
       const { transcript } = await res.json();
@@ -386,11 +409,23 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
 
   // ── Stream recruiter response ──────────────────────────────────────────────
 
-  async function streamRecruiterResponse(
-    currentHistory: ApiMessage[],
-    qNum: number,
-    sid: string | null,
-  ) {
+  // Puts an answer the recruiter did not get to back in the box, to send again:
+  // the server keeps a turn open until its answer has completed.
+  function returnAnswer(historyWithAnswer: ApiMessage[]) {
+    const answer = historyWithAnswer[historyWithAnswer.length - 1];
+    if (answer?.role !== 'user') return;
+    setHistory(historyWithAnswer.slice(0, -1));
+    setDisplayMessages(prev => prev.slice(0, -1));
+    setAnswersGiven(n => Math.max(0, n - 1));
+    setCurrentAnswer(answer.content);
+  }
+
+  // The turn itself — first question, next question or report — is the
+  // server's, counted by the interview's session.
+  async function streamRecruiterResponse(currentHistory: ApiMessage[], qNum: number): Promise<boolean> {
+    const interviewId = interviewIdRef.current;
+    if (!interviewId) return false;
+
     setIsStreaming(true);
     setStreamingText('');
     setError('');
@@ -400,19 +435,17 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages:       currentHistory,
-          jobDescription: settingsRef.current.jobDescription,
-          interviewType:  settingsRef.current.interviewType,
-          difficulty:     settingsRef.current.difficulty,
-          language:       settingsRef.current.language,
-          questionNumber: qNum,
-          cvId:           settingsRef.current.cvId || undefined,
+          interviewId,
+          messages: currentHistory,
+          cvId:     settingsRef.current.cvId || undefined,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `HTTP ${res.status}`);
+        const { message, upgrade: offer } = await readRefusal(res);
+        if (offer) setUpgrade(offer);
+        returnAnswer(currentHistory);
+        throw new Error(message);
       }
 
       const reader  = res.body!.getReader();
@@ -441,6 +474,13 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
         speakText(questionText);
       } else {
         const parsed = parseRecruiterResponse(raw);
+
+        if (!parsed.report && !parsed.question) {
+          // Nothing to go on: the server did not count this turn either.
+          returnAnswer(currentHistory);
+          throw new Error("The recruiter's reply could not be read. Please send your answer again.");
+        }
+
         const newMsgs: DisplayMessage[] = [];
 
         if (parsed.feedback) {
@@ -448,17 +488,11 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
         }
 
         if (parsed.report) {
+          // Saved by the server when its stream completed.
           setDisplayMessages(prev => [...prev, ...newMsgs]);
           setFinalReport(parsed.report);
-          if (sid) {
-            const supabase = createClient();
-            await supabase
-              .from('interview_sessions')
-              .update({ score: parsed.report.score, feedback_json: parsed.report })
-              .eq('id', sid);
-          }
           setPhase('complete');
-          return;
+          return true;
         }
 
         if (parsed.question) {
@@ -471,8 +505,10 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
         const toSpeak = [parsed.feedback, parsed.question].filter(Boolean).join(' ');
         speakText(toSpeak);
       }
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      return false;
     } finally {
       setIsStreaming(false);
     }
@@ -529,35 +565,42 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
   // ── Start interview ────────────────────────────────────────────────────────
 
   async function handleStart() {
-    if (localSessionsUsed >= sessionLimit) { setShowUpgradeModal(true); return; }
-
     setStartingUp(true);
     setError('');
 
     try {
-      const supabase = createClient();
-      const { data: session } = await supabase
-        .from('interview_sessions')
-        .insert({
-          user_id:         userId,
-          job_description: settings.jobDescription || null,
-          interview_type:  settings.interviewType,
-          difficulty:      settings.difficulty,
-          language:        settings.language,
-        })
-        .select('id')
-        .single();
+      // The server opens the interview and reserves its credits. One key per
+      // click: a request sent twice is charged once.
+      const res = await fetch('/api/interview-coach/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          jobDescription: settings.jobDescription || null,
+          interviewType:  settings.interviewType,
+          difficulty:     settings.difficulty,
+          language:       settings.language,
+        }),
+      });
+      if (!res.ok) {
+        const { message, upgrade: offer } = await readRefusal(res);
+        if (offer) { setUpgrade(offer); return; }
+        throw new Error(message);
+      }
+      const { interviewId } = await res.json();
+      if (typeof interviewId !== 'string') throw new Error('Failed to start interview');
 
-      const sid = session?.id ?? null;
-      setSessionId(sid);
-      setLocalSessionsUsed(n => n + 1);
+      interviewIdRef.current = interviewId;
       setAnswersGiven(0);
       setHistory([]);
       setDisplayMessages([]);
       setFinalReport(null);
       setPhase('interviewing');
 
-      await streamRecruiterResponse([], 0, sid);
+      // No first question, nothing to answer: back to the setup, where the error shows.
+      if (!(await streamRecruiterResponse([], 0))) {
+        interviewIdRef.current = null;
+        setPhase('setup');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start interview');
     } finally {
@@ -575,7 +618,7 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
     setAnswersGiven(newAnswersGiven);
     const newHistory: ApiMessage[] = [...history, { role: 'user', content: text }];
     setHistory(newHistory);
-    await streamRecruiterResponse(newHistory, newAnswersGiven, sessionId);
+    await streamRecruiterResponse(newHistory, newAnswersGiven);
   }
 
   async function handleSendAnswer() {
@@ -598,7 +641,7 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
     setAnswersGiven(0);
     setStreamingText('');
     setFinalReport(null);
-    setSessionId(null);
+    interviewIdRef.current = null;
     setError('');
   }
 
@@ -620,16 +663,14 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
               </p>
             </div>
 
-            <div className="flex justify-center mb-6">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                localSessionsUsed >= sessionLimit
-                  ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400'
-                  : 'bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400'
-              }`}>
-                <Info size={12} />
-                {localSessionsUsed} / {sessionLimit} sessions used this month
+            {creditsPerInterview !== null && (
+              <div className="flex justify-center mb-6">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400">
+                  <Info size={12} />
+                  Each interview uses {creditsPerInterview} credit{creditsPerInterview === 1 ? '' : 's'}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-6 space-y-5">
 
@@ -740,14 +781,12 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
 
               <button
                 onClick={handleStart}
-                disabled={startingUp || localSessionsUsed >= sessionLimit}
+                disabled={startingUp}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-lg shadow-violet-500/25 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                 style={{ background: 'linear-gradient(135deg, #7C3AED, #4F46E5)' }}
               >
                 {startingUp
                   ? <><Loader2 size={16} className="animate-spin" /> Starting interview…</>
-                  : localSessionsUsed >= sessionLimit
-                  ? <>Session limit reached — Upgrade to continue</>
                   : <><Mic size={16} /> Start Interview <ChevronRight size={16} /></>
                 }
               </button>
@@ -756,10 +795,10 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
         </div>
 
         <UpgradeModal
-          isOpen={showUpgradeModal}
-          onClose={() => setShowUpgradeModal(false)}
-          reason="limit_reached"
-          upgradeTo={plan === 'pro' ? 'premium' : 'pro'}
+          isOpen={upgrade !== null}
+          onClose={() => setUpgrade(null)}
+          reason={upgrade?.reason}
+          upgradeTo={upgrade?.upgradeTo}
           locale={locale}
         />
 
@@ -1195,10 +1234,10 @@ export default function InterviewCoachClient({ userId, sessionsUsed, sessionLimi
       </div>
 
       <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        reason="limit_reached"
-        upgradeTo={plan === 'pro' ? 'premium' : 'pro'}
+        isOpen={upgrade !== null}
+        onClose={() => setUpgrade(null)}
+        reason={upgrade?.reason}
+        upgradeTo={upgrade?.upgradeTo}
         locale={locale}
       />
     </div>

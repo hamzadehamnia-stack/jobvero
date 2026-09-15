@@ -7,9 +7,19 @@
 // Guarded: the number of checks that ran must equal EXPECTED_CHECKS.
 
 import { isDeepStrictEqual } from 'node:util';
-import { claimRefusal, fitHistory, readHistory, readSessionId } from '../src/lib/ai/sessionRules.ts';
+import {
+  claimRefusal,
+  fitHistory,
+  interviewTurn,
+  limitInteger,
+  limitString,
+  parseFinalReport,
+  readHistory,
+  readInterviewSettings,
+  readSessionId,
+} from '../src/lib/ai/sessionRules.ts';
 
-const EXPECTED_CHECKS = 15;
+const EXPECTED_CHECKS = 23;
 
 let passed = 0;
 let failed = 0;
@@ -83,6 +93,67 @@ check('the oldest messages are dropped first', fitHistory(sized([50, 10, 10]), 3
 check('the last message alone over budget is refused', fitHistory(sized([10, 31]), 30), null);
 check('a budget of zero or less fits nothing', [fitHistory(sized([1]), 0), fitHistory(sized([1]), -5)], [null, null]);
 check('no message fits nothing', fitHistory([], 100), null);
+
+
+// ─── 5. Interview settings ────────────────────────────────────────────────────
+
+console.log('\n5. Interview settings');
+
+check('recognised settings are read, a blank job description as none',
+  [readInterviewSettings({ jobDescription: '  Backend engineer  ', interviewType: 'Behavioral', difficulty: 'Senior', language: 'en' }),
+   readInterviewSettings({ jobDescription: '   ', interviewType: 'Technical', difficulty: 'Junior', language: 'fr' })],
+  [{ jobDescription: 'Backend engineer', interviewType: 'Behavioral', difficulty: 'Senior', language: 'en' },
+   { jobDescription: null, interviewType: 'Technical', difficulty: 'Junior', language: 'fr' }]);
+check('an unknown type, level or language, or a non-string job description, is refused',
+  [readInterviewSettings({ interviewType: 'Friendly chat', difficulty: 'Senior', language: 'en' }),
+   readInterviewSettings({ interviewType: 'Behavioral', difficulty: 'CEO', language: 'en' }),
+   readInterviewSettings({ interviewType: 'Behavioral', difficulty: 'Senior', language: 'de' }),
+   readInterviewSettings({ jobDescription: 42, interviewType: 'Behavioral', difficulty: 'Senior', language: 'en' }),
+   readInterviewSettings(null)],
+  [null, null, null, null, null]);
+
+
+// ─── 6. Interview turns ───────────────────────────────────────────────────────
+
+console.log('\n6. Interview turns');
+
+check('the turn follows the turns completed: first question, next ones, the report, then nothing',
+  [0, 1, 7, 8, 9, -1, 1.5].map((n) => interviewTurn(n, 8)),
+  [{ kind: 'first_question' }, { kind: 'next_question', question: 2 }, { kind: 'next_question', question: 8 },
+   { kind: 'final_report' }, { kind: 'complete' }, { kind: 'complete' }, { kind: 'complete' }]);
+
+
+// ─── 7. The final report ──────────────────────────────────────────────────────
+
+console.log('\n7. Final report');
+
+const REPORT = '{"score": 82.6, "strengths": ["Clear"], "improvements": ["Depth"], "tips": ["Use STAR"]}';
+
+check('the report after FINAL_REPORT: is read, the score rounded',
+  parseFinalReport(`FEEDBACK: Good answer.\n\nFINAL_REPORT:\n${REPORT}`),
+  { score: 83, strengths: ['Clear'], improvements: ['Depth'], tips: ['Use STAR'] });
+check('the score is kept within 0-100, and text around the JSON is ignored',
+  parseFinalReport(`FINAL_REPORT: ${REPORT.replace('82.6', '140')} Thank you!`)?.score, 100);
+check('no marker, broken JSON, a score that is not a number or a missing list is no report',
+  [parseFinalReport(REPORT),
+   parseFinalReport('FINAL_REPORT: {"score": 80, "strengths": ['),
+   parseFinalReport('FINAL_REPORT: {"score": "80", "strengths": [], "improvements": [], "tips": []}'),
+   parseFinalReport('FINAL_REPORT: {"score": 80, "strengths": [], "tips": []}')],
+  [null, null, null, null]);
+
+
+// ─── 8. Catalogue limits ──────────────────────────────────────────────────────
+
+console.log('\n8. Catalogue limits');
+
+const LIMITS = { models: { tts: 'deepgram/aura-2' }, tts_voices: { en: 'aura-2-thalia-en' }, max_tts_chars: 1500, max_cost_usd: 1.2 };
+
+check('a string is read at its path; absent, empty or not a string is null',
+  [limitString(LIMITS, 'models', 'tts'), limitString(LIMITS, 'tts_voices', 'pt'), limitString(LIMITS, 'max_tts_chars'), limitString({ models: { tts: '' } }, 'models', 'tts')],
+  ['deepgram/aura-2', null, null, null]);
+check('an integer limit is a positive integer or null',
+  [limitInteger(LIMITS, 'max_tts_chars'), limitInteger(LIMITS, 'max_cost_usd'), limitInteger(LIMITS, 'missing'), limitInteger({ zero: 0 }, 'zero')],
+  [1500, null, null, null]);
 
 
 // ─── Report ───────────────────────────────────────────────────────────────────
