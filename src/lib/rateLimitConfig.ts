@@ -67,6 +67,17 @@ export const RATE_LIMITS = {
     name: 'waitlist',
     windows: [{ seconds: HOUR, max: 5 }, { seconds: DAY, max: 10 }],
   },
+
+  // Every charged AI action behind withAiAction, one bucket per user across all
+  // of them (brief §10.9). The hour is what bounds an account: 60. The minute
+  // only smooths bursts, and is 10 rather than the brief's 5 — someone polishing
+  // a CV fires bullet rewrites back to back, and would hit 5 in thirty seconds
+  // on an action that costs half a cent. Credits bound the spend; keyed by user
+  // id, one account behind a NAT never affects another.
+  AI_ACTION: {
+    name: 'ai-action',
+    windows: [{ seconds: 60, max: 10 }, { seconds: HOUR, max: 60 }],
+  },
 } as const satisfies Record<string, RouteRateLimit>;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

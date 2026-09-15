@@ -1,6 +1,6 @@
 const BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-function headers(): Record<string, string> {
+export function openRouterHeaders(): Record<string, string> {
   return {
     'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
     'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ export async function callOpenRouter(
 ): Promise<string> {
   const res = await fetch(BASE_URL, {
     method: 'POST',
-    headers: headers(),
+    headers: openRouterHeaders(),
     body: JSON.stringify({ model, messages, max_tokens }),
   });
 
@@ -45,7 +45,7 @@ export async function streamOpenRouter(
 ): Promise<ReadableStream<Uint8Array>> {
   const res = await fetch(BASE_URL, {
     method: 'POST',
-    headers: headers(),
+    headers: openRouterHeaders(),
     body: JSON.stringify({ model, messages, max_tokens, stream: true }),
   });
 
