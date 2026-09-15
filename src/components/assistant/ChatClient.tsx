@@ -5,14 +5,11 @@ import {
   useRef,
   useEffect,
   useCallback,
-  useMemo,
 } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import {
   Sparkles,
   Send,
   Loader2,
-  Trash2,
   RotateCcw,
 } from 'lucide-react';
 
@@ -26,9 +23,7 @@ interface ChatMessage {
 }
 
 interface Props {
-  userId: string;
   displayName: string;
-  initialMessages: ChatMessage[];
   avatarUrl: string | null;
 }
 
@@ -86,6 +81,31 @@ function Cursor() {
   );
 }
 
+// ─── Chat session ─────────────────────────────────────────────────────────────
+//
+// Messages are charged by conversation: one credit opens a session of 20. The
+// server names the session in X-AI-Session-Id and the tab keeps it, across a
+// reload too — forgetting it would open, and charge, a new one early. When the
+// session has ended, the server opens the next one and sends its id.
+
+const SESSION_STORAGE_KEY = 'jobvero.assistant.session';
+
+function readStoredSession(): string | null {
+  try {
+    return sessionStorage.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeSession(id: string) {
+  try {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, id);
+  } catch {
+    // storage unavailable: the session lasts as long as the page
+  }
+}
+
 // ─── Suggestion chips ─────────────────────────────────────────────────────────
 
 const SUGGESTIONS = [
@@ -97,19 +117,24 @@ const SUGGESTIONS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ChatClient({ userId, displayName, initialMessages, avatarUrl: initialAvatarUrl }: Props) {
-  const supabase = useMemo(() => createClient(), []);
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+export default function ChatClient({ displayName, avatarUrl: initialAvatarUrl }: Props) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [error, setError] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
+  const [sessionUsage, setSessionUsage] = useState<{ used: number; limit: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef<string | null>(null);
 
   const userInitials = initials(displayName);
+
+  useEffect(() => {
+    sessionRef.current = readStoredSession();
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -161,8 +186,12 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
       abortRef.current = new AbortController();
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        headers: {
+          'Content-Type': 'application/json',
+          // One key per message: a new session is charged once, whatever the retries.
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify({ messages: history, sessionId: sessionRef.current }),
         signal: abortRef.current.signal,
       });
 
@@ -170,6 +199,15 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
+
+      const sessionId = res.headers.get('X-AI-Session-Id');
+      if (sessionId) {
+        sessionRef.current = sessionId;
+        storeSession(sessionId);
+      }
+      const used  = Number(res.headers.get('X-AI-Session-Messages-Used'));
+      const limit = Number(res.headers.get('X-AI-Session-Messages-Limit'));
+      if (Number.isInteger(used) && Number.isInteger(limit) && limit > 0) setSessionUsage({ used, limit });
 
       // Stream reading
       const reader = res.body!.getReader();
@@ -214,13 +252,6 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
     }
   };
 
-  // Clear history
-  const clearHistory = useCallback(async () => {
-    if (!confirm('Clear all chat history? This cannot be undone.')) return;
-    await supabase.from('chat_messages').delete().eq('user_id', userId);
-    setMessages([]);
-  }, [supabase, userId]);
-
   const isEmpty = messages.length === 0 && !isStreaming;
 
   return (
@@ -241,16 +272,6 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
             </p>
           </div>
         </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={clearHistory}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-          >
-            <Trash2 size={13} />
-            Clear
-          </button>
-        )}
       </div>
 
       {/* ── Messages ── */}
@@ -393,6 +414,7 @@ export default function ChatClient({ userId, displayName, initialMessages, avata
           </button>
         </div>
         <p className="text-xs text-center text-gray-400 dark:text-gray-600 mt-2">
+          {sessionUsage && `${sessionUsage.used}/${sessionUsage.limit} messages in this conversation · `}
           Career assistant only · Shift+Enter for new line
         </p>
       </div>

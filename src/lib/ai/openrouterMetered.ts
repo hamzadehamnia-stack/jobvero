@@ -102,6 +102,8 @@ export interface StreamSummary {
   clientAborted: boolean;
   /** An upstream error, the first-content timeout, or a failed onFirstContent. */
   error:         StreamError | null;
+  /** Everything forwarded to the client, in order: the whole answer when the stream completed. */
+  text:          string;
 }
 
 export interface StreamLifecycle {
@@ -192,6 +194,7 @@ export async function streamOpenRouterMetered(options: {
       let contentSeen = false;
       let usage: StreamUsage | null = null;
       let error: StreamError | null = null;
+      let text = '';
 
       try {
         reading: while (true) {
@@ -220,6 +223,7 @@ export async function streamOpenRouterMetered(options: {
               await options.lifecycle.onFirstContent(generationId);
               contentSeen = true;
             }
+            text += event.content;
             controller.enqueue(encoder.encode(event.content));
           }
         }
@@ -242,6 +246,7 @@ export async function streamOpenRouterMetered(options: {
             usage,
             clientAborted: abort.reason === 'client',
             error,
+            text,
           });
         } catch (err) {
           console.error('[openrouter/stream] onEnd failed:', err);

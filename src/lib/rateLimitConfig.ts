@@ -78,6 +78,14 @@ export const RATE_LIMITS = {
     name: 'ai-action',
     windows: [{ seconds: 60, max: 10 }, { seconds: HOUR, max: 60 }],
   },
+
+  // The assistant chat, per message. AI_ACTION's numbers in a bucket of its own:
+  // chatting must not use up the CV and letter actions' allowance, nor the
+  // reverse. Credits bound the spend — one per conversation of 20 messages.
+  AI_CHAT: {
+    name: 'ai-chat',
+    windows: [{ seconds: 60, max: 10 }, { seconds: HOUR, max: 60 }],
+  },
 } as const satisfies Record<string, RouteRateLimit>;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

@@ -1,16 +1,17 @@
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
 import { JOBVERO_SYSTEM_PROMPT } from '@/lib/prompts/assistant';
-import { withFeatureCheck } from '@/lib/subscription/withFeatureCheck';
-import { streamOpenRouter } from '@/lib/openrouter';
+import { RATE_LIMITS } from '@/lib/rateLimitConfig';
+import { authorizeAiRequest } from '@/lib/ai/authorize';
+import { answer, isAiRefusal } from '@/lib/ai/refusal';
+import { readIdempotencyKey, refusalForReserveError, reservationOutcome, type ReservationOutcome } from '@/lib/ai/rules';
+import { claimRefusal, fitHistory, readHistory, readSessionId } from '@/lib/ai/sessionRules';
+import { streamSessionTurn, type SessionCharge } from '@/lib/ai/sessionStream';
 import type { CVFormData, WorkExperience, Education } from '@/components/cv-builder/types';
 
-const MODEL = 'deepseek/deepseek-v3.2';
+export const runtime     = 'nodejs';
+export const maxDuration = 120;
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+const TAG          = '[ai/chat]';
+const MAX_MESSAGES = 40;
 
 // ─── CV → readable text ───────────────────────────────────────────────────────
 
@@ -63,84 +64,158 @@ function formatCvContext(data: CVFormData): string {
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
+//
+// The assistant is charged by conversation: one credit opens a chat session of
+// limits.model_calls messages (20). The client names the session it is in, and
+// while that session has messages left each message uses one. A session that
+// has ended — out of messages, expired, or refunded — makes the next message
+// open a new one: the next credit. The session travels in X-AI-Session-Id, with
+// the messages used and allowed.
+//
+// Nothing is stored: the client sends the conversation, and only its most
+// recent messages that fit max_input_chars reach the model.
 
-async function chatHandler(req: Request) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+type Row = Record<string, unknown>;
+const firstRow = (data: unknown): Row | null =>
+  ((Array.isArray(data) ? data[0] : data) as Row | undefined) ?? null;
 
-    const { messages }: { messages: Message[] } = await req.json();
-    if (!messages?.length) {
-      return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
-    }
+export async function POST(req: Request) {
+  const authorized = await authorizeAiRequest(req, {
+    feature:   'AI_ASSISTANT_CHAT',
+    action:    'chat',
+    rateLimit: RATE_LIMITS.AI_CHAT,
+    tag:       TAG,
+  });
+  if (authorized instanceof Response) return authorized;
+  const { user, supabase, admin, tier, cheapestTierForFeature, catalogue } = authorized;
 
-    // Fetch the user's most recent CV
-    const { data: cvRow } = await supabase
-      .from('cvs')
-      .select('form_data, title, created_at')
+  const body     = (await req.json().catch(() => null)) as { messages?: unknown; sessionId?: unknown } | null;
+  const messages = readHistory(body?.messages, MAX_MESSAGES);
+  if (!messages) {
+    return answer({ status: 400, body: { error: 'Invalid conversation', reason: 'invalid_request' } });
+  }
+
+  const idempotencyKey = readIdempotencyKey(req.headers.get('idempotency-key'), () => crypto.randomUUID());
+  if (!idempotencyKey) {
+    return answer({ status: 400, body: { error: 'Invalid Idempotency-Key header', reason: 'invalid_request' } });
+  }
+
+  // The user's most recent CV, as context.
+  const { data: cvRow } = await supabase
+    .from('cvs')
+    .select('form_data')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let cvContext: string | null = null;
+  if (cvRow?.form_data) {
+    try { cvContext = formatCvContext(cvRow.form_data as CVFormData); } catch { /* skip */ }
+  }
+
+  const systemContent = cvContext
+    ? `${JOBVERO_SYSTEM_PROMPT}\n\nHere is the current user's CV. Reference it when they ask about their CV, experience, or job applications. If they ask generic questions, don't force-mention the CV.\n\n${cvContext}`
+    : JOBVERO_SYSTEM_PROMPT;
+
+  // Checked before anything is charged.
+  const history = fitHistory(messages, catalogue.maxInputChars - systemContent.length);
+  if (!history) {
+    return answer({ status: 413, body: { error: 'Message too long', reason: 'input_too_large' } });
+  }
+
+  // ── The session: the client's while it has messages left, else a new one ──
+  let charge: SessionCharge | null = null;
+  let claim:  Row | null = null;
+
+  const requested = readSessionId(body?.sessionId);
+  if (requested) {
+    // Only the user's own chat session: an interview session must not pay for chat.
+    const { data: session } = await admin
+      .from('ai_sessions')
+      .select('id, usage_id')
+      .eq('id', requested)
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .eq('action', 'chat')
+      .maybeSingle();
 
-    let cvContext: string | null = null;
-    if (cvRow?.form_data) {
-      try { cvContext = formatCvContext(cvRow.form_data as CVFormData); } catch { /* skip */ }
+    if (session) {
+      const { data, error } = await supabase.rpc('claim_ai_session_call', { p_session_id: session.id, p_kind: 'model' });
+      if (error) {
+        console.error(`${TAG} claim failed for ${session.id}:`, error.message);
+        return answer({ status: 500, body: { error: 'Session call failed', reason: 'session_failed' } });
+      }
+      const row = firstRow(data);
+      if (claimRefusal(row) === null) {
+        const { data: usage } = await admin.from('ai_usage').select('status').eq('id', session.usage_id).maybeSingle();
+        charge = { usageId: session.usage_id, sessionId: session.id, reserved: usage?.status === 'reserved' };
+        claim  = row;
+      }
+      // Otherwise that session has ended, and this message opens the next one.
+    }
+  }
+
+  if (!charge) {
+    const { data, error } = await supabase.rpc('start_ai_session', { p_action: 'chat', p_idempotency_key: idempotencyKey });
+    if (error) return answer(refusalForReserveError(error.code, { tier, cheapestTierForFeature }));
+
+    const started = firstRow(data) ?? {};
+    let outcome: ReservationOutcome;
+    try {
+      outcome = reservationOutcome(started);
+    } catch (err) {
+      console.error(`${TAG} ${String(err)}`);
+      return answer({ status: 500, body: { error: 'Reservation failed', reason: 'reservation_failed' } });
+    }
+    if (outcome === 'in_progress') {
+      return answer({ status: 409, body: { error: 'This request is already being processed', reason: 'in_progress' } });
+    }
+    if (outcome === 'already_processed') {
+      return answer({ status: 409, body: { error: 'This request was already processed', reason: 'already_processed' } });
     }
 
-    // Build system message
-    const systemContent = cvContext
-      ? `${JOBVERO_SYSTEM_PROMPT}\n\nHere is the current user's CV. Reference it when they ask about their CV, experience, or job applications. If they ask generic questions, don't force-mention the CV.\n\n${cvContext}`
-      : JOBVERO_SYSTEM_PROMPT;
+    const sessionId = String(started.session_id);
+    const usageId   = String(started.usage_id);
 
-    const orMessages = [
-      { role: 'system' as const, content: systemContent },
-      ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-    ];
+    const { data: claimed, error: claimError } = await supabase.rpc('claim_ai_session_call', { p_session_id: sessionId, p_kind: 'model' });
+    const row = firstRow(claimed);
+    if (claimError || claimRefusal(row) !== null) {
+      // A session just opened that refuses its first message is misconfigured
+      // (limits.model_calls): the credit goes back.
+      console.error(`${TAG} new session ${sessionId} refused its first message:`, claimError?.message ?? JSON.stringify(row));
+      const { error: refundError } = await admin.rpc('refund_ai_usage', { p_usage_id: usageId, p_error: 'new session refused its first message' });
+      if (refundError) console.error(`${TAG} refund failed for ${usageId}:`, refundError.message);
+      return answer({ status: 503, body: { error: 'This AI action is unavailable', reason: 'action_unavailable' } });
+    }
 
-    const stream = await streamOpenRouter(MODEL, orMessages, 2048);
+    charge = { usageId, sessionId, reserved: true };
+    claim  = row;
+  }
 
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    let fullText = '';
-
-    // Wrap the stream to capture full text for DB save
-    const readable = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const reader = stream.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            fullText += chunk;
-            controller.enqueue(encoder.encode(chunk));
-          }
-        } finally {
-          controller.close();
-
-          if (fullText) {
-            const lastUser = messages[messages.length - 1];
-            await supabase.from('chat_messages').insert([
-              { user_id: user.id, role: lastUser.role,  content: lastUser.content },
-              { user_id: user.id, role: 'assistant',    content: fullText },
-            ]);
-          }
-        }
-      },
-    });
-
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Content-Type-Options': 'nosniff',
-      },
+  let stream: ReadableStream<Uint8Array>;
+  try {
+    stream = await streamSessionTurn({
+      admin,
+      tag:          TAG,
+      charge,
+      model:        catalogue.model,
+      maxTokens:    catalogue.maxTokens,
+      messages:     [{ role: 'system', content: systemContent }, ...history],
+      clientSignal: req.signal,
     });
   } catch (err) {
-    console.error('[/api/chat]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (isAiRefusal(err)) return answer(err.refusal);
+    throw err;
   }
-}
 
-export const POST = withFeatureCheck('AI_ASSISTANT_CHAT', chatHandler);
+  return new Response(stream, {
+    headers: {
+      'Content-Type':                'text/plain; charset=utf-8',
+      'X-Content-Type-Options':      'nosniff',
+      'Cache-Control':               'no-store',
+      'X-AI-Session-Id':             charge.sessionId,
+      'X-AI-Session-Messages-Used':  String(claim?.calls_used ?? ''),
+      'X-AI-Session-Messages-Limit': String(claim?.calls_limit ?? ''),
+    },
+  });
+}
