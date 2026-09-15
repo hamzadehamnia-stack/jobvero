@@ -9,9 +9,10 @@
 // The only test of the whole chain: the SQL tests exercise the functions, the
 // node tests the pure rules, this one the routes. It runs against the
 // production database — there is no other — as the dedicated test account
-// (profiles.is_test_account), reset to a 20-credit trial before each run. If no
+// (profiles.is_test_account), reset to a 30-credit trial before each run. If no
 // test account exists (they are deleted before launch), it creates one. The
-// letter template and cover letters it creates are deleted at the end.
+// letter template, cover letters and interview rows it creates are deleted at
+// the end.
 //
 // Failures after the model call are injected with the X-AI-Test-Failure header,
 // and admin switches forced off with X-AI-Test-Switch-Off. withAiAction honours
@@ -33,10 +34,10 @@ const { createServerClient } = require('@supabase/ssr');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 68;
+const EXPECTED_CHECKS = 91;
 // rewrite-bullet 1 + ats-score 1 + generate-cv 2 + jobs/apply 1 + letter adapt 1 + parse-cv 1
-// + three chat sessions, one credit each
-const EXPECTED_DELTA  = -10;
+// + three chat sessions, one credit each + one interview, 7 credits
+const EXPECTED_DELTA  = -17;
 const TEST_NAME       = '[TEST] AI billing E2E';
 
 let passed = 0;
@@ -82,7 +83,7 @@ async function ensureServer() {
   throw new Error(`no dev server at ${BASE} (${last}). Start it first: npm run dev`);
 }
 
-// The dedicated test account, reset to a known state: an active trial with 10
+// The dedicated test account, reset to a known state: an active trial with 30
 // credits, no subscription, not blocked. A fresh password each run.
 async function prepareTestAccount(admin) {
   const { data: rows, error } = await admin
@@ -118,7 +119,7 @@ async function prepareTestAccount(admin) {
 
   const { error: resetError } = await admin.from('profiles').update({
     full_name:            TEST_NAME,
-    ai_credits_remaining: 20,
+    ai_credits_remaining: 30,
     trial_ends_at:        new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
     subscription_plan:    null,
     subscription_status:  null,
@@ -219,7 +220,7 @@ async function main() {
   const runId   = String(Date.now());
   const prefix  = `e2e-${runId}-`;
   const key     = (label) => `${prefix}${label}`;
-  const cleanup = { templates: [], letters: [] };
+  const cleanup = { templates: [], letters: [], interviews: [] };
 
   console.log(`\nAI billing E2E — test account ${account.userId}, run ${runId}`);
 
@@ -240,7 +241,7 @@ async function main() {
     if (usage.length) {
       const { data, error } = await admin
         .from('ai_usage_calls')
-        .select('usage_id, cost_status, cost_usd, generation_id, prompt_tokens, completion_tokens')
+        .select('usage_id, kind, cost_status, cost_usd, generation_id, prompt_tokens, completion_tokens')
         .in('usage_id', usage.map((u) => u.id));
       if (error) throw error;
       calls = data;
@@ -540,6 +541,186 @@ async function main() {
     check('21 a signed-in user cannot read the cache', Boolean(cacheRead.error), cacheRead.data);
     check('21 nor write to it', Boolean(cacheWrite.error) && (probeRows ?? []).length === 0, { error: cacheWrite.error?.message, rows: probeRows });
 
+    // ── Interview: one session of 7 credits per interview ───────────────────
+    // Its questions, transcriptions and spoken questions are all calls of that
+    // session, logged on its one ledger row, none charged on its own.
+    const INTERVIEW_CREDITS = 7;
+    const interviewSettings = {
+      jobDescription: 'Backend engineer: Node.js APIs, PostgreSQL, on-call rotation.',
+      interviewType:  'Behavioral',
+      difficulty:     'Mid-level',
+      language:       'en',
+    };
+
+    // The interview, its session and its ledger row, as the database has them.
+    async function interviewState(interviewId) {
+      const { data: interview } = interviewId
+        ? await admin.from('interview_sessions')
+            .select('id, user_id, language, score, feedback_json, ai_session_id').eq('id', interviewId).maybeSingle()
+        : { data: null };
+      const { data: session } = interview?.ai_session_id
+        ? await admin.from('ai_sessions')
+            .select('id, usage_id, model_calls, stt_calls, tts_calls, turns_completed, ended_at, end_reason').eq('id', interview.ai_session_id).maybeSingle()
+        : { data: null };
+      const snap  = await snapshot();
+      const row   = session ? snap.usage.find((u) => u.id === session.usage_id) ?? null : null;
+      const calls = row ? snap.calls.filter((c) => c.usage_id === row.id) : [];
+      return { interview, session, row, calls, credits: snap.credits, usageRows: snap.usage.length };
+    }
+
+    const send = async (route, { json, form, headers = {} }) => {
+      const started = Date.now();
+      const res = await fetch(`${BASE}${route}`, {
+        method:  'POST',
+        headers: { ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}), Cookie: cookie, ...headers },
+        body:    json !== undefined ? JSON.stringify(json) : form,
+        signal:  AbortSignal.timeout(180_000),
+      });
+      const text = await res.text();
+      let body = null;
+      try { body = JSON.parse(text); } catch { /* a streamed turn */ }
+      return { status: res.status, json: body, text, seconds: ((Date.now() - started) / 1000).toFixed(1) };
+    };
+
+    const describe = (name, r, before, after) => {
+      const s = after.session;
+      console.log(`\n${name}\n  HTTP ${r.status} in ${r.seconds} s · credits ${before.credits} → ${after.credits} · session ${s
+        ? `model ${s.model_calls}, stt ${s.stt_calls}, tts ${s.tts_calls}, turns ${s.turns_completed}${s.ended_at ? `, ended ${s.end_reason}` : ''}`
+        : '—'} · ledger ${after.row ? `${after.row.status}, ${after.row.credits_charged} credit(s), ${after.calls.length} call(s)` : 'no row'}`);
+    };
+    const callsOf = (state, kind) => state.calls.filter((c) => c.kind === kind);
+
+    // ── 22. Starting an interview: the server reserves 7 credits ────────────
+    const before22 = await interviewState(null);
+    const r22 = await send('/api/interview-coach/start', { json: interviewSettings, headers: { 'Idempotency-Key': key('interview-start') } });
+    const interviewId = typeof r22.json?.interviewId === 'string' ? r22.json.interviewId : null;
+    if (interviewId) cleanup.interviews.push(interviewId);
+    const after22 = await interviewState(interviewId);
+    describe(`22. interview start (interview_session, reserves ${INTERVIEW_CREDITS} credits)`, r22, before22, after22);
+    check('22 answers 201 with an interview id', r22.status === 201 && Boolean(interviewId), r22.json);
+    check(`22 reserves exactly ${INTERVIEW_CREDITS} credits`,
+      after22.credits === before22.credits - INTERVIEW_CREDITS && after22.row?.action === 'interview_session' && after22.row?.status === 'reserved',
+      { credits: [before22.credits, after22.credits], row: after22.row });
+    check('22 the server created the interview row, with its settings, linked to a fresh session',
+      after22.interview?.user_id === account.userId && after22.interview?.language === 'en' && after22.session?.turns_completed === 0 && after22.session?.model_calls === 0,
+      { interview: after22.interview, session: after22.session });
+    if (!interviewId || !after22.session) throw new Error('no interview was started: the interview cases cannot go on');
+
+    // ── 23. The first question: the session settles ─────────────────────────
+    const r23 = await send('/api/interview-coach', { json: { interviewId, messages: [] } });
+    await delay(2_000);
+    const after23 = await interviewState(interviewId);
+    describe('23. interview, the first question (settles the session)', r23, after22, after23);
+    check('23 answers 200 with a streamed question', r23.status === 200 && r23.text.trim().length > 0 && !r23.text.includes('FINAL_REPORT'), r23.json ?? r23.text.slice(0, 200));
+    check(`23 the session settles for ${INTERVIEW_CREDITS} credits, nothing more debited`,
+      after23.credits === after22.credits && after23.row?.status === 'settled' && after23.row?.credits_charged === INTERVIEW_CREDITS,
+      { credits: [after22.credits, after23.credits], row: after23.row });
+    check('23 one model call claimed and its cost logged, one turn completed',
+      after23.session?.model_calls === 1 && after23.session?.turns_completed === 1 && costLogged(callsOf(after23, 'model')),
+      { session: after23.session, calls: after23.calls });
+
+    // ── 24. An answer: feedback and the next question, no charge ────────────
+    const history = [
+      { role: 'assistant', content: r23.text.trim() },
+      { role: 'user', content: 'At Acme I led the migration of our billing service to PostgreSQL. I planned it in three phases, wrote the rollback scripts, and we switched over without downtime.' },
+    ];
+    const r24 = await send('/api/interview-coach', { json: { interviewId, messages: history } });
+    await delay(2_000);
+    const after24 = await interviewState(interviewId);
+    describe('24. interview, an answer (feedback and the next question)', r24, after23, after24);
+    check('24 answers 200 with feedback and the next question', r24.status === 200 && /FEEDBACK:/.test(r24.text) && /QUESTION:/.test(r24.text), r24.json ?? r24.text.slice(0, 300));
+    check('24 debits nothing and adds no ledger row', after24.credits === after23.credits && after24.usageRows === after23.usageRows, [after23.credits, after24.credits]);
+    check('24 two model calls on the one ledger row, two turns completed',
+      after24.session?.model_calls === 2 && after24.session?.turns_completed === 2 && callsOf(after24, 'model').length === 2,
+      { session: after24.session, calls: after24.calls.length });
+    history.push({ role: 'assistant', content: r24.text.trim() });
+
+    // ── 25. A spoken question: text-to-speech, a call of the session ────────
+    const SPOKEN = 'Tell me about a project you are proud of.';
+    const r25 = await send('/api/text-to-speech', { json: { text: SPOKEN, interviewId } });
+    const after25 = await interviewState(interviewId);
+    const mp3 = typeof r25.json?.audio === 'string' ? Buffer.from(r25.json.audio, 'base64') : Buffer.alloc(0);
+    describe('25. interview, a spoken question (text-to-speech)', r25, after24, after25);
+    check('25 answers 200 with MP3 audio', r25.status === 200 && r25.json?.mimeType === 'audio/mpeg' && mp3.length > 1_000,
+      { status: r25.status, mimeType: r25.json?.mimeType, bytes: mp3.length, error: r25.json?.error });
+    check('25 debits nothing; one tts call claimed and logged on the interview row',
+      after25.credits === after24.credits && after25.session?.tts_calls === 1 && costLogged(callsOf(after25, 'tts')),
+      { credits: [after24.credits, after25.credits], session: after25.session, tts: callsOf(after25, 'tts') });
+
+    // ── 26. A spoken answer: speech-to-text of the audio from 25 ────────────
+    const audioForm = new FormData();
+    audioForm.append('audio', new Blob([mp3], { type: 'audio/mpeg' }), 'answer.mp3');
+    audioForm.append('interviewId', interviewId);
+    const r26 = await send('/api/speech-to-text', { form: audioForm });
+    const after26 = await interviewState(interviewId);
+    describe('26. interview, a spoken answer (speech-to-text)', r26, after25, after26);
+    check('26 answers 200 with the words spoken in 25',
+      r26.status === 200 && /project/i.test(r26.json?.transcript ?? '') && /proud/i.test(r26.json?.transcript ?? ''), r26.json);
+    check('26 debits nothing; one stt call claimed and its cost logged',
+      after26.credits === after25.credits && after26.session?.stt_calls === 1 && costLogged(callsOf(after26, 'stt')),
+      { credits: [after25.credits, after26.credits], session: after26.session, stt: callsOf(after26, 'stt') });
+
+    // ── 27. An answer over limits.max_answer_chars (2,000): refused first ───
+    const r27 = await send('/api/interview-coach', { json: { interviewId, messages: [...history, { role: 'user', content: 'x'.repeat(2_001) }] } });
+    const after27 = await interviewState(interviewId);
+    describe('27. interview, an answer longer than 2,000 characters', r27, after26, after27);
+    check('27 answers 413 input_too_large', r27.status === 413 && r27.json?.reason === 'input_too_large', r27.json);
+    check('27 claims no call and charges nothing',
+      after27.session?.model_calls === after26.session?.model_calls && after27.credits === after26.credits && after27.calls.length === after26.calls.length,
+      { session: after27.session, credits: [after26.credits, after27.credits] });
+
+    // ── 28. The answer to the last question: the report, saved by the server
+    // Questions 3 to 7 are skipped by moving the session's turn counter, and the
+    // conversation sent says the same: it ends on question 8. Told "Question 2
+    // of 8" by its own last message, the model asks question 3 instead.
+    const { error: skipError } = await admin.from('ai_sessions').update({ turns_completed: 8 }).eq('id', after22.session.id);
+    if (skipError) throw skipError;
+    const r28 = await send('/api/interview-coach', { json: { interviewId, messages: [...history,
+      { role: 'user', content: 'I once owned a queue that backed up overnight; I added an alert on its depth and a dashboard, and it never went unnoticed again.' },
+      { role: 'assistant', content: 'FEEDBACK: A concrete example with a clear outcome.\n\nQUESTION: Question 8 of 8 — How would you make sure whoever is on call can act quickly on an incident in a service they did not build?' },
+      { role: 'user', content: 'I would set up alerts on error rates and write a runbook, so that whoever is on call can act within minutes.' }] } });
+    await delay(3_000);
+    const after28 = await interviewState(interviewId);
+    const report  = after28.interview?.feedback_json;
+    describe('28. interview, the answer to the last question (final report)', r28, after27, after28);
+    check('28 answers 200 with the final report', r28.status === 200 && r28.text.includes('FINAL_REPORT'), r28.json ?? r28.text.slice(-300));
+    check('28 the server saved the report: a score within 0-100 and its three lists',
+      Number.isInteger(after28.interview?.score) && after28.interview.score >= 0 && after28.interview.score <= 100
+        && report?.score === after28.interview.score && [report?.strengths, report?.improvements, report?.tips].every(Array.isArray),
+      { score: after28.interview?.score, report });
+    check('28 the session ended as completed, its last turn counted, nothing debited',
+      Boolean(after28.session?.ended_at) && after28.session?.end_reason === 'completed' && after28.session?.turns_completed === 9 && after28.credits === after27.credits,
+      { session: after28.session, credits: [after27.credits, after28.credits] });
+
+    // ── 29. After the report: no more turns, no more speech ─────────────────
+    const r29 = await send('/api/interview-coach', { json: { interviewId, messages: [{ role: 'user', content: 'One more question?' }] } });
+    const r29Speech = await send('/api/text-to-speech', { json: { text: SPOKEN, interviewId } });
+    const after29 = await interviewState(interviewId);
+    describe('29. interview, a turn and a spoken question after the report', r29, after28, after29);
+    check('29 a turn answers 409 interview_complete', r29.status === 409 && r29.json?.reason === 'interview_complete', r29.json);
+    check('29 speech answers 409 session_closed, and no call was made',
+      r29Speech.status === 409 && r29Speech.json?.reason === 'session_closed' && after29.calls.length === after28.calls.length,
+      { status: r29Speech.status, reason: r29Speech.json?.reason, calls: [after28.calls.length, after29.calls.length] });
+
+    // ── 30. An interview id that is not one of the user's ───────────────────
+    const unknownInterview = crypto.randomUUID();
+    const r30 = [
+      await send('/api/interview-coach', { json: { interviewId: unknownInterview, messages: [] } }),
+      await send('/api/text-to-speech', { json: { text: SPOKEN, interviewId: unknownInterview } }),
+    ];
+    console.log(`\n30. interview routes, an interview id that is not the user's\n  HTTP ${r30.map((r) => r.status).join(', ')}`);
+    check("30 the turn and speech routes answer 404 not_found", r30.every((r) => r.status === 404 && r.json?.reason === 'not_found'), r30.map((r) => r.json));
+
+    // ── 31. The interview's admin toggle off ────────────────────────────────
+    const before31 = await interviewState(null);
+    const r31 = await send('/api/interview-coach/start', { json: interviewSettings,
+      headers: { 'Idempotency-Key': key('interview-switch'), 'X-AI-Test-Switch-Off': 'interview_coach' } });
+    const after31 = await interviewState(null);
+    describe('31. interview start with its admin toggle off', r31, before31, after31);
+    check('31 answers 503 feature_disabled', r31.status === 503 && r31.json?.reason === 'feature_disabled', r31.json);
+    check('31 charges nothing and leaves no ledger row', after31.credits === before31.credits && after31.usageRows === before31.usageRows,
+      { credits: [before31.credits, after31.credits], rows: [before31.usageRows, after31.usageRows] });
+
     // ── End-to-end arithmetic ───────────────────────────────────────────────
     const final          = await snapshot();
     const settledCredits = final.usage.filter((u) => u.status === 'settled').reduce((sum, u) => sum + u.credits_charged, 0);
@@ -563,6 +744,10 @@ async function main() {
     if (cleanup.templates.length) {
       const { error } = await admin.from('letter_templates').delete().in('id', cleanup.templates);
       if (error) console.log(`cleanup: letter templates not deleted: ${error.message}`);
+    }
+    if (cleanup.interviews.length) {
+      const { error } = await admin.from('interview_sessions').delete().in('id', cleanup.interviews);
+      if (error) console.log(`cleanup: interview rows not deleted: ${error.message}`);
     }
   }
 
