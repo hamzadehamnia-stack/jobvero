@@ -15,6 +15,25 @@ export interface ATSResult {
   recommendations: string[];
 }
 
+// The answer as JSON, however the model wrapped it: a code fence, a sentence
+// before it, a word after it. Only what lies between the first { and the last }
+// is parsed. A model told "pure JSON only" still adds prose now and then, and
+// that is not worth a 500 on a call the user already paid for.
+function readJsonObject(text: string): unknown {
+  const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const start   = cleaned.indexOf('{');
+  const end     = cleaned.lastIndexOf('}');
+  if (start === -1 || end < start) throw new Error('no JSON object in the answer');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+// A score the model did not give is not a zero: it is an answer we refuse,
+// which refunds the credit rather than showing an invented number.
+function score(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('a score is missing from the answer');
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 async function handler(req: Request, ai: AiActionContext) {
   try {
     const { cvText, jobDescription } = await req.json();
@@ -37,20 +56,21 @@ async function handler(req: Request, ai: AiActionContext) {
       'recommendations (array of 3-5 actionable string tips to improve the CV for this role). ' +
       'No explanation, no markdown, no code fences — pure JSON only.';
 
-    let raw = await ai.complete([
+    const raw = await ai.complete([
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: `JOB DESCRIPTION:\n${jobDescription}\n\nCV TEXT:\n${cvText}` },
     ]);
 
-    raw = raw.replace(/^```json\n?/i, '').replace(/^```\n?/i, '').replace(/\n?```$/i, '').trim();
+    const parsed = readJsonObject(raw) as ATSResult;
 
-    const result: ATSResult = JSON.parse(raw);
-
-    result.overall_score    = Math.max(0, Math.min(100, Math.round(result.overall_score)));
-    result.keywords_score   = Math.max(0, Math.min(100, Math.round(result.keywords_score)));
-    result.skills_score     = Math.max(0, Math.min(100, Math.round(result.skills_score)));
-    result.experience_score = Math.max(0, Math.min(100, Math.round(result.experience_score)));
-    result.education_score  = Math.max(0, Math.min(100, Math.round(result.education_score)));
+    const result: ATSResult = {
+      ...parsed,
+      overall_score:    score(parsed.overall_score),
+      keywords_score:   score(parsed.keywords_score),
+      skills_score:     score(parsed.skills_score),
+      experience_score: score(parsed.experience_score),
+      education_score:  score(parsed.education_score),
+    };
 
     return NextResponse.json({ result });
   } catch (err: unknown) {
