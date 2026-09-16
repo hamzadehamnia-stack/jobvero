@@ -133,9 +133,9 @@
   },
   "cta": {
     "headline": "Prêt à décrocher le poste de vos rêves ?",
-    "subheadline": "Essayez Jobvero gratuitement pendant 7 jours — aucune carte bancaire requise.",
+    "subheadline": "Essayez Jobvero gratuitement pendant 7 jours. Carte bancaire requise — annulez avant le 8e jour et vous ne payez rien.",
     "ctaPrimary": "Démarrer votre essai gratuit →",
-    "disclaimer": "Après 7 jours, choisissez le plan qui vous convient."
+    "disclaimer": "Votre plan démarre le 8e jour, sauf annulation. Pendant l'essai : fonctions Pro, 10 crédits IA."
   },
   "pricing": {
     "sectionBadge": "Tarifs",
@@ -147,16 +147,16 @@
         "price": "0",
         "currency": "",
         "period": "7 jours gratuits",
-        "description": "Aucune carte bancaire requise. Commencez en quelques secondes.",
+        "description": "Carte bancaire requise. 7 jours de fonctions Pro avec 10 crédits IA.",
         "cta": "Commencer",
         "disabled": false,
         "popular": false,
         "features": [
-          "5 correspondances IA par jour",
-          "1 modèle de CV",
-          "3 lettres de motivation",
-          "Suivi de candidatures basique",
-          "Support par e-mail"
+          "Fonctions de niveau Pro pendant 7 jours",
+          "10 crédits IA pour tout l'essai",
+          "CV, lettres de motivation, score ATS",
+          "Préparation aux entretiens",
+          "Annulez avant le 8e jour, vous ne payez rien"
         ]
       },
       {
@@ -207,7 +207,7 @@
         },
         {
           "q": "Y a-t-il un essai gratuit pour les plans payants ?",
-          "a": "Oui, tous les plans payants incluent un essai gratuit de 7 jours. Aucune carte bancaire requise pour commencer."
+          "a": "Oui — chaque plan payant commence par un essai gratuit de 7 jours. Une carte est demandée à l'inscription et rien n'est débité avant le 8e jour. Annulez à tout moment pendant l'essai et vous ne payez rien."
         },
         {
           "q": "Quels moyens de paiement acceptez-vous ?",
@@ -606,10 +606,11 @@
       "pwNoMatch": "Les mots de passe ne correspondent pas",
       "currentPlan": "Abonnement actuel",
       "upgrade": "Améliorer",
-      "planDescTrial": "3 jours accès Pro complet · 60 candidatures/mois · 2 sessions d'entretien",
-      "planDescFree": "3 CV · 3 lettres · Fonctionnalités de base",
-      "planDescPro": "CV illimités · Toutes les IA · Support prioritaire",
-      "planDescPremium": "Tout Pro + outils IA exclusifs",
+      "planDescTrial": "7 jours de fonctions Pro · 10 crédits IA pour tout l'essai",
+      "planDescFree": "Essai terminé · aucun crédit IA mensuel",
+      "planDescStarter": "29 crédits IA / mois",
+      "planDescPro": "57 crédits IA / mois",
+      "planDescPremium": "111 crédits IA / mois · tout Pro",
       "deleteAccount": "Supprimer le compte",
       "deleteDesc": "Supprimez définitivement votre compte et toutes vos données. Cette action est irréversible.",
       "delete": "Supprimer",

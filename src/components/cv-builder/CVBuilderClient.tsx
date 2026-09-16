@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import Toast, { type ToastData } from '@/components/ui/Toast';
 import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import SavedCVsList from './SavedCVsList';
 import StepMode, { type CVMode } from './StepMode';
 import StepPersonal from './StepPersonal';
@@ -52,6 +54,7 @@ function mergeWithDefaults(parsed: Partial<CVFormData>): CVFormData {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CVBuilderClient() {
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<'builder' | 'saved'>('builder');
   const [mode, setMode]               = useState<CVMode>('select');
   const [step, setStep]               = useState(1);
@@ -142,8 +145,8 @@ export default function CVBuilderClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: describeText }),
       });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to parse description');
       handleParsed(data.data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -223,8 +226,8 @@ export default function CVBuilderClient() {
           preferences: form.preferences,
         }),
       });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Generation failed');
       setGeneratedHTML(data.html);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -343,8 +346,8 @@ export default function CVBuilderClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ formData: form, instruction: modifyInstruction }),
         });
+        if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? 'Modification failed');
         const modifiedForm: CVFormData = { ...form, ...data.formData, preferences: form.preferences };
         setForm(modifiedForm);
         setGeneratedHTML(tpl.generateHTML(modifiedForm));
@@ -355,8 +358,8 @@ export default function CVBuilderClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ html: generatedHTML, instruction: modifyInstruction }),
         });
+        if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? 'Modification failed');
         setGeneratedHTML(data.html);
       }
       setModifyHistory((h) => [modifyInstruction, ...h].slice(0, 8));

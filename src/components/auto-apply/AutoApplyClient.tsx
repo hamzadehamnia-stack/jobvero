@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { logApplicationEvent } from '@/lib/applicationEvents';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -451,7 +452,13 @@ export default function AutoApplyClient({
     setRunning(true);
     setRunResult(null);
     try {
-      const res  = await fetch('/api/auto-apply/run', { method: 'POST' });
+      const res = await fetch('/api/auto-apply/run', { method: 'POST' });
+      // A refusal is not a run: without this, a 402 was rendered as a campaign
+      // that applied to nothing, and the user was left blaming the job market.
+      if (!res.ok) {
+        showToast(aiErrorMessage(await readAiError(res), resolvedLocale));
+        return;
+      }
       const data = await res.json() as RunResult;
       setRunResult(data);
       if (data.applied > 0) {

@@ -2,47 +2,46 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import {
-  FEATURES,
-  TIER_CREDITS_TOTAL,
-  type FeatureKey,
-  type Tier,
-} from '@/lib/subscription/features';
-import { getEffectiveTier, toFeatureTierKey } from '@/lib/subscription/access';
+import { FEATURES, type FeatureKey, type Tier } from '@/lib/subscription/features';
+import { toFeatureTierKey } from '@/lib/subscription/access';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ProfileRow {
-  subscription_plan:    string | null;
-  trial_ends_at:        string | null;
-  ai_credits_remaining: number | null;
-  ai_credits_reset_at:  string | null;
+// What GET /api/me/entitlement answers. The server resolves the tier and reads
+// the allowance from admin_settings, which the browser cannot read itself.
+interface Entitlement {
+  tier:             Tier;
+  blocked:          boolean;
+  creditsRemaining: number;
+  creditsTotal:     number | null;
+  creditsResetAt:   string | null;
+  trialEndsAt:      string | null;
 }
 
 export interface SubscriptionState {
   /** Raw plan stored in DB: 'trial' | 'pro' | 'premium' */
   plan: 'trial' | 'pro' | 'premium';
   /**
-   * Computed tier after checking trial expiry:
+   * Computed tier after checking trial expiry and subscription status:
    * - 'trial'   → active trial (pro-level access)
    * - 'free'    → trial expired (restricted access)
-   * - 'pro'     → paid pro
-   * - 'premium' → paid premium
+   * - 'starter' | 'pro' | 'premium' → paid
    */
   effectiveTier: Tier;
   trialEndsAt:     Date | null;
-  /** Days left in trial — 0 if expired, -1 if on paid plan */
+  /** Days left in trial — 0 if expired, -1 if on a paid plan */
   trialDaysLeft:   number;
   creditsRemaining: number;
-  creditsTotal:     number;
+  /** The tier's monthly allowance. null when it is not configured. */
+  creditsTotal:     number | null;
   creditsResetAt:  Date | null;
   isLoading: boolean;
   /**
-   * Client-side quick check. NOT authoritative — server still validates.
-   * Use this to show/hide UI elements, not to enforce access.
+   * Client-side quick check. NOT authoritative — the server still validates.
+   * Use this to show or hide UI, never to enforce access.
    */
   canUse: (feature: FeatureKey) => boolean;
-  /** Re-fetch subscription data from Supabase */
+  /** Re-fetch from the server */
   refresh: () => void;
 }
 
@@ -50,7 +49,8 @@ export interface SubscriptionState {
 
 export function useSubscription(): SubscriptionState {
   const supabase    = useMemo(() => createClient(), []);
-  const [profile,   setProfile]   = useState<ProfileRow | null>(null);
+  const [state,     setState]     = useState<Entitlement | null>(null);
+  const [plan,      setPlan]      = useState<'trial' | 'pro' | 'premium'>('trial');
   const [isLoading, setIsLoading] = useState(true);
   const [userId,    setUserId]    = useState<string | null>(null);
 
@@ -58,27 +58,30 @@ export function useSubscription(): SubscriptionState {
   const inProgressRef = useRef(false); // prevents concurrent duplicate fetches
   const mountedRef    = useRef(true);  // guards setState calls after unmount
 
-  const fetchProfile = useCallback(async () => {
+  const fetchEntitlement = useCallback(async () => {
     if (inProgressRef.current) return;
     inProgressRef.current = true;
     if (mountedRef.current) setIsLoading(true);
 
     try {
-      // getSession() reads from local storage cache instead of making a network
-      // request — avoids IndexedDB lock conflicts caused by concurrent getUser() calls.
+      // getSession() reads the local cache instead of making a network request —
+      // avoids the IndexedDB lock conflicts concurrent getUser() calls cause.
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user || !mountedRef.current) return;
+      setUserId(session.user.id);
 
-      const uid = session.user.id;
-      if (mountedRef.current) setUserId(uid);
+      const res = await fetch('/api/me/entitlement', { cache: 'no-store' });
+      if (!res.ok) return;
+      const entitlement = (await res.json()) as Entitlement;
+      if (!mountedRef.current) return;
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('subscription_plan, trial_ends_at, ai_credits_remaining, ai_credits_reset_at')
-        .eq('id', uid)
-        .single();
-
-      if (mountedRef.current) setProfile(data ?? null);
+      setState(entitlement);
+      // The raw plan, for screens that label it. A trial resolves to 'trial'.
+      setPlan(
+        entitlement.tier === 'pro' || entitlement.tier === 'premium'
+          ? entitlement.tier
+          : 'trial',
+      );
     } finally {
       inProgressRef.current = false;
       if (mountedRef.current) setIsLoading(false);
@@ -87,30 +90,24 @@ export function useSubscription(): SubscriptionState {
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchProfile();
+    fetchEntitlement();
     return () => { mountedRef.current = false; };
-  }, [fetchProfile]);
+  }, [fetchEntitlement]);
 
   // ── Realtime: re-fetch whenever the profiles row changes ────────────────
   useEffect(() => {
     if (!userId) return;
 
     const channelName = `credit-gauge-${userId}`;
-
-    // Only create a new channel if one with this name doesn't already exist
     const existing = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`);
+
     if (!existing) {
       channelRef.current = supabase
         .channel(channelName)
         .on(
           'postgres_changes',
-          {
-            event:  'UPDATE',
-            schema: 'public',
-            table:  'profiles',
-            filter: `id=eq.${userId}`,
-          },
-          () => { fetchProfile(); },
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+          () => { fetchEntitlement(); },
         )
         .subscribe();
     } else {
@@ -123,38 +120,33 @@ export function useSubscription(): SubscriptionState {
         channelRef.current = null;
       }
     };
-  }, [userId, supabase, fetchProfile]);
+  }, [userId, supabase, fetchEntitlement]);
 
   // ── Derived values ──────────────────────────────────────────────────────
 
-  const plan = (profile?.subscription_plan ?? 'trial') as 'trial' | 'pro' | 'premium';
-  const effectiveTier = getEffectiveTier(plan, profile?.trial_ends_at ?? null);
+  const effectiveTier: Tier = state?.tier ?? 'free';
+  const trialEndsAt = state?.trialEndsAt ? new Date(state.trialEndsAt) : null;
 
-  const trialEndsAt = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
   const trialDaysLeft = (() => {
-    if (plan !== 'trial') return -1;
+    if (effectiveTier !== 'trial') return -1;
     if (!trialEndsAt) return 0;
     const diff = trialEndsAt.getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   })();
 
-  const creditsRemaining = profile?.ai_credits_remaining ?? 0;
-  const creditsResetAt   = profile?.ai_credits_reset_at ? new Date(profile.ai_credits_reset_at) : null;
+  const creditsRemaining = state?.creditsRemaining ?? 0;
+  const creditsResetAt   = state?.creditsResetAt ? new Date(state.creditsResetAt) : null;
 
   // ── canUse (client-side quick gate) ────────────────────────────────────
 
   const canUse = useCallback(
     (feature: FeatureKey): boolean => {
-      const featureTierKey = toFeatureTierKey(effectiveTier);
-      const config = FEATURES[feature][featureTierKey];
+      const config = FEATURES[feature][toFeatureTierKey(effectiveTier as never)];
+      if (!config?.access) return false;
 
-      if (!config.access) return false;
-
-      // Check credits
       if ('credits' in config && typeof config.credits === 'number' && config.credits > 0) {
         return creditsRemaining >= config.credits;
       }
-
       return true;
     },
     [effectiveTier, creditsRemaining],
@@ -166,10 +158,10 @@ export function useSubscription(): SubscriptionState {
     trialEndsAt,
     trialDaysLeft,
     creditsRemaining,
-    creditsTotal: TIER_CREDITS_TOTAL,
+    creditsTotal: state?.creditsTotal ?? null,
     creditsResetAt,
     isLoading,
     canUse,
-    refresh: fetchProfile,
+    refresh: fetchEntitlement,
   };
 }

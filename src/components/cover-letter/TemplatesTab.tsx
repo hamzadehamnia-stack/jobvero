@@ -7,6 +7,8 @@ import {
   Clock, BarChart2,
 } from 'lucide-react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -180,6 +182,7 @@ interface UseTemplateModalProps {
 }
 
 function UseTemplateModal({ template, onClose, onUsed, onToast }: UseTemplateModalProps) {
+  const locale = useLocale();
   const [step,           setStep]           = useState<'form' | 'result'>('form');
   const [jobTitle,       setJobTitle]       = useState('');
   const [companyName,    setCompanyName]    = useState('');
@@ -204,8 +207,8 @@ function UseTemplateModal({ template, onClose, onUsed, onToast }: UseTemplateMod
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobTitle, companyName, companyCity, description }),
       });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Génération échouée');
       setAdaptedText(data.text);
       setStep('result');
       onUsed(template.id);

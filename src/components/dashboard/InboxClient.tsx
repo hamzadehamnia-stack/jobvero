@@ -53,6 +53,8 @@ interface Thread {
   auto_status_updated: boolean;
   follow_up_config:   { days: number; ctx: string; suggested: string } | null;
   ai_processed_at:    string | null;
+  // Set when the email was kept but not analysed, and why.
+  ai_skipped_reason:  string | null;
 }
 
 interface MessageRow {
@@ -1487,6 +1489,24 @@ export default function InboxClient({ emailAlias, userName, userId }: {
                     </button>
                   </div>
                 </div>
+
+                {/* Kept, but not analysed — say why, in plain words */}
+                {!selectedThread.ai_summary && selectedThread.ai_skipped_reason && (
+                  <div className="mb-6 rounded-2xl border border-amber-200/70 dark:border-amber-700/40 bg-amber-50/60 dark:bg-amber-950/20 px-5 py-4">
+                    <p className="text-[9px] font-bold tracking-widest uppercase text-amber-600 dark:text-amber-400 mb-2">
+                      E-mail non analysé
+                    </p>
+                    <p className="text-[13px] text-gray-800 dark:text-amber-100 leading-relaxed">
+                      {selectedThread.ai_skipped_reason === 'alias_limit'
+                        ? "Vous avez atteint le nombre d'e-mails analysés automatiquement pour aujourd'hui. Celui-ci est bien arrivé et reste lisible ; l'analyse repart demain."
+                        : selectedThread.ai_skipped_reason === 'global_limit'
+                        ? "L'analyse automatique a atteint sa limite du jour sur l'ensemble du service. Votre e-mail est bien arrivé et reste lisible ; elle repart demain."
+                        : selectedThread.ai_skipped_reason === 'ai_disabled'
+                        ? "L'analyse automatique est désactivée en ce moment. Votre e-mail est bien arrivé et reste lisible."
+                        : "L'analyse automatique n'a pas abouti pour cet e-mail. Il est bien arrivé et reste lisible — cela vient de nous, pas de vous."}
+                    </p>
+                  </div>
+                )}
 
                 {/* AI Summary Card */}
                 {selectedThread.ai_summary && (

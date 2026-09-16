@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import UpgradeModal from '@/components/UpgradeModal';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import {
   Mic, ChevronRight, Loader2, Send, RotateCcw,
   Trophy, TrendingUp, Lightbulb, Star, Briefcase,
@@ -143,12 +144,22 @@ function parseRecruiterResponse(text: string): {
 // A route's refusal: its message, and the upgrade to offer when the refusal is
 // about the plan or the credits. The modal does not offer Starter yet: an
 // upgrade to Starter opens it on its default.
-async function readRefusal(res: Response): Promise<{ message: string; upgrade: Upgrade | null }> {
-  const body    = (await res.json().catch(() => null)) as { error?: unknown; reason?: unknown; upgradeTo?: unknown } | null;
-  const message = typeof body?.error === 'string' ? body.error : `HTTP ${res.status}`;
-  const reason  = body?.reason;
-  if (reason !== 'no_credits' && reason !== 'trial_expired' && reason !== 'tier_locked') return { message, upgrade: null };
-  const upgradeTo = body?.upgradeTo;
+// It reads the refusal through the one shared reader: a response body can only
+// be read once, so this delegates rather than parsing it a second time, and the
+// sentence shown here is the same one every other screen shows for that refusal.
+async function readRefusal(res: Response, locale: string): Promise<{ message: string; upgrade: Upgrade | null }> {
+  const failure = await readAiError(res);
+  const message = aiErrorMessage(failure, locale);
+
+  const reason: UpgradeReason | null =
+      failure.reason === 'trial_expired' ? 'trial_expired'
+    : failure.reason === 'tier_locked'   ? 'tier_locked'
+    : failure.kind   === 'no_credits'    ? 'no_credits'
+    : failure.kind   === 'feature_locked'? 'tier_locked'
+    :                                      null;
+  if (!reason) return { message, upgrade: null };
+
+  const { upgradeTo } = failure;
   return { message, upgrade: { reason, upgradeTo: upgradeTo === 'pro' || upgradeTo === 'premium' ? upgradeTo : undefined } };
 }
 
@@ -404,13 +415,15 @@ export default function InterviewCoachClient({ creditsPerInterview, voiceLanguag
       form.append('audio', blob, 'audio.webm');
       form.append('interviewId', interviewId);
       const res = await fetch('/api/speech-to-text', { method: 'POST', body: form });
-      if (!res.ok) throw new Error('Transcription failed');
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const { transcript } = await res.json();
       if (transcript?.trim()) {
         await sendAnswer(transcript.trim());
       }
-    } catch {
-      setError('Failed to transcribe audio. Please type your answer instead.');
+    } catch (e) {
+      // The reason reaches the screen: "no credits left" and "the microphone
+      // failed" ask the user for two different things.
+      setError(e instanceof Error ? e.message : 'Failed to transcribe audio. Please type your answer instead.');
     } finally {
       setIsTranscribing(false);
     }
@@ -452,7 +465,7 @@ export default function InterviewCoachClient({ creditsPerInterview, voiceLanguag
       });
 
       if (!res.ok) {
-        const { message, upgrade: offer } = await readRefusal(res);
+        const { message, upgrade: offer } = await readRefusal(res, locale);
         if (offer) setUpgrade(offer);
         // On the report turn there is no answer to give back — the answers are
         // all in. Anywhere else the answer goes back in the box.
@@ -602,7 +615,7 @@ export default function InterviewCoachClient({ creditsPerInterview, voiceLanguag
         }),
       });
       if (!res.ok) {
-        const { message, upgrade: offer } = await readRefusal(res);
+        const { message, upgrade: offer } = await readRefusal(res, locale);
         if (offer) { setUpgrade(offer); return; }
         throw new Error(message);
       }

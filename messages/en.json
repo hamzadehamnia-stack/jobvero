@@ -133,9 +133,9 @@
   },
   "cta": {
     "headline": "Ready to land your dream job?",
-    "subheadline": "Try Jobvero free for 7 days — no credit card required.",
+    "subheadline": "Try Jobvero free for 7 days. Card required — cancel before day 8 and you pay nothing.",
     "ctaPrimary": "Start your free trial →",
-    "disclaimer": "After 7 days, choose the plan that suits you."
+    "disclaimer": "Your plan starts on day 8 unless you cancel. During the trial: Pro features, 10 AI credits."
   },
   "pricing": {
     "sectionBadge": "Pricing",
@@ -147,16 +147,16 @@
         "price": "0",
         "currency": "",
         "period": "7 days free",
-        "description": "No credit card required. Get started in seconds.",
+        "description": "Card required. 7 days of Pro-level features on 10 AI credits.",
         "cta": "Get Started",
         "disabled": false,
         "popular": false,
         "features": [
-          "5 AI job matches per day",
-          "1 resume template",
-          "3 cover letters",
-          "Basic application tracker",
-          "Email support"
+          "Pro-level features for 7 days",
+          "10 AI credits for the whole trial",
+          "CV builder, cover letters, ATS score",
+          "Interview coach",
+          "Cancel before day 8 and pay nothing"
         ]
       },
       {
@@ -207,7 +207,7 @@
         },
         {
           "q": "Is there a free trial for paid plans?",
-          "a": "Yes, all paid plans include a 7-day free trial. No credit card required to start."
+          "a": "Yes — every paid plan starts with a 7-day free trial. A payment method is required to start, and nothing is charged before day 8. Cancel any time during the trial and you pay nothing."
         },
         {
           "q": "What payment methods do you accept?",
@@ -606,10 +606,11 @@
       "pwNoMatch": "Passwords do not match",
       "currentPlan": "Current Plan",
       "upgrade": "Upgrade",
-      "planDescTrial": "3 days full Pro access · 60 auto-apply/mo · 2 interview sessions",
-      "planDescFree": "3 CVs · 3 Cover Letters · Basic features",
-      "planDescPro": "Unlimited CVs · All AI features · Priority support",
-      "planDescPremium": "Everything in Pro + exclusive AI tools",
+      "planDescTrial": "7 days of Pro-level features · 10 AI credits for the whole trial",
+      "planDescFree": "Trial ended · no monthly AI credits",
+      "planDescStarter": "29 AI credits / month",
+      "planDescPro": "57 AI credits / month",
+      "planDescPremium": "111 AI credits / month · everything in Pro",
       "deleteAccount": "Delete account",
       "deleteDesc": "Permanently delete your account and all your data. This cannot be undone.",
       "delete": "Delete",

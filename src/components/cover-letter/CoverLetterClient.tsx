@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { aiErrorMessage, readAiError } from '@/lib/ai/clientError';
 import {
   Sparkles, Loader2, Download, Copy, Check, Save,
   AlertCircle, FileText, Briefcase, Building2, AlignLeft,
@@ -53,6 +54,7 @@ interface Props {
 
 export default function CoverLetterClient({ userName, userEmail, initialCredits }: Props) {
   const t = useTranslations('coverLetter');
+  const locale = useLocale();
   const [credits, setCredits] = useState(initialCredits);
   const [activeTab, setActiveTab] = useState<'new' | 'saved' | 'templates'>('new');
 
@@ -102,15 +104,16 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, userName, userEmail }),
       });
-      const data = await res.json();
+      // Read the refusal before the body: 402 is an empty balance, 403 a plan
+      // that does not include this feature, 429 a rate limit, 503 an outage of
+      // ours. All four used to be answered with "no credits left", which sent
+      // three of them to buy something that would not have helped.
       if (!res.ok) {
-        if (res.status === 403) {
-          // Server confirmed no credits — sync local state
-          setCredits(0);
-          throw new Error(t('limitError'));
-        }
-        throw new Error(data.error ?? 'Generation failed');
+        const failure = await readAiError(res);
+        if (failure.kind === 'no_credits') setCredits(0);
+        throw new Error(aiErrorMessage(failure, locale));
       }
+      const data = await res.json();
       setGeneratedHTML(data.html);
       // Optimistically reflect the credit deduction the server just made
       setCredits((c) => Math.max(0, c - 1));
@@ -203,11 +206,12 @@ export default function CoverLetterClient({ userName, userEmail, initialCredits 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ html: generatedHTML, instruction: modifyInstruction }),
       });
-      const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403) setCredits(0);
-        throw new Error(data.error ?? 'Modification failed');
+        const failure = await readAiError(res);
+        if (failure.kind === 'no_credits') setCredits(0);
+        throw new Error(aiErrorMessage(failure, locale));
       }
+      const data = await res.json();
       setGeneratedHTML(data.html);
       setModifyHistory((h) => [modifyInstruction, ...h].slice(0, 8));
       setModifyInstruction('');

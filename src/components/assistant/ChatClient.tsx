@@ -12,6 +12,8 @@ import {
   Loader2,
   RotateCcw,
 } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,6 +120,7 @@ const SUGGESTIONS = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ChatClient({ displayName, avatarUrl: initialAvatarUrl }: Props) {
+  const locale = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -195,10 +198,7 @@ export default function ChatClient({ displayName, avatarUrl: initialAvatarUrl }:
         signal: abortRef.current.signal,
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
 
       const sessionId = res.headers.get('X-AI-Session-Id');
       if (sessionId) {
@@ -242,7 +242,7 @@ export default function ChatClient({ displayName, avatarUrl: initialAvatarUrl }:
       abortRef.current = null;
       inputRef.current?.focus();
     }
-  }, [input, isStreaming, messages]);
+  }, [input, isStreaming, messages, locale]);
 
   // Enter to send (Shift+Enter = newline)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

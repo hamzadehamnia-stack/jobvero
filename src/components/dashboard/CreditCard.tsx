@@ -9,7 +9,6 @@ import { useSubscription } from '@/hooks/useSubscription';
 const LABELS = {
   en: {
     title:       'AI Credits',
-    unlimited:   'Unlimited',
     resetOn:     'Resets',
     daysLeft:    'd trial left',
     trialExpired:'Trial expired',
@@ -17,7 +16,6 @@ const LABELS = {
   },
   fr: {
     title:       'Crédits IA',
-    unlimited:   'Illimité',
     resetOn:     'Recharge',
     daysLeft:    'j d\'essai',
     trialExpired:'Essai expiré',
@@ -25,7 +23,6 @@ const LABELS = {
   },
   es: {
     title:       'Créditos IA',
-    unlimited:   'Ilimitado',
     resetOn:     'Reinicia',
     daysLeft:    'd prueba',
     trialExpired:'Prueba expirada',
@@ -33,7 +30,6 @@ const LABELS = {
   },
   pt: {
     title:       'Créditos IA',
-    unlimited:   'Ilimitado',
     resetOn:     'Recarrega',
     daysLeft:    'd teste',
     trialExpired:'Teste expirado',
@@ -75,24 +71,24 @@ export default function CreditCard() {
     );
   }
 
-  const isUnlimited = effectiveTier === 'premium';
-  const pct         = isUnlimited ? 100 : Math.round((creditsRemaining / creditsTotal) * 100);
-  const isLow       = !isUnlimited && pct <= 30;
-  const isMid       = !isUnlimited && pct > 30 && pct <= 60;
-  const tierLabel   = l.tier[effectiveTier] ?? l.tier.free;
+  // No tier is unlimited: Premium has its monthly credits like every other plan.
+  // `creditsTotal` is null only when the allowance is not configured, and then the
+  // card shows the balance alone rather than inventing a denominator.
+  const hasTotal  = typeof creditsTotal === 'number' && creditsTotal > 0;
+  const pct       = hasTotal ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100)) : 0;
+  const isLow     = hasTotal && pct <= 30;
+  const isMid     = hasTotal && pct > 30 && pct <= 60;
+  const tierLabel = l.tier[effectiveTier] ?? l.tier.free;
 
-  const barColor = isUnlimited ? 'bg-amber-400'
-    : isLow  ? 'bg-red-400'
+  const barColor = isLow  ? 'bg-red-400'
     : isMid  ? 'bg-amber-400'
     :           'bg-violet-500';
 
-  const iconBg    = isUnlimited ? 'bg-amber-50 dark:bg-amber-950/40'
-    : isLow  ? 'bg-red-50 dark:bg-red-950/40'
-    :           'bg-violet-50 dark:bg-violet-950/40';
+  const iconBg    = isLow ? 'bg-red-50 dark:bg-red-950/40'
+    :                       'bg-violet-50 dark:bg-violet-950/40';
 
-  const iconColor = isUnlimited ? 'text-amber-500'
-    : isLow  ? 'text-red-400'
-    :           'text-violet-500';
+  const iconColor = isLow ? 'text-red-400'
+    :                       'text-violet-500';
 
   const tierBadgeColor = {
     premium: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
@@ -106,7 +102,7 @@ export default function CreditCard() {
     if (effectiveTier === 'free') return l.trialExpired;
     if (effectiveTier === 'trial' && trialDaysLeft >= 0)
       return `${trialDaysLeft}${l.daysLeft}`;
-    if (creditsResetAt && !isUnlimited)
+    if (creditsResetAt)
       return `${l.resetOn} ${fmtDate(creditsResetAt, locale)}`;
     return null;
   })();
@@ -135,19 +131,17 @@ export default function CreditCard() {
       </div>
 
       {/* Big number */}
-      {isUnlimited ? (
-        <p className="text-2xl sm:text-3xl font-bold text-amber-500 mb-2">{l.unlimited}</p>
-      ) : (
-        <div className="flex items-baseline gap-1 mb-2">
-          <p className={`text-2xl sm:text-3xl font-bold ${isLow ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-            {creditsRemaining}
-          </p>
+      <div className="flex items-baseline gap-1 mb-2">
+        <p className={`text-2xl sm:text-3xl font-bold ${isLow ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+          {creditsRemaining}
+        </p>
+        {hasTotal && (
           <span className="text-sm text-gray-400 dark:text-gray-500">/{creditsTotal}</span>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Thin progress bar */}
-      {!isUnlimited && (
+      {/* Thin progress bar — only against an allowance somebody actually set */}
+      {hasTotal && (
         <div className="h-1 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-1">
           <div
             className={`h-full rounded-full transition-all duration-700 ${barColor}`}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import {
   DndContext,
   DragOverlay,
@@ -845,7 +846,7 @@ export default function KanbanBoard({ initialJobs, userId }: Props) {
           language:       locale,
         }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})) as { error?: string }; throw new Error(d.error || `HTTP ${res.status}`); }
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const d = await res.json();
       if (d.coverLetterHtml) { setCoverLetterHtml(d.coverLetterHtml); }
       else { showToast('Cover letter générée — consultez vos candidatures.'); }

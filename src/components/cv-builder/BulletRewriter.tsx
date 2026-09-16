@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Wand2, RefreshCw, Check, Loader2, X } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 
 interface Props {
   bullet: string;
@@ -20,6 +22,7 @@ export default function BulletRewriter({
   language,
   onSelect,
 }: Props) {
+  const locale = useLocale();
   const [open, setOpen]           = useState(false);
   const [loading, setLoading]     = useState(false);
   const [versions, setVersions]   = useState<string[]>([]);
@@ -38,8 +41,8 @@ export default function BulletRewriter({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bullet, jobTitle, company, targetCountry, language }),
       });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to generate versions');
       setVersions(data.versions);
       setOpen(true);
     } catch (e: unknown) {

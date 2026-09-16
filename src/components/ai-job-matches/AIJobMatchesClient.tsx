@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useLocale } from 'next-intl';
 import Link from 'next/link';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import { createClient } from '@/lib/supabase/client';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 import {
@@ -77,6 +79,7 @@ function SkeletonCard() {
 export default function AIJobMatchesClient({
   userId, hasProfile, hasCv, initialMatches, cachedAt,
 }: Props) {
+  const locale = useLocale();
   const [matches,     setMatches]     = useState<MatchResult[]>(initialMatches);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState('');
@@ -95,10 +98,11 @@ export default function AIJobMatchesClient({
     setError('');
     setInfo('');
     try {
-      const res  = await fetch(`/api/ai-job-matches${force ? '?force=1' : ''}`);
+      const res = await fetch(`/api/ai-job-matches${force ? '?force=1' : ''}`);
+      // The refusal is read before the body: a 402 is a balance, not a failure.
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json() as { matches?: MatchResult[]; error?: string; message?: string };
-      console.log('[AIJobMatchesClient] API response:', { ok: res.ok, matchCount: data.matches?.length, error: data.error, message: data.message });
-      if (!res.ok) throw new Error(data.error ?? 'Failed to fetch matches');
+      console.log('[AIJobMatchesClient] API response:', { matchCount: data.matches?.length, message: data.message });
       setMatches(data.matches ?? []);
       setHasSearched(true);
       setLastUpdated(new Date().toISOString());

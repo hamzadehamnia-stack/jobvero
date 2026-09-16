@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import {
   Target, Loader2, AlertCircle, ChevronDown,
   FileText, Sparkles, CheckCircle2, XCircle,
@@ -178,9 +179,13 @@ export default function ATSScoreClient({ initialCredits }: Props) {
         body: JSON.stringify({ cvText: finalCVText, jobDescription: jobDescription.trim() }),
       });
 
+      // The refusal is read before the body: an empty balance, a locked feature
+      // and an outage are three different sentences, and only one of them is
+      // the user's to act on.
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+        const failure = await readAiError(res);
+        if (failure.kind === 'no_credits') setCredits(0);
+        throw new Error(aiErrorMessage(failure, locale));
       }
 
       const { result: atsResult } = await res.json();

@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { sanitizeDocumentHtml } from '@/lib/sanitizeHtml';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 import { getSearchEngine, ENGINE_LABELS, type Engine } from '@/lib/jobEngineRouter';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import JobCard from './JobCard';
 import JobDetailModal from './JobDetailModal';
 import JobFilters from './JobFilters';
@@ -1043,8 +1044,9 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+        const failure = await readAiError(res);
+        if (failure.kind === 'no_credits') setCredits(0);
+        throw new Error(aiErrorMessage(failure, locale));
       }
 
       const data = await res.json();

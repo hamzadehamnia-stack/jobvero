@@ -11,7 +11,6 @@ const LABELS = {
   en: {
     aiCredits:   'AI Credits',
     remaining:   'remaining',
-    unlimited:   'Unlimited',
     resetOn:     'Resets on',
     daysLeft:    'days left in trial',
     trialExpired:'Trial expired',
@@ -21,7 +20,6 @@ const LABELS = {
   fr: {
     aiCredits:   'Crédits IA',
     remaining:   'restants',
-    unlimited:   'Illimité',
     resetOn:     'Recharge le',
     daysLeft:    'jours d\'essai restants',
     trialExpired:'Essai expiré',
@@ -31,7 +29,6 @@ const LABELS = {
   es: {
     aiCredits:   'Créditos IA',
     remaining:   'restantes',
-    unlimited:   'Ilimitado',
     resetOn:     'Se reinicia el',
     daysLeft:    'días de prueba restantes',
     trialExpired:'Prueba expirada',
@@ -41,7 +38,6 @@ const LABELS = {
   pt: {
     aiCredits:   'Créditos IA',
     remaining:   'restantes',
-    unlimited:   'Ilimitado',
     resetOn:     'Recarrega em',
     daysLeft:    'dias de teste restantes',
     trialExpired:'Teste expirado',
@@ -92,24 +88,17 @@ export default function CreditGauge() {
     );
   }
 
-  const isUnlimited = effectiveTier === 'premium';
-  const pct         = isUnlimited ? 100 : Math.round((creditsRemaining / creditsTotal) * 100);
-  const isLow       = !isUnlimited && pct <= 30;
-  const isMid       = !isUnlimited && pct > 30 && pct <= 60;
+  // No tier is unlimited: Premium has 111 credits a month like the others have
+  // theirs. `creditsTotal` is null only when the allowance is not configured —
+  // and then the gauge shows the balance alone rather than inventing a
+  // denominator or drawing a bar against a number nobody set.
+  const hasTotal = typeof creditsTotal === 'number' && creditsTotal > 0;
+  const pct      = hasTotal ? Math.min(100, Math.round((creditsRemaining / creditsTotal) * 100)) : 0;
+  const isLow    = hasTotal && pct <= 30;
+  const isMid    = hasTotal && pct > 30 && pct <= 60;
 
-  const barColor = isUnlimited
-    ? 'bg-amber-400'
-    : isLow
-    ? 'bg-red-400'
-    : isMid
-    ? 'bg-amber-400'
-    : 'bg-violet-500';
-
-  const zapColor = isUnlimited
-    ? 'text-amber-500'
-    : isLow
-    ? 'text-red-400'
-    : 'text-violet-500';
+  const barColor = isLow ? 'bg-red-400' : isMid ? 'bg-amber-400' : 'bg-violet-500';
+  const zapColor = isLow ? 'text-red-400' : 'text-violet-500';
 
   const tierLabel = l.tier[effectiveTier] ?? l.tier.free;
 
@@ -128,28 +117,26 @@ export default function CreditGauge() {
       >
         <Zap size={13} className={`flex-shrink-0 ${zapColor}`} />
 
-        {isUnlimited ? (
-          <span className="text-xs font-medium text-amber-500">{l.unlimited}</span>
-        ) : (
-          <div className="flex flex-col gap-0.5 min-w-[80px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
-                {effectiveTier === 'trial'
-                  ? `${tierLabel} · ${trialDaysLeft}d`
-                  : l.aiCredits}
-              </span>
-              <span className={`text-[10px] font-semibold leading-none ${isLow ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
-                {creditsRemaining}/{creditsTotal}
-              </span>
-            </div>
+        <div className="flex flex-col gap-0.5 min-w-[80px]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
+              {effectiveTier === 'trial'
+                ? `${tierLabel} · ${trialDaysLeft}d`
+                : l.aiCredits}
+            </span>
+            <span className={`text-[10px] font-semibold leading-none ${isLow ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
+              {hasTotal ? `${creditsRemaining}/${creditsTotal}` : creditsRemaining}
+            </span>
+          </div>
+          {hasTotal && (
             <div className="h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden w-full">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                 style={{ width: `${pct}%` }}
               />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <ChevronUp
           size={11}
@@ -188,31 +175,24 @@ export default function CreditGauge() {
               </span>
             </div>
 
-            {isUnlimited ? (
-              <div className="flex items-center gap-1.5 mt-2">
-                <Crown size={13} className="text-amber-500" />
-                <span className="text-sm font-semibold text-amber-500">{l.unlimited}</span>
-              </div>
-            ) : (
-              <>
-                {/* Big credit count */}
-                <div className="flex items-baseline gap-1 mt-2">
-                  <span className={`text-2xl font-bold ${isLow ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-                    {creditsRemaining}
-                  </span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                    / {creditsTotal} {l.remaining}
-                  </span>
-                </div>
+            {/* Big credit count */}
+            <div className="flex items-baseline gap-1 mt-2">
+              <span className={`text-2xl font-bold ${isLow ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                {creditsRemaining}
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {hasTotal ? `/ ${creditsTotal} ${l.remaining}` : l.remaining}
+              </span>
+            </div>
 
-                {/* Progress bar */}
-                <div className="mt-2.5 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </>
+            {/* Progress bar — only against an allowance somebody actually set */}
+            {hasTotal && (
+              <div className="mt-2.5 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
             )}
           </div>
 
@@ -230,7 +210,7 @@ export default function CreditGauge() {
             )}
 
             {/* Reset date */}
-            {creditsResetAt && !isUnlimited && (
+            {creditsResetAt && (
               <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                 <RefreshCw size={11} />
                 <span>{l.resetOn} {fmtDate(creditsResetAt, locale)}</span>

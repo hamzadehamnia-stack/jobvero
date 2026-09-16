@@ -133,9 +133,9 @@
   },
   "cta": {
     "headline": "Pronto para conseguir o emprego dos seus sonhos?",
-    "subheadline": "Experimente o Jobvero gratuitamente por 7 dias — sem cartão de crédito.",
+    "subheadline": "Experimente o Jobvero gratuitamente por 7 dias. Cartão obrigatório — cancele antes do 8.º dia e não paga nada.",
     "ctaPrimary": "Iniciar teste gratuito →",
-    "disclaimer": "Após 7 dias, escolha o plano que mais lhe convém."
+    "disclaimer": "O seu plano começa no 8.º dia, salvo cancelamento. Durante o teste: funções Pro, 10 créditos de IA."
   },
   "pricing": {
     "sectionBadge": "Preços",
@@ -147,16 +147,16 @@
         "price": "0",
         "currency": "",
         "period": "7 dias grátis",
-        "description": "Sem cartão de crédito. Comece em segundos.",
+        "description": "Cartão obrigatório. 7 dias de funções Pro com 10 créditos de IA.",
         "cta": "Começar",
         "disabled": false,
         "popular": false,
         "features": [
-          "5 vagas IA por dia",
-          "1 modelo de currículo",
-          "3 cartas de apresentação",
-          "Rastreamento básico de candidaturas",
-          "Suporte por e-mail"
+          "Funções de nível Pro durante 7 dias",
+          "10 créditos de IA para todo o teste",
+          "CV, cartas de apresentação, pontuação ATS",
+          "Preparação para entrevistas",
+          "Cancele antes do 8.º dia e não paga nada"
         ]
       },
       {
@@ -207,7 +207,7 @@
         },
         {
           "q": "Há uma avaliação gratuita para planos pagos?",
-          "a": "Sim, todos os planos pagos incluem uma avaliação gratuita de 7 dias. Não é necessário cartão de crédito para começar."
+          "a": "Sim — todos os planos pagos começam com uma avaliação gratuita de 7 dias. É necessário um método de pagamento para começar e nada é cobrado antes do 8.º dia. Cancele quando quiser durante a avaliação e não paga nada."
         },
         {
           "q": "Quais métodos de pagamento vocês aceitam?",
@@ -606,10 +606,11 @@
       "pwNoMatch": "As senhas não coincidem",
       "currentPlan": "Plano atual",
       "upgrade": "Fazer upgrade",
-      "planDescTrial": "3 dias acesso Pro completo · 60 candidaturas/mês · 2 sessões de entrevista",
-      "planDescFree": "3 CVs · 3 cartas · Recursos básicos",
-      "planDescPro": "CVs ilimitados · Todos os recursos de IA · Suporte prioritário",
-      "planDescPremium": "Tudo do Pro + ferramentas exclusivas de IA",
+      "planDescTrial": "7 dias de funções Pro · 10 créditos de IA para todo o teste",
+      "planDescFree": "Teste terminado · sem créditos de IA mensais",
+      "planDescStarter": "29 créditos de IA / mês",
+      "planDescPro": "57 créditos de IA / mês",
+      "planDescPremium": "111 créditos de IA / mês · tudo do Pro",
       "deleteAccount": "Excluir conta",
       "deleteDesc": "Exclua permanentemente sua conta e todos os seus dados. Esta ação não pode ser desfeita.",
       "delete": "Excluir",

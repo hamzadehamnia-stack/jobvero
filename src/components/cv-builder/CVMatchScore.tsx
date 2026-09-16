@@ -5,6 +5,8 @@ import {
   ChevronDown, ChevronUp, Target, Loader2,
   CheckCircle, XCircle, AlertTriangle, Lightbulb,
 } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import type { CVFormData } from './types';
 
 interface MatchResult {
@@ -24,6 +26,7 @@ function scoreColors(score: number) {
 }
 
 export default function CVMatchScore({ cvData }: { cvData: CVFormData }) {
+  const locale = useLocale();
   const [open, setOpen]                   = useState(false);
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading]             = useState(false);
@@ -41,8 +44,8 @@ export default function CVMatchScore({ cvData }: { cvData: CVFormData }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cvData, jobDescription }),
       });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Analysis failed');
       setResult(data as MatchResult);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Analysis failed');

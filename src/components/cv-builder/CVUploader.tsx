@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { Upload, FileText, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { readAiError, aiErrorMessage } from '@/lib/ai/clientError';
 import type { CVFormData } from './types';
 
 interface Props {
@@ -11,6 +13,7 @@ interface Props {
 type Status = 'idle' | 'uploading' | 'success' | 'error';
 
 export default function CVUploader({ onParsed }: Props) {
+  const locale = useLocale();
   const [status, setStatus]       = useState<Status>('idle');
   const [errorMsg, setErrorMsg]   = useState('');
   const [fileName, setFileName]   = useState('');
@@ -27,8 +30,8 @@ export default function CVUploader({ onParsed }: Props) {
 
     try {
       const res = await fetch('/api/parse-cv', { method: 'POST', body: form });
+      if (!res.ok) throw new Error(aiErrorMessage(await readAiError(res), locale));
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Upload failed');
       setStatus('success');
       onParsed(json.data as CVFormData);
     } catch (e: unknown) {
