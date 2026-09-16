@@ -20,9 +20,23 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const ROOT                 = path.resolve(__dirname, '..');
-const EXPECTED_ACTIONS     = 13;   // asserted by migration 20260914120000_ai_action_letter_adapt
+const EXPECTED_ACTIONS     = 14;   // 13 of migration 20260914120000_ai_action_letter_adapt + system_interview_report_retry
 const EXPECTED_STEP_MODELS = 2;    // interview_session stt and tts, migration 20260915120600_ai_action_interview_voice
-const EXPECTED_CHECKS      = 2 + EXPECTED_ACTIONS + EXPECTED_STEP_MODELS;
+const EXPECTED_CHECKS      = 3 + EXPECTED_ACTIONS + EXPECTED_STEP_MODELS;
+
+// No preview, experimental or free model behind a billed feature — a rule, not
+// a review: such an id changes or disappears without notice, and a free tier is
+// rate-limited and deprioritised. Checked on every id the catalogue holds, the
+// action's own model and the ones pinned in limits.models, now and later.
+// "exp" is matched as a whole word (google/gemini-3-flash-exp), never inside
+// another one, so a model whose name merely contains those letters passes.
+const FORBIDDEN = [
+  { name: 'preview',      pattern: /preview/i },
+  { name: 'experimental', pattern: /(^|[-_./:])exp(erimental)?([-_./:]|$)/i },
+  { name: 'free tier',    pattern: /:free\b/i },
+];
+
+const forbiddenIn = (id) => FORBIDDEN.filter((rule) => rule.pattern.test(id)).map((rule) => rule.name);
 
 let passed = 0;
 let failed = 0;
@@ -93,6 +107,19 @@ async function main() {
       listed(`${`${row.action}.${step}`.padEnd(28)} ${id}`, String(id));
     }
   }
+
+  console.log('\nNo preview, experimental or free model');
+  const offenders = [];
+  for (const row of catalogue.data) {
+    const steps = row.limits?.models;
+    const ids   = [[row.action, row.model], ...(typeof steps === 'object' && steps !== null ? Object.entries(steps).map(([step, id]) => [`${row.action}.${step}`, String(id)]) : [])];
+    for (const [where, id] of ids) {
+      const broken = forbiddenIn(id);
+      if (broken.length) offenders.push(`${where} = ${id} (${broken.join(', ')})`);
+    }
+  }
+  check('no catalogue model is a preview, experimental or free id', offenders.length === 0,
+    offenders.join('\n        '));
 
   const ran = passed + failed;
   if (ran !== EXPECTED_CHECKS) {
