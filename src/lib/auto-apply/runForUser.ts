@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { findRecruiterEmail } from '@/lib/email-finder';
 import type { JobContext, CountryCode } from '@/lib/email-finder';
 import { Resend } from 'resend';
-import { getAutoApplyMonthlyLimit } from '@/lib/subscription/features';
 import { getEffectiveTier, toFeatureTierKey } from '@/lib/subscription/access';
 import { FEATURES } from '@/lib/subscription/features';
 import { renderRecapEmail } from './renderRecapEmail';
@@ -294,8 +293,22 @@ export async function runAutoApplyForUser(
     .eq('status', 'applied')
     .gte('applied_at', startOfMonth.toISOString());
 
-  const monthlyLimit     = getAutoApplyMonthlyLimit(tierKey);
-  const remainingMonthly = monthlyLimit - (sentThisMonth ?? 0);
+  // The monthly ceiling is admin_settings.limits.auto_apply_monthly_guard — one
+  // number, the same for every tier, changeable without a deploy (decision of
+  // 2026-09-15). It is a guard against a runaway loop, not a plan feature: the
+  // credits bind first, one per application sent. The per-tier table in
+  // features.ts said otherwise and is gone.
+  const { data: settingsRow } = await admin
+    .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
+  const guard = Number(
+    (settingsRow?.value as { limits?: { auto_apply_monthly_guard?: unknown } } | null)?.limits?.auto_apply_monthly_guard,
+  );
+  if (!Number.isInteger(guard) || guard <= 0) {
+    console.error('[runAutoApplyForUser] admin_settings.limits.auto_apply_monthly_guard is missing or invalid');
+    return empty('env_not_configured', 'The auto-apply guard is not configured');
+  }
+
+  const remainingMonthly = guard - (sentThisMonth ?? 0);
   if (remainingMonthly <= 0) return empty('monthly_limit', 'Monthly auto-apply limit reached');
 
   const remaining = Math.min(remainingToday, remainingMonthly);

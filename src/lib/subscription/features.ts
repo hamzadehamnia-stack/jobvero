@@ -73,16 +73,15 @@ export type FeatureTierKey = 'free' | 'pro' | 'premium';
 // How much a feature costs per tier — convenience type for the UI
 export const TIER_CREDITS_TOTAL = 10; // default starting pool
 
-/** Returns the monthly auto-apply application cap for a given feature tier key. */
-export function getAutoApplyMonthlyLimit(tierKey: FeatureTierKey): number {
-  const cfg = FEATURES.AUTO_APPLY[tierKey];
-  if (!cfg.access) return 0;
-  return 'monthlyLimit' in cfg ? (cfg.monthlyLimit as number) : 0;
-}
+// getAutoApplyMonthlyLimit lived here and returned a per-tier cap (60 / 150).
+// Removed on 2026-09-16: the monthly ceiling is
+// admin_settings.limits.auto_apply_monthly_guard, one number changeable without
+// a deploy, and two numbers claiming to be the same rule is one too many. The
+// monthlyLimit values left in FEATURES.AUTO_APPLY below are read by nothing.
 
-export const TIER_LABELS: Record<DbPlan | 'free', { name: string; price: string }> = {
-  trial: { name: 'Trial',   price: 'Free for 7 days' },
-  free:  { name: 'Free',    price: '$0'               },
-  pro:   { name: 'Pro',     price: '$19.99/mo'         },
-  premium: { name: 'Premium', price: '$29.99/mo'       },
-};
+// TIER_LABELS lived here and carried a fourth price list ($19.99 / $29.99).
+// Removed on 2026-09-16: it was exported and imported by nothing, and this
+// project already holds three grids that disagree (the site, the Terms, the
+// brief — see "À trancher avant e9" in Docs/stripe-jobvero-brief.md). A dead
+// fourth copy could only ever be the one that gets believed by mistake. Prices
+// belong in the pricing page's messages, and soon in Stripe.
