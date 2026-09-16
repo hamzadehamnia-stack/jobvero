@@ -841,6 +841,8 @@ export default function KanbanBoard({ initialJobs, userId }: Props) {
           salary:         job.salary,
           jobDescription: '',
           jobUrl:         job.job_url,
+          // The letter is written in the language the user reads the app in.
+          language:       locale,
         }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})) as { error?: string }; throw new Error(d.error || `HTTP ${res.status}`); }

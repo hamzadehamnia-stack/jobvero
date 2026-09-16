@@ -1037,6 +1037,8 @@ export default function JobsClient({ initialCredits, initialTargetCountries }: P
           salary: job.salary,
           jobDescription: job.description,
           jobUrl: job.url,
+          // The letter is written in the language the user reads the app in.
+          language: locale,
         }),
       });
 

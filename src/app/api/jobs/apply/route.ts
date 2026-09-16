@@ -4,18 +4,32 @@ import { withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
 export const runtime     = 'nodejs';
 export const maxDuration = 90;
 
+// The languages a letter can be written in, with the locale its date is
+// formatted in. English is the default: the letter follows the user, and a
+// customer who never asked for French must never receive one.
+const LANGUAGES: Record<string, { name: string; locale: string }> = {
+  en: { name: 'English',    locale: 'en-US' },
+  fr: { name: 'French',     locale: 'fr-FR' },
+  es: { name: 'Spanish',    locale: 'es-ES' },
+  pt: { name: 'Portuguese', locale: 'pt-PT' },
+};
+
 // A cover letter for one job offer, saved with the user's letters. The route
 // records no application: tracking an offer belongs to the job tracker, which
 // itself calls this route for offers it already holds.
 async function handler(req: Request, ai: AiActionContext) {
   const { supabase, user } = ai;
 
-  const { jobTitle, company, location, jobDescription } = await req.json() as {
+  const { jobTitle, company, location, jobDescription, language } = await req.json() as {
     jobTitle:       string;
     company:        string;
     location:       string;
     jobDescription: string;
+    language?:      string;
   };
+
+  const lang = typeof language === 'string' && language in LANGUAGES ? language : 'en';
+  const cfg  = LANGUAGES[lang];
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -37,59 +51,59 @@ async function handler(req: Request, ai: AiActionContext) {
   const userName  = profile?.full_name ?? user.email ?? 'Candidat';
   const userEmail = user.email ?? '';
   const userPhone = profile?.phone ?? '';
-  const today     = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const today     = new Date().toLocaleDateString(cfg.locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
   const coverLetterText = await ai.complete([
     {
       role: 'system',
-      content: 'Tu es un expert en rédaction de lettres de motivation professionnelles françaises. Retourne UNIQUEMENT le texte brut de la lettre, sans HTML, sans markdown, sans balises, sans explications.',
+      content: `You are an expert cover letter writer. Write the entire letter in ${cfg.name}, and in no other language. Return ONLY the raw text of the letter: no HTML, no markdown, no tags, no explanation, no translation.`,
     },
     {
       role: 'user',
-      content: `Tu es un expert en rédaction de lettres de motivation professionnelles françaises.
-Rédige une lettre de motivation en français, strictement sur UNE seule page (max 350 mots).
+      content: `Write a cover letter in ${cfg.name} for the job below. One page at most, 350 words maximum.
 
-Structure OBLIGATOIRE et dans cet ordre exact:
+Follow the letter-writing conventions of ${cfg.name}: its usual opening and closing formulas, its way of labelling a subject line, and its date format. Keep this order:
 
 ${userName}
 ${userEmail}${userPhone ? ` | ${userPhone}` : ''}
 
-[Ville du candidat], le ${today}
+[the candidate's city], ${today}
 
 ${company}
-${location || '[Ville]'}
+${location || '[city]'}
 
-Objet : Candidature au poste de ${jobTitle}
+[subject line, in ${cfg.name}: application for the position of ${jobTitle}]
 
-Madame, Monsieur,
+[opening salutation, in ${cfg.name}]
 
-[PARAGRAPHE 1 - Accroche: 2-3 phrases. Qui je suis + pourquoi ce poste m'intéresse]
+[PARAGRAPH 1 — hook: 2-3 sentences. Who the candidate is, and why this role interests them]
 
-[PARAGRAPHE 2 - Valeur ajoutée: 3-4 phrases. Mes compétences clés adaptées à CE poste spécifique]
+[PARAGRAPH 2 — value: 3-4 sentences. The candidate's key skills, matched to THIS specific role]
 
-[PARAGRAPHE 3 - Motivation: 2-3 phrases. Pourquoi CETTE entreprise + disponibilité]
+[PARAGRAPH 3 — motivation: 2-3 sentences. Why THIS company, and availability]
 
-Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
+[closing formula, in ${cfg.name}]
 
 ${userName}
 
-RÈGLES STRICTES:
-- Rédaction 100% humaine, naturelle, pas de formules robotiques
-- Adapte PRÉCISÉMENT au poste et à l'entreprise fournis
-- Maximum 350 mots au total
-- Pas de crochets dans le résultat final
-- Pas de fautes d'orthographe
+STRICT RULES:
+- Natural, human writing. No robotic formulas.
+- Tailor it PRECISELY to the role and the company given below.
+- 350 words maximum.
+- No square brackets in the final text — replace every placeholder with real content.
+- No spelling mistakes.
+- Every word of the letter is in ${cfg.name}.
 
-DONNÉES DU CANDIDAT:
-Nom: ${userName}
+CANDIDATE:
+Name: ${userName}
 Email: ${userEmail}
-Téléphone: ${userPhone || 'Non renseigné'}
-CV: ${cvSummary || 'Non fourni'}
+Phone: ${userPhone || 'not provided'}
+CV: ${cvSummary || 'not provided'}
 
-POSTE:
-Titre: ${jobTitle}
-Entreprise: ${company}
-Localisation: ${location || 'Non précisée'}
+POSITION:
+Title: ${jobTitle}
+Company: ${company}
+Location: ${location || 'not specified'}
 Description: ${jobDescription.slice(0, 500)}`,
     },
   ]);
@@ -113,7 +127,7 @@ Description: ${jobDescription.slice(0, 500)}`,
     job_title:    jobTitle,
     company_name: company,
     content:      coverLetterHtml,
-    language:     'fr',
+    language:     lang,
     tone:         'Professional',
     cv_id:        cv?.id ?? null,
   });
