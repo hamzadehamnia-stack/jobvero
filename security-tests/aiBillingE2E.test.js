@@ -34,7 +34,7 @@ const { createServerClient } = require('@supabase/ssr');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 91;
+const EXPECTED_CHECKS = 100;
 // rewrite-bullet 1 + ats-score 1 + generate-cv 2 + jobs/apply 1 + letter adapt 1 + parse-cv 1
 // + three chat sessions, one credit each + one interview, 7 credits
 const EXPECTED_DELTA  = -17;
@@ -560,7 +560,7 @@ async function main() {
         : { data: null };
       const { data: session } = interview?.ai_session_id
         ? await admin.from('ai_sessions')
-            .select('id, usage_id, model_calls, stt_calls, tts_calls, turns_completed, ended_at, end_reason').eq('id', interview.ai_session_id).maybeSingle()
+            .select('id, usage_id, model_calls, stt_calls, tts_calls, turns_completed, report_attempts, ended_at, end_reason').eq('id', interview.ai_session_id).maybeSingle()
         : { data: null };
       const snap  = await snapshot();
       const row   = session ? snap.usage.find((u) => u.id === session.usage_id) ?? null : null;
@@ -675,10 +675,11 @@ async function main() {
     // of 8" by its own last message, the model asks question 3 instead.
     const { error: skipError } = await admin.from('ai_sessions').update({ turns_completed: 8 }).eq('id', after22.session.id);
     if (skipError) throw skipError;
-    const r28 = await send('/api/interview-coach', { json: { interviewId, messages: [...history,
+    const reportHistory = [...history,
       { role: 'user', content: 'I once owned a queue that backed up overnight; I added an alert on its depth and a dashboard, and it never went unnoticed again.' },
       { role: 'assistant', content: 'FEEDBACK: A concrete example with a clear outcome.\n\nQUESTION: Question 8 of 8 — How would you make sure whoever is on call can act quickly on an incident in a service they did not build?' },
-      { role: 'user', content: 'I would set up alerts on error rates and write a runbook, so that whoever is on call can act within minutes.' }] } });
+      { role: 'user', content: 'I would set up alerts on error rates and write a runbook, so that whoever is on call can act within minutes.' }];
+    const r28 = await send('/api/interview-coach', { json: { interviewId, messages: reportHistory } });
     await delay(3_000);
     const after28 = await interviewState(interviewId);
     const report  = after28.interview?.feedback_json;
@@ -720,6 +721,81 @@ async function main() {
     check('31 answers 503 feature_disabled', r31.status === 503 && r31.json?.reason === 'feature_disabled', r31.json);
     check('31 charges nothing and leaves no ledger row', after31.credits === before31.credits && after31.usageRows === before31.usageRows,
       { credits: [before31.credits, after31.credits], rows: [before31.usageRows, after31.usageRows] });
+
+    // ── The report an interview owes ────────────────────────────────────────
+    // The interview above is put back on its report turn rather than paying for
+    // a second one; everything the server counts is left as it stands.
+    const reopenForReport = async (attempts) => {
+      const { error } = await admin.from('ai_sessions')
+        .update({ ended_at: null, end_reason: null, turns_completed: 8, report_attempts: attempts })
+        .eq('id', after22.session.id);
+      if (error) throw error;
+      const { error: clearError } = await admin.from('interview_sessions')
+        .update({ score: null, feedback_json: null }).eq('id', interviewId);
+      if (clearError) throw clearError;
+    };
+
+    // The retries' own ledger rows: zero credits, real cost, cost_system_usd.
+    const retryLedger = async () => {
+      const { data: rows, error } = await admin.from('ai_usage')
+        .select('id, action, credits_charged, status, cost_usd')
+        .eq('user_id', account.userId)
+        .eq('action', 'system_interview_report_retry')
+        .gte('created_at', new Date(Number(runId)).toISOString());
+      if (error) throw error;
+      const { data: calls } = (rows ?? []).length
+        ? await admin.from('ai_usage_calls').select('usage_id, kind, cost_status, cost_usd, generation_id').in('usage_id', rows.map((r) => r.id))
+        : { data: [] };
+      return { rows: rows ?? [], calls: calls ?? [] };
+    };
+
+    // ── 32. A report that cannot be read: the interview stays open ──────────
+    await reopenForReport(0);
+    const before32 = await interviewState(interviewId);
+    const r32 = await send('/api/interview-coach', { json: { interviewId, messages: reportHistory },
+      headers: { 'X-AI-Test-Failure': 'report-unreadable' } });
+    await delay(3_000);
+    const after32 = await interviewState(interviewId);
+    describe('32. interview, a report that cannot be read', r32, before32, after32);
+    check('32 answers 200 and saves no report',
+      r32.status === 200 && after32.interview?.score === null && after32.interview?.feedback_json === null,
+      { status: r32.status, score: after32.interview?.score });
+    check('32 the session stays open on its report turn, one attempt spent',
+      after32.session?.ended_at === null && after32.session?.turns_completed === 8 && after32.session?.report_attempts === 1,
+      after32.session);
+    check('32 debits nothing and adds no ledger row',
+      after32.credits === before32.credits && after32.usageRows === before32.usageRows, [before32.credits, after32.credits]);
+
+    // ── 33. Asking for it again: the report arrives, charged to nobody ──────
+    const r33 = await send('/api/interview-coach', { json: { interviewId, messages: reportHistory } });
+    await delay(3_000);
+    const after33 = await interviewState(interviewId);
+    const retries  = await retryLedger();
+    describe('33. interview, the report asked for again', r33, after32, after33);
+    check('33 answers 200 with the report, saved by the server',
+      r33.status === 200 && r33.text.includes('FINAL_REPORT') && Number.isInteger(after33.interview?.score),
+      { status: r33.status, score: after33.interview?.score });
+    check('33 the retry debits nothing, counts as a second attempt, and ends the session',
+      after33.credits === after32.credits && after33.session?.report_attempts === 2 && after33.session?.end_reason === 'completed',
+      { credits: [after32.credits, after33.credits], session: after33.session });
+    check('33 its cost is on its own zero-credit system row, not on the interview',
+      retries.rows.length === 1 && retries.rows[0].credits_charged === 0 && retries.rows[0].status === 'settled'
+        && costLogged(retries.calls) && after33.calls.length === after32.calls.length,
+      { rows: retries.rows, calls: retries.calls });
+
+    // ── 34. Out of report attempts: refused, and left for a human ───────────
+    await reopenForReport(4);
+    const before34 = await interviewState(interviewId);
+    const r34 = await send('/api/interview-coach', { json: { interviewId, messages: reportHistory } });
+    const after34 = await interviewState(interviewId);
+    describe('34. interview, a fifth report attempt', r34, before34, after34);
+    check('34 answers 409 report_unavailable, and says so plainly',
+      r34.status === 409 && r34.json?.reason === 'report_unavailable' && /notified/i.test(r34.json?.error ?? ''), r34.json);
+    check('34 claims no model call and charges nothing',
+      after34.session?.model_calls === before34.session?.model_calls && after34.credits === before34.credits,
+      { calls: [before34.session?.model_calls, after34.session?.model_calls], credits: [before34.credits, after34.credits] });
+    check('34 closes the session as report_failed',
+      Boolean(after34.session?.ended_at) && after34.session?.end_reason === 'report_failed', after34.session);
 
     // ── End-to-end arithmetic ───────────────────────────────────────────────
     const final          = await snapshot();
