@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     if (authError) {
       console.error('[admin/users] auth.admin.listUsers error:', authError.message, authError);
       return NextResponse.json(
-        { error: `Auth API error: ${authError.message}. Make sure SUPABASE_SERVICE_ROLE_KEY is the service_role JWT (starts with "eyJ"), not the publishable/anon key.` },
+        { error: `Auth API error: ${authError.message}. Make sure SUPABASE_SERVICE_ROLE_KEY holds a server-side key — a secret key ("sb_secret_…") or the legacy service_role JWT ("eyJ…") — and not the publishable/anon key.` },
         { status: 502 },
       );
     }
