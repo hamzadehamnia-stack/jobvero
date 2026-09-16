@@ -13,7 +13,11 @@ import { FEATURE_SWITCH } from '@/lib/ai/rules';
 type Json = Record<string, unknown>;
 
 const TOGGLES = new Set<string>([...Object.values(FEATURE_SWITCH), 'ai_matches']);
-const LIMITS  = ['auto_apply_monthly_guard'] as const;
+const LIMITS  = [
+  'auto_apply_monthly_guard',
+  'inbox_classify_per_alias_per_day',
+  'inbox_classify_global_per_day',
+] as const;
 
 function asObject(value: unknown): Json {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};

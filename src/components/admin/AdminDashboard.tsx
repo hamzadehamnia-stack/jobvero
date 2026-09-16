@@ -744,7 +744,9 @@ function ControlsTab({ stats }: { stats: OverviewStats | null }) {
         {settings && (
           <div className="grid grid-cols-2 gap-4">
             {[
-              { key: 'auto_apply_monthly_guard', label: 'Auto-apply — candidatures/mois' },
+              { key: 'auto_apply_monthly_guard',         label: 'Auto-apply — candidatures/mois' },
+              { key: 'inbox_classify_per_alias_per_day', label: 'Inbox — classifications/alias/jour' },
+              { key: 'inbox_classify_global_per_day',    label: 'Inbox — classifications/jour (total)' },
             ].map(({ key, label }) => (
               <div key={key}>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">{label}</label>

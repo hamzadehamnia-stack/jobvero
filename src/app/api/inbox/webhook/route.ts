@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { timingSafeCompare } from '@/lib/timingSafe';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { authorizeInboxWebhook } from '@/lib/inbox/signature';
 import { logApplicationEvent } from '@/lib/applicationEvents';
+
+export const runtime = 'nodejs';
 
 // Service-role client — bypasses RLS for inbound webhook inserts
 const admin = createClient(
@@ -12,6 +14,7 @@ const admin = createClient(
 
 const WEBHOOK_SECRET     = process.env.INBOX_WEBHOOK_SECRET;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const TAG                = '[inbox/webhook]';
 
 // ─── AI types ────────────────────────────────────────────────────────────────
 
@@ -36,6 +39,9 @@ interface AiAnalysis {
   new_application_status: AiAppStatus;
 }
 
+/** Why an email was kept but not classified. The interface tells the user. */
+type SkipReason = 'alias_limit' | 'global_limit' | 'ai_disabled' | 'ai_unavailable';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
@@ -49,7 +55,11 @@ function parseUsername(addressStr: string): string {
   return local.toLowerCase();
 }
 
-// ─── Regex fallback (used when AI is unavailable or returns an error) ─────────
+type Row = Record<string, unknown>;
+const firstRow = (data: unknown): Row | null =>
+  ((Array.isArray(data) ? data[0] : data) as Row | undefined) ?? null;
+
+// ─── Regex fallback (used when AI is unavailable or was not run) ─────────────
 
 const KEYWORDS = {
   interview: [
@@ -163,8 +173,40 @@ function extractAiAnalysis(parsed: unknown): AiAnalysis | null {
   };
 }
 
-async function analyzeWithAI(subject: string, body: string): Promise<AiAnalysis | null> {
-  if (!OPENROUTER_API_KEY) return null;
+interface CatalogueAction {
+  model:          string;
+  maxTokens:      number;
+  maxInputChars:  number;
+}
+
+/** What the catalogue says an inbox classification is: model and ceilings, never an id written here. */
+async function readCatalogue(): Promise<CatalogueAction | null> {
+  const { data, error } = await admin
+    .from('ai_action_costs')
+    .select('model, max_tokens, max_input_chars, enabled')
+    .eq('action', 'system_inbox_classify')
+    .maybeSingle();
+
+  if (error || !data?.enabled || typeof data.model !== 'string'
+      || typeof data.max_tokens !== 'number' || typeof data.max_input_chars !== 'number') {
+    console.error(`${TAG} system_inbox_classify is missing or disabled in the catalogue:`, error?.message ?? data);
+    return null;
+  }
+  return { model: data.model, maxTokens: data.max_tokens, maxInputChars: data.max_input_chars };
+}
+
+interface ClassifierCall {
+  analysis:         AiAnalysis | null;
+  promptTokens:     number | null;
+  completionTokens: number | null;
+  costUsd:          number | null;
+  error:            string | null;
+}
+
+async function callClassifier(action: CatalogueAction, subject: string, body: string): Promise<ClassifierCall> {
+  const empty: ClassifierCall = { analysis: null, promptTokens: null, completionTokens: null, costUsd: null, error: null };
+  if (!OPENROUTER_API_KEY) return { ...empty, error: 'OPENROUTER_API_KEY is not set' };
+
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -173,33 +215,112 @@ async function analyzeWithAI(subject: string, body: string): Promise<AiAnalysis 
         'Content-Type':  'application/json',
       },
       body: JSON.stringify({
-        model:       'anthropic/claude-sonnet-4-6',
+        model:       action.model,
         messages: [
           { role: 'system', content: AI_SYSTEM_PROMPT },
           { role: 'user',   content: `<email_to_analyze>\nSubject: ${subject}\nBody:\n${body}\n</email_to_analyze>\n\n${AI_SCHEMA_HINT}` },
         ],
-        max_tokens:  1200,
+        max_tokens:  action.maxTokens,
         temperature: 0.2,
+        usage:       { include: true },
       }),
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {
-      console.warn('[inbox/webhook/ai] OpenRouter HTTP error:', res.status);
-      return null;
+      const detail = await res.text().catch(() => '');
+      return { ...empty, error: `OpenRouter ${res.status}: ${detail.slice(0, 200)}` };
     }
 
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+    const data = await res.json() as {
+      choices?: { message?: { content?: string } }[];
+      usage?:   { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+    };
+
+    const usage = {
+      promptTokens:     typeof data.usage?.prompt_tokens     === 'number' ? data.usage.prompt_tokens     : null,
+      completionTokens: typeof data.usage?.completion_tokens === 'number' ? data.usage.completion_tokens : null,
+      costUsd:          typeof data.usage?.cost              === 'number' ? data.usage.cost              : null,
+    };
+
     const content = data.choices?.[0]?.message?.content ?? '';
     const clean   = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsed: unknown = JSON.parse(clean);
-    return extractAiAnalysis(parsed);
+    try {
+      return { ...usage, analysis: extractAiAnalysis(JSON.parse(clean) as unknown), error: null };
+    } catch {
+      // The call happened and costs money even when its answer is unusable.
+      return { ...usage, analysis: null, error: 'the answer was not the JSON schema' };
+    }
   } catch (err) {
-    console.warn('[inbox/webhook/ai] analysis failed, using regex fallback:', err);
-    return null;
+    return { ...empty, error: String(err).slice(0, 200) };
   }
 }
 
-// ─── Shared: apply AI analysis and update application status ─────────────────
+interface Classification {
+  analysis: AiAnalysis | null;
+  skipped:  SkipReason | null;
+}
+
+/**
+ * One classification, if this email is owed one: the catalogue's model on a
+ * body cut to the catalogue's ceiling, inside the daily ceilings of
+ * admin_settings, counted in the database and logged on the alias owner at
+ * zero credits — so the cost shows in cost_system_usd of ai_margin_weekly.
+ *
+ * Whatever it answers, the email itself is already saved: a ceiling costs the
+ * user their classification, never their mail.
+ */
+async function classify(userId: string, subject: string, body: string): Promise<Classification> {
+  const action = await readCatalogue();
+  if (!action) return { analysis: null, skipped: 'ai_unavailable' };
+
+  const { data: settings, error: settingsError } = await admin
+    .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
+  if (settingsError) {
+    console.error(`${TAG} admin settings unreadable:`, settingsError.message);
+    return { analysis: null, skipped: 'ai_unavailable' };
+  }
+  if ((settings?.value as { ai_enabled?: unknown } | null)?.ai_enabled === false) {
+    return { analysis: null, skipped: 'ai_disabled' };
+  }
+
+  // The ceilings are counted in the database, under lock: two emails arriving
+  // at once cannot both take the last slot of the day.
+  const { data: claimed, error: claimError } = await admin.rpc('claim_inbox_classification', { p_user_id: userId });
+  if (claimError) {
+    console.error(`${TAG} classification claim failed for ${userId}:`, claimError.message);
+    return { analysis: null, skipped: 'ai_unavailable' };
+  }
+  const claim = firstRow(claimed) ?? {};
+  if (claim.allowed !== true) {
+    const reason: SkipReason = claim.reason === 'alias_limit' || claim.reason === 'global_limit'
+      ? claim.reason
+      : 'ai_unavailable';
+    console.warn(`${TAG} classification skipped for ${userId}: ${reason} (alias ${claim.alias_used}/${claim.alias_limit}, global ${claim.global_used}/${claim.global_limit})`);
+    return { analysis: null, skipped: reason };
+  }
+
+  // A 2 MB email is not a bigger invoice: what leaves is the ceiling's worth.
+  const call = await callClassifier(action, subject.slice(0, 500), body.slice(0, action.maxInputChars));
+
+  const { error: logError } = await admin.rpc('log_system_ai_usage', {
+    p_user_id:           userId,
+    p_action:            'system_inbox_classify',
+    p_model:             action.model,
+    p_prompt_tokens:     call.promptTokens,
+    p_completion_tokens: call.completionTokens,
+    p_cost_usd:          call.costUsd,
+    p_cost_estimated:    false,
+    p_error:             call.error,
+  });
+  if (logError) console.error(`${TAG} classification not logged for ${userId}:`, logError.message);
+
+  if (call.error) console.warn(`${TAG} classification failed for ${userId}: ${call.error}`);
+
+  return { analysis: call.analysis, skipped: call.analysis ? null : 'ai_unavailable' };
+}
+
+// ─── Shared: apply the classification and update application status ──────────
 
 async function applyAiToThread(
   threadId:    string,
@@ -209,9 +330,10 @@ async function applyAiToThread(
   companyName: string,
 ): Promise<void> {
   try {
-    const ai = await analyzeWithAI(subject, body);
+    const { analysis: ai, skipped } = await classify(userId, subject, body);
 
-    // Determine application status — AI preferred, regex as fallback when AI is unavailable
+    // Determine application status — AI preferred, regex as fallback when there
+    // was no classification. The fallback is free, so a ceiling does not stop it.
     let newAppStatus: AiAppStatus = ai?.new_application_status ?? null;
     let statusLabel               = ai?.ai_label ?? '';
 
@@ -268,7 +390,7 @@ async function applyAiToThread(
       }
     }
 
-    // Persist AI enrichment fields on the thread
+    // Persist the enrichment, or the reason there is none.
     await admin.from('message_threads').update({
       ...(ai !== null ? {
         ai_category:       ai.ai_category,
@@ -280,10 +402,11 @@ async function applyAiToThread(
         ai_detected_event: ai.ai_detected_event,
       } : {}),
       auto_status_updated: statusChanged,
-      ai_processed_at:     new Date().toISOString(),
+      ai_skipped_reason:   skipped,
+      ai_processed_at:     ai !== null ? new Date().toISOString() : null,
     }).eq('id', threadId);
   } catch (err) {
-    console.error('[inbox/webhook/applyAiToThread] unexpected error:', err);
+    console.error(`${TAG} applyAiToThread unexpected error:`, err);
   }
 }
 
@@ -304,7 +427,7 @@ async function handleThreadReply(
     .single();
 
   if (threadErr || !thread) {
-    console.warn('[inbox/webhook] thread not found:', threadId);
+    console.warn(`${TAG} thread not found:`, threadId);
     return;
   }
 
@@ -316,7 +439,7 @@ async function handleThreadReply(
     body,
     read:       false,
   });
-  if (msgErr) console.error('[inbox/webhook] message insert error:', msgErr);
+  if (msgErr) console.error(`${TAG} message insert error:`, msgErr);
 
   // Log reply event if there's a linked application
   const { data: appForEvent } = await admin
@@ -332,7 +455,6 @@ async function handleThreadReply(
     );
   }
 
-  // AI analysis + application status update (falls back to regex if AI unavailable)
   await applyAiToThread(
     threadId,
     thread.user_id as string,
@@ -360,14 +482,16 @@ async function handleAliasEmail(
   body:     string,
   preview:  string,
 ) {
+  // An alias nobody owns is the end of the road: one read, then nothing. No
+  // thread, no model call, no cost.
   const { data: profile, error: profileErr } = await admin
     .from('profiles')
     .select('id')
     .eq('email_alias', username)
-    .single();
+    .maybeSingle();
 
   if (profileErr || !profile) {
-    console.warn(`[inbox/webhook] no user found for alias "${username}" — dropping email from ${from}`);
+    console.warn(`${TAG} no user owns alias "${username}" — dropping email from ${from}`);
     return;
   }
 
@@ -404,12 +528,13 @@ async function handleAliasEmail(
       .single();
 
     if (threadErr || !newThread) {
-      console.error('[inbox/webhook] failed to create thread for alias routing:', threadErr);
+      console.error(`${TAG} failed to create thread for alias routing:`, threadErr);
       return;
     }
     threadId = newThread.id as string;
   }
 
+  // The email is saved before anything can refuse to classify it.
   const { error: msgErr } = await admin.from('messages').insert({
     thread_id:  threadId,
     direction:  'inbound',
@@ -418,16 +543,14 @@ async function handleAliasEmail(
     body,
     read:       false,
   });
-  if (msgErr) console.error('[inbox/webhook] message insert error (alias):', msgErr);
+  if (msgErr) console.error(`${TAG} message insert error (alias):`, msgErr);
 
-  // Fetch thread metadata for unread_count + company_name
   const { data: threadMeta } = await admin
     .from('message_threads')
     .select('unread_count, company_name')
     .eq('id', threadId)
     .single();
 
-  // AI analysis + application status update
   await applyAiToThread(
     threadId, userId, subject, body,
     (threadMeta?.company_name as string) || '',
@@ -440,20 +563,36 @@ async function handleAliasEmail(
     last_message_direction: 'inbound',
   }).eq('id', threadId);
 
-  console.log(`[inbox/webhook] alias routing: ${username}@getjobvero.com → user=${userId} thread=${threadId}`);
+  console.log(`${TAG} alias routing: ${username}@getjobvero.com → user=${userId} thread=${threadId}`);
 }
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
-// Receives forwarded inbound emails from the Cloudflare Email Worker
-// (see cloudflare-email-worker/). Payload: { from, to, subject, text, html, messageId }
+//
+// Receives inbound emails forwarded by our Cloudflare Email Worker
+// (cloudflare-email-worker/). Payload: { from, to, subject, text, html, messageId }.
+//
+// Every email that gets past this point can cost a model call, so nothing is
+// read, looked up or sent anywhere before the request has proved it is ours.
 
 export async function POST(req: Request) {
-  if (!timingSafeCompare(req.headers.get('x-webhook-secret'), WEBHOOK_SECRET)) {
+  const raw  = await req.text();
+  const auth = authorizeInboxWebhook({
+    signature:        req.headers.get('x-inbox-signature'),
+    timestamp:        req.headers.get('x-inbox-timestamp'),
+    sharedSecret:     req.headers.get('x-webhook-secret'),
+    body:             raw,
+    secret:           WEBHOOK_SECRET,
+    requireSignature: process.env.INBOX_REQUIRE_SIGNATURE === 'true',
+    nowSeconds:       Math.floor(Date.now() / 1000),
+  });
+
+  if (!auth.ok) {
+    console.warn(`${TAG} refused: ${auth.reason}`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const payload = await req.json() as {
+    const payload = JSON.parse(raw) as {
       from?: string; to?: string; subject?: string; text?: string; html?: string;
     };
 
@@ -467,7 +606,7 @@ export async function POST(req: Request) {
     // 1. Handle reply+{uuid}@getjobvero.com (existing thread-reply routing)
     const threadMatch = toStr.match(/reply\+([0-9a-f-]{36})@/i);
     if (threadMatch) {
-      console.log(`[inbox/webhook] thread reply: ${threadMatch[1]}`);
+      console.log(`${TAG} thread reply: ${threadMatch[1]}`);
       await handleThreadReply(threadMatch[1], from, toStr, subject, body, preview);
       return NextResponse.json({ ok: true });
     }
@@ -477,12 +616,12 @@ export async function POST(req: Request) {
 
     // 3. Skip special system addresses
     if (!username || username === 'noreply') {
-      console.log(`[inbox/webhook] ignoring email to "${toStr}"`);
+      console.log(`${TAG} ignoring email to "${toStr}"`);
       return NextResponse.json({ ok: true });
     }
 
     if (username === 'reply') {
-      console.warn('[inbox/webhook] bare reply@ address (no uuid) — skipping:', toStr);
+      console.warn(`${TAG} bare reply@ address (no uuid) — skipping:`, toStr);
       return NextResponse.json({ ok: true });
     }
 
@@ -491,7 +630,7 @@ export async function POST(req: Request) {
       if (subjectThreadMatch) {
         await handleThreadReply(subjectThreadMatch[1], from, toStr, subject, body, preview);
       } else {
-        console.warn('[inbox/webhook] apply@ address with no thread ID in subject — dropping');
+        console.warn(`${TAG} apply@ address with no thread ID in subject — dropping`);
       }
       return NextResponse.json({ ok: true });
     }
@@ -501,8 +640,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[inbox/webhook] error:', err);
-    // Always return 200 so the Cloudflare Worker doesn't bounce the email on a processing error
+    console.error(`${TAG} error:`, err);
+    // Always answer 200 past authentication so the Worker does not bounce a
+    // legitimate email over a processing error of ours.
     return NextResponse.json({ ok: true });
   }
 }

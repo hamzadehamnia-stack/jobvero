@@ -21,6 +21,25 @@ npx wrangler deploy
 2. Sur l'adresse catch-all (`*@getjobvero.com`) → Action **"Send to a Worker"** → sélectionner `jobvero-email-worker`
 3. Enregistrer
 
+## Authenticité (signature HMAC)
+
+Cloudflare Email Routing ne signe rien : c'est ce Worker qui prouve son identité.
+Il envoie, en plus du secret partagé :
+
+```
+X-Inbox-Timestamp: <secondes unix>
+X-Inbox-Signature: v1=<hmac_sha256("<timestamp>.<corps brut>", INBOX_WEBHOOK_SECRET)>
+```
+
+La route vérifie la signature **avant** de lire le corps, d'interroger la base ou
+d'appeler un modèle. Elle refuse une signature qui ne correspond pas au corps, et
+une signature de plus de 5 minutes (rejeu).
+
+**Transition.** Tant que `INBOX_REQUIRE_SIGNATURE` n'est pas positionnée, la route
+accepte aussi l'ancien secret partagé seul : le Worker peut donc être redéployé
+avant ou après l'application, sans coupure. Une fois ce Worker déployé, poser
+`INBOX_REQUIRE_SIGNATURE=true` côté Vercel ferme la porte au secret seul.
+
 ## Notes
 
 - Le payload envoyé au webhook : `{ from, to, subject, text, html, messageId }`
