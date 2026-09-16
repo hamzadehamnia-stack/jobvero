@@ -22,7 +22,7 @@ import {
   withSwitchesOff,
 } from '../src/lib/ai/rules.ts';
 
-const EXPECTED_CHECKS = 37;
+const EXPECTED_CHECKS = 38;
 
 let passed = 0;
 let failed = 0;
@@ -138,9 +138,11 @@ check('production honours no injection, whatever the header',
   [readFailureInjection('handler-throws', 'production'), readFailureInjection('error-response', 'production')], [null, null]);
 check('an unset NODE_ENV honours nothing either',
   [readFailureInjection('handler-throws', undefined), readFailureInjection('error-response', '')], [null, null]);
-check('development honours the two known failures',
-  [readFailureInjection('handler-throws', 'development'), readFailureInjection('error-response', 'test')],
-  ['handler-throws', 'error-response']);
+check('development honours the three known failures',
+  [readFailureInjection('handler-throws', 'development'), readFailureInjection('error-response', 'test'), readFailureInjection('report-unreadable', 'development')],
+  ['handler-throws', 'error-response', 'report-unreadable']);
+check('the interview report failure is no more honoured in production than the others',
+  [readFailureInjection('report-unreadable', 'production'), readFailureInjection('report-unreadable', undefined)], [null, null]);
 check('an unknown value or no header injects nothing, even in development',
   [readFailureInjection('drop-table', 'development'), readFailureInjection(null, 'development')], [null, null]);
 

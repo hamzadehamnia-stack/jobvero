@@ -131,7 +131,7 @@ export function readIdempotencyKey(header: string | null, generate: () => string
   return IDEMPOTENCY_KEY.test(header) ? header : null;
 }
 
-export type FailureInjection = 'handler-throws' | 'error-response';
+export type FailureInjection = 'handler-throws' | 'error-response' | 'report-unreadable';
 
 /**
  * The failure a test asks for with the X-AI-Test-Failure header, or null.
@@ -143,7 +143,7 @@ export type FailureInjection = 'handler-throws' | 'error-response';
  */
 export function readFailureInjection(header: string | null, nodeEnv: string | undefined): FailureInjection | null {
   if (nodeEnv !== 'development' && nodeEnv !== 'test') return null;
-  return header === 'handler-throws' || header === 'error-response' ? header : null;
+  return header === 'handler-throws' || header === 'error-response' || header === 'report-unreadable' ? header : null;
 }
 
 // ─── Admin switches ───────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 import { authorizeAiRequest } from '@/lib/ai/authorize';
 import { loadInterviewSession, type InterviewSession } from '@/lib/ai/interviewSession';
 import { ACTION_UNAVAILABLE, UNAVAILABLE, answer, isAiRefusal } from '@/lib/ai/refusal';
+import { readFailureInjection } from '@/lib/ai/rules';
 import {
   INTERVIEW_QUESTIONS,
   claimRefusal,
@@ -127,10 +128,13 @@ export async function POST(req: Request) {
     return answer({ status: 400, body: { error: 'Invalid interview', reason: 'invalid_request' } });
   }
 
-  const maxAnswer = limitInteger(catalogue.limits, 'max_answer_chars');
-  const maxCv     = limitInteger(catalogue.limits, 'max_cv_chars');
-  const maxJob    = limitInteger(catalogue.limits, 'max_job_description_chars');
-  if (maxAnswer === null || maxCv === null || maxJob === null) {
+  const injection = readFailureInjection(req.headers.get('x-ai-test-failure'), process.env.NODE_ENV);
+
+  const maxAnswer   = limitInteger(catalogue.limits, 'max_answer_chars');
+  const maxCv       = limitInteger(catalogue.limits, 'max_cv_chars');
+  const maxJob      = limitInteger(catalogue.limits, 'max_job_description_chars');
+  const maxAttempts = limitInteger(catalogue.limits, 'report_attempts');
+  if (maxAnswer === null || maxCv === null || maxJob === null || maxAttempts === null) {
     console.error(`${TAG} an interview_session ceiling is missing from limits`);
     return answer(ACTION_UNAVAILABLE);
   }
@@ -194,6 +198,41 @@ Conduct the interview entirely in ${lang}. Be specific, constructive, and profes
     return answer({ status: 413, body: { error: 'Input too large', reason: 'input_too_large' } });
   }
 
+  // An interview owes its report. The first attempt is the turn the interview
+  // paid for; the attempts after it are the user asking again, charged nothing,
+  // and the server counts them. Past the ceiling the session closes and the
+  // line below is what an operator refunds from.
+  let charge = interview.charge;
+  if (turn.kind === 'final_report') {
+    const { data: claimed, error: attemptError } = await admin.rpc('claim_interview_report_attempt', {
+      p_session_id:   interview.charge.sessionId,
+      p_max_attempts: maxAttempts,
+    });
+    if (attemptError) {
+      console.error(`${TAG} report attempt failed for ${interview.charge.sessionId}:`, attemptError.message);
+      return answer({ status: 500, body: { error: 'Session call failed', reason: 'session_failed' } });
+    }
+    const attempt  = firstRow(claimed) ?? {};
+    const attempts = Number(attempt.attempts ?? 0);
+    if (attempt.allowed !== true) {
+      console.error(`${TAG} REPORT NOT GENERATED after ${attempts} attempt(s), refund by hand — session ${interview.charge.sessionId}, interview ${interview.id}, user ${user.id}`);
+      return answer({ status: 409, body: { error: "We couldn't generate your report. Our team has been notified.", reason: 'report_unavailable' } });
+    }
+    if (attempts > 1) {
+      // A retry costs real money and nobody is charged for it: its own
+      // zero-credit row, so it shows up in cost_system_usd rather than nowhere.
+      const { data: retryUsageId, error: retryError } = await admin.rpc('open_system_ai_usage', {
+        p_user_id: user.id,
+        p_action:  'system_interview_report_retry',
+      });
+      if (retryError || !retryUsageId) {
+        console.error(`${TAG} retry usage row not created:`, retryError?.message ?? 'no row');
+        return answer(UNAVAILABLE);
+      }
+      charge = { usageId: String(retryUsageId), sessionId: interview.charge.sessionId, reserved: false };
+    }
+  }
+
   // Claimed last: a request refused above has used none of the session's calls.
   const { data, error } = await supabase.rpc('claim_ai_session_call', {
     p_session_id: interview.charge.sessionId,
@@ -207,7 +246,8 @@ Conduct the interview entirely in ${lang}. Be specific, constructive, and profes
   if (refusal) return answer(refusal);
 
   const saveReport = async (text: string): Promise<boolean> => {
-    const report = parseFinalReport(text);
+    // A test can make a report unreadable without waiting for a model to write a bad one.
+    const report = injection === 'report-unreadable' ? null : parseFinalReport(text);
     if (!report) {
       console.error(`${TAG} interview ${interview.id}: no valid final report in the answer`);
       return false;
@@ -228,7 +268,7 @@ Conduct the interview entirely in ${lang}. Be specific, constructive, and profes
     stream = await streamSessionTurn({
       admin,
       tag:          TAG,
-      charge:       interview.charge,
+      charge,
       model:        catalogue.model,
       maxTokens:    catalogue.maxTokens,
       messages:     [{ role: 'system', content: systemPrompt }, ...messages],
