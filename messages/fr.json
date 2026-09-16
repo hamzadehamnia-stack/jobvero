@@ -629,6 +629,11 @@
       "confirmDeletion": "Confirmer la suppression"
     }
   },
+  "interviewCoach": {
+    "voiceUnavailable": "Le mode vocal n'est pas encore disponible dans cette langue — cet entretien se fera uniquement en texte.",
+    "generateReport": "Générer mon rapport",
+    "reportFailed": "Votre rapport n'a pas pu être généré. Vous pouvez réessayer — cela ne coûte aucun crédit supplémentaire."
+  },
   "atsScore": {
     "title": "Score ATS",
     "subtitle": "Vérifiez si votre CV correspond à une offre d'emploi",

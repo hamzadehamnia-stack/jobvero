@@ -768,8 +768,8 @@ export default function KanbanBoard({ initialJobs, userId }: Props) {
   const supabase = useMemo(() => createClient(), []);
 
   const pathname  = usePathname();
-  const rawLocale = pathname?.split('/')[1] ?? 'fr';
-  const locale    = ['en', 'fr', 'es', 'pt'].includes(rawLocale) ? rawLocale : 'fr';
+  const rawLocale = pathname?.split('/')[1] ?? 'en';
+  const locale    = ['en', 'fr', 'es', 'pt'].includes(rawLocale) ? rawLocale : 'en';
   const labels    = DATE_LABELS[locale];
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));

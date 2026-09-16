@@ -12,9 +12,21 @@ export default async function InterviewCoachPage() {
 
   const { data: action } = await supabase
     .from('ai_action_costs')
-    .select('credits')
+    .select('credits, limits')
     .eq('action', 'interview_session')
     .maybeSingle();
 
-  return <InterviewCoachClient creditsPerInterview={action?.credits ?? null} />;
+  // The languages the recruiter can speak are the voices pinned in the
+  // catalogue. Any other language runs the interview in text, and the page says
+  // so before it starts — an English voice for a Spanish interview would be
+  // worse than no voice at all.
+  const limits         = (action?.limits ?? null) as { tts_voices?: Record<string, unknown> | null } | null;
+  const voiceLanguages = Object.keys(limits?.tts_voices ?? {});
+
+  return (
+    <InterviewCoachClient
+      creditsPerInterview={action?.credits ?? null}
+      voiceLanguages={voiceLanguages}
+    />
+  );
 }

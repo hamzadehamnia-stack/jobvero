@@ -629,6 +629,11 @@
       "confirmDeletion": "Confirmar exclusão"
     }
   },
+  "interviewCoach": {
+    "voiceUnavailable": "O modo de voz ainda não está disponível neste idioma — esta entrevista será apenas em texto.",
+    "generateReport": "Gerar o meu relatório",
+    "reportFailed": "Não foi possível gerar o seu relatório. Pode tentar novamente — não custa créditos adicionais."
+  },
   "atsScore": {
     "title": "Pontuação ATS",
     "subtitle": "Verifique se o seu CV corresponde a uma oferta de emprego",

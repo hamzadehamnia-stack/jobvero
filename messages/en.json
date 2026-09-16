@@ -629,6 +629,11 @@
       "confirmDeletion": "Confirm deletion"
     }
   },
+  "interviewCoach": {
+    "voiceUnavailable": "Voice mode is not available in this language yet — this interview will be text only.",
+    "generateReport": "Generate my report",
+    "reportFailed": "Your report could not be generated. You can try again — it costs no extra credits."
+  },
   "atsScore": {
     "title": "ATS Score",
     "subtitle": "Check how well your CV matches a job offer",

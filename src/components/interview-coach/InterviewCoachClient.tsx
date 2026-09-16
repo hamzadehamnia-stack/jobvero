@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import UpgradeModal from '@/components/UpgradeModal';
 import {
@@ -68,6 +69,8 @@ interface SavedJobOption {
 interface Props {
   /** What an interview costs, from the catalogue; null when it could not be read. */
   creditsPerInterview: number | null;
+  /** The interview languages a recruiter voice exists for; the others run in text. */
+  voiceLanguages: string[];
 }
 
 type UpgradeReason = 'trial_expired' | 'tier_locked' | 'no_credits';
@@ -156,17 +159,20 @@ const inputCls =
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function InterviewCoachClient({ creditsPerInterview }: Props) {
+export default function InterviewCoachClient({ creditsPerInterview, voiceLanguages }: Props) {
   const pathname = usePathname();
   const locale   = pathname?.split('/')[1] ?? 'en';
+  const t        = useTranslations('interviewCoach');
 
   // ── Phase & settings ──────────────────────────────────────────────────────
   const [phase, setPhase] = useState<'setup' | 'interviewing' | 'complete'>('setup');
+  // The interview follows the language of the interface the user chose, English
+  // otherwise. Never French by default: English is the launch language.
   const [settings, setSettings] = useState<Settings>({
     jobDescription: '',
     interviewType:  'Mixed (recommended)',
     difficulty:     'Mid-level',
-    language:       'fr',
+    language:       LANGUAGES.some(l => l.code === locale) ? locale : 'en',
     cvId:           '',
   });
   const [cvOptions,         setCvOptions]         = useState<CvOption[]>([]);
@@ -216,6 +222,9 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
   // questions are all calls of its one session, none charged on its own.
   const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
   const [upgrade,     setUpgrade]     = useState<Upgrade | null>(null);
+  // The report did not come through. The interview stays open and asking again
+  // costs nothing: the report is part of what the interview already paid for.
+  const [reportFailed, setReportFailed] = useState(false);
   const interviewIdRef = useRef<string | null>(null);
 
   // ── UI ────────────────────────────────────────────────────────────────────
@@ -429,6 +438,7 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
     setIsStreaming(true);
     setStreamingText('');
     setError('');
+    setReportFailed(false);
 
     try {
       const res = await fetch('/api/interview-coach', {
@@ -444,7 +454,9 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
       if (!res.ok) {
         const { message, upgrade: offer } = await readRefusal(res);
         if (offer) setUpgrade(offer);
-        returnAnswer(currentHistory);
+        // On the report turn there is no answer to give back — the answers are
+        // all in. Anywhere else the answer goes back in the box.
+        if (qNum < TOTAL_QUESTIONS) returnAnswer(currentHistory);
         throw new Error(message);
       }
 
@@ -476,6 +488,14 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
         const parsed = parseRecruiterResponse(raw);
 
         if (!parsed.report && !parsed.question) {
+          if (qNum >= TOTAL_QUESTIONS) {
+            // The server did not save a report either, and kept the interview
+            // open: the user can ask for it again, at no extra cost.
+            setHistory(currentHistory);
+            setReportFailed(true);
+            setError(t('reportFailed'));
+            return false;
+          }
           // Nothing to go on: the server did not count this turn either.
           returnAnswer(currentHistory);
           throw new Error("The recruiter's reply could not be read. Please send your answer again.");
@@ -621,6 +641,13 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
     await streamRecruiterResponse(newHistory, newAnswersGiven);
   }
 
+  // Asking for the report again: the same conversation, no new answer. The
+  // server counts the attempts and refuses past its own ceiling.
+  async function handleGenerateReport() {
+    if (isStreaming) return;
+    await streamRecruiterResponse(history, answersGiven);
+  }
+
   async function handleSendAnswer() {
     const text = currentAnswer.trim();
     if (!text || isStreaming) return;
@@ -641,6 +668,7 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
     setAnswersGiven(0);
     setStreamingText('');
     setFinalReport(null);
+    setReportFailed(false);
     interviewIdRef.current = null;
     setError('');
   }
@@ -771,6 +799,13 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
                   </select>
                 </div>
               </div>
+
+              {!voiceLanguages.includes(settings.language) && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+                  <VolumeX size={14} className="flex-shrink-0 mt-0.5" />
+                  {t('voiceUnavailable')}
+                </div>
+              )}
 
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
@@ -1157,6 +1192,18 @@ export default function InterviewCoachClient({ creditsPerInterview }: Props) {
       {/* ── Answer input ── */}
       <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="max-w-3xl mx-auto space-y-2">
+
+          {/* The report did not come: ask for it again, at no extra cost */}
+          {reportFailed && (
+            <button
+              onClick={handleGenerateReport}
+              disabled={isStreaming}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white shadow-lg shadow-violet-500/25 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              style={{ background: 'linear-gradient(135deg, #7C3AED, #4F46E5)' }}
+            >
+              <Trophy size={15} /> {t('generateReport')}
+            </button>
+          )}
 
           {/* Recording / transcribing status bar */}
           {(isRecording || isTranscribing) && (
