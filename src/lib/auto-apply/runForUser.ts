@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logApplicationEvent } from '@/lib/applicationEvents';
-import { callOpenRouter } from '@/lib/openrouter';
+import { callCatalogueModel } from '@/lib/ai/systemCall';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { findRecruiterEmail } from '@/lib/email-finder';
 import type { JobContext, CountryCode } from '@/lib/email-finder';
 import { Resend } from 'resend';
@@ -25,6 +26,7 @@ export type SkippedReason =
   | 'monthly_limit'
   | 'no_email_alias'
   | 'no_cv'
+  | 'no_credits'
   | 'env_not_configured';
 
 export interface JobResult {
@@ -97,28 +99,96 @@ function bodyToHtml(text: string): string {
   return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a; max-width: 600px;">${body}</div>`;
 }
 
+// Model and ceiling from ai_action_costs.auto_apply, step `email`; the cost
+// goes on the application's own reserved row.
 async function generateEmailBody(
-  title: string,
-  company: string,
+  admin:         SupabaseClient,
+  userId:        string,
+  usageId:       string,
+  title:         string,
+  company:       string,
   candidateName: string,
-  cvSummary: string,
+  cvSummary:     string,
 ): Promise<string> {
-  return callOpenRouter('deepseek/deepseek-chat', [
-    {
-      role: 'system',
-      content:
-        'Write a short, professional job application email body (3-4 sentences max). ' +
-        'The candidate is applying for the position. Express genuine interest, mention ' +
-        '1-2 relevant strengths from the CV, and note the CV is attached. Professional ' +
-        'but warm tone. NO subject line, NO greeting placeholder like [Name] — write it ' +
-        'ready to send. Sign with the candidate\'s name. Do NOT mention any tool, ' +
-        'automation, or AI. Write as if the candidate wrote it personally.',
-    },
-    {
-      role: 'user',
-      content: `Candidate name: ${candidateName}\nApplying for: ${title} at ${company}\nCV summary: ${cvSummary}`,
-    },
-  ], 200);
+  const { text } = await callCatalogueModel(admin, {
+    action:  'auto_apply',
+    step:    'email',
+    userId,
+    usageId,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Write a short, professional job application email body (3-4 sentences max). ' +
+          'The candidate is applying for the position. Express genuine interest, mention ' +
+          '1-2 relevant strengths from the CV, and note the CV is attached. Professional ' +
+          'but warm tone. NO subject line, NO greeting placeholder like [Name] — write it ' +
+          'ready to send. Sign with the candidate\'s name. Do NOT mention any tool, ' +
+          'automation, or AI. Write as if the candidate wrote it personally.',
+      },
+      {
+        role: 'user',
+        content: `Candidate name: ${candidateName}\nApplying for: ${title} at ${company}\nCV summary: ${cvSummary}`,
+      },
+    ],
+    timeoutMs: 20_000,
+  });
+  return text;
+}
+
+// ─── What an application costs ────────────────────────────────────────────────
+//
+// One credit per application actually sent — not per model call. An application
+// takes a screening, a CV rewrite and an email body, and the user pays for the
+// outcome, once. The credit is reserved when the recruiter's address is known
+// (before that, nothing is committed), settled when the email leaves, refunded
+// if anything between the two fails.
+//
+// A refunded row keeps its cost rows: the user pays nothing for a failed
+// application, and what that failure cost the house stays visible in
+// cost_refunded_usd of ai_margin_weekly.
+//
+// The idempotency key is the job, so the same job is never charged twice —
+// whatever the cron retries.
+
+export interface ApplicationCharge { usageId: string }
+
+export type ReservationRefusal = { refusedCode: string | null; alreadyHandled: boolean };
+
+export async function reserveApplication(
+  admin:  SupabaseClient,
+  userId: string,
+  jobId:  string,
+): Promise<ApplicationCharge | ReservationRefusal> {
+  const { data, error } = await admin.rpc('reserve_ai_credits_for', {
+    p_user_id:         userId,
+    p_action:          'auto_apply',
+    p_idempotency_key: `auto-apply:${jobId}`,
+  });
+
+  if (error) return { refusedCode: error.code ?? null, alreadyHandled: false };
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    { usage_id?: string; usage_status?: string; charged_now?: boolean } | null;
+  if (!row?.usage_id) return { refusedCode: null, alreadyHandled: false };
+
+  // Not charged now means this job already has a reservation — another run is
+  // on it, or it was applied to before. Either way, not this run's to send.
+  if (row.charged_now === false) return { refusedCode: 'duplicate', alreadyHandled: true };
+
+  return { usageId: String(row.usage_id) };
+}
+
+export async function settleApplication(admin: SupabaseClient, charge: ApplicationCharge): Promise<void> {
+  const { error } = await admin.rpc('settle_ai_usage', { p_usage_id: charge.usageId });
+  // Left reserved, the stale-reservation cron gives the credit back and the
+  // application was free. Rare, and loud.
+  if (error) console.error(`[auto-apply] settle failed for ${charge.usageId}:`, error.message);
+}
+
+export async function refundApplication(admin: SupabaseClient, charge: ApplicationCharge, reason: string): Promise<void> {
+  const { error } = await admin.rpc('refund_ai_usage', { p_usage_id: charge.usageId, p_error: reason.slice(0, 500) });
+  if (error) console.error(`[auto-apply] refund failed for ${charge.usageId}:`, error.message);
 }
 
 // ─── Main engine ──────────────────────────────────────────────────────────────
@@ -134,6 +204,10 @@ export async function runAutoApplyForUser(
 ): Promise<AutoApplyResult> {
   const empty = (skippedReason: SkippedReason, message?: string): AutoApplyResult =>
     ({ applied: 0, failed: 0, skipped: 0, jobs: [], skippedReason, message });
+
+  // Credits, model calls and their ledger rows go through the service role:
+  // this runs both from a user's click and from the cron, which has no session.
+  const admin = createAdminClient();
 
   // ── 1. Load settings ───────────────────────────────────────────────────────
   const { data: config } = await supabase
@@ -383,7 +457,9 @@ export async function runAutoApplyForUser(
         try {
           const jobDescForATS = stripHtml(job.description ?? '').slice(0, 2000);
           const score = await Promise.race([
-            computeATSScore(cvTextForATS, jobDescForATS),
+            // Screening happens before any application is decided, so it is
+            // never charged to the user: its cost lands on a system row.
+            computeATSScore({ admin, userId, cvText: cvTextForATS, jobDescription: jobDescForATS }),
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('timeout')), 15_000),
             ),
@@ -424,6 +500,21 @@ export async function runAutoApplyForUser(
       continue;
     }
 
+    // ── The credit: one per application, taken here ──────────────────────────
+    const reservation = await reserveApplication(admin, userId, job.id);
+    if ('refusedCode' in reservation) {
+      if (reservation.alreadyHandled) {
+        jobs.push({ title, company, location, status: 'skipped', reason: 'already_applied' });
+        continue;
+      }
+      // JV004 is an empty balance: no later job will fare better, so the run
+      // stops here rather than repeating the same refusal for every candidate.
+      console.warn(`[runAutoApplyForUser] reservation refused (${reservation.refusedCode ?? 'unknown'}) — stopping this run`);
+      jobs.push({ title, company, location, status: 'skipped', reason: 'no_credits' });
+      break;
+    }
+    const charge = reservation;
+
     // ── Full description (cache → scrape; the Adzuna excerpt otherwise) ──────
     const descResult = await getFullDescription({
       jobId:       job.id,
@@ -438,6 +529,9 @@ export async function runAutoApplyForUser(
       try {
         tailoredHtml = await Promise.race([
           adaptCVForJob({
+            admin,
+            userId,
+            usageId:        charge.usageId,
             cvContent:      cvRawContent,
             jobTitle:       title,
             company,
@@ -473,13 +567,16 @@ export async function runAutoApplyForUser(
     let emailBody = '';
     try {
       emailBody = await Promise.race([
-        generateEmailBody(title, company, userName, cvText),
+        generateEmailBody(admin, userId, charge.usageId, title, company, userName, cvText),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('timeout')), 15_000),
         ),
       ]);
     } catch (e) {
       console.error('[runAutoApplyForUser] Email body generation failed:', e);
+      // Nothing was sent: the credit goes back, the calls already made stay on
+      // the row as cost the house absorbed.
+      await refundApplication(admin, charge, 'email body generation failed');
       jobs.push({ title, company, location, status: 'failed', reason: 'email_body_failed' });
       continue;
     }
@@ -529,6 +626,7 @@ export async function runAutoApplyForUser(
       }
     } catch (e) {
       console.error('[runAutoApplyForUser] Resend failed:', e);
+      await refundApplication(admin, charge, 'the application email could not be sent');
       await supabase.from('applications').insert({
         user_id: userId, job_title: title, company_name: company, location,
         notes: desc, job_url: job.redirect_url ?? null, job_source: 'auto-apply',
@@ -538,6 +636,9 @@ export async function runAutoApplyForUser(
       jobs.push({ title, company, location, status: 'failed', reason: 'resend_failed' });
       continue;
     }
+
+    // The email is gone: this is what the credit was for.
+    await settleApplication(admin, charge);
 
     await supabase.from('auto_apply_logs').insert({
       user_id: userId, job_title: title, company, location, status: 'applied', cover_letter: emailBody,
