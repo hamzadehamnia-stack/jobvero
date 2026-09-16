@@ -24,8 +24,16 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
+#
+# Every .env is ignored, whatever its suffix — .env, .env.local,
+# .env.production, .env.backup, .env.old. The rule used to name two of those
+# and miss the rest: the day someone created .env.production it would have gone
+# to a public repository with the keys in it, and nobody would have seen it.
+# .env.example is the exception, and is meant to be committed: names only,
+# never values.
 .env
+.env.*
+!.env.example
 
 # vercel
 .vercel

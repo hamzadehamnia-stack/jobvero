@@ -10,11 +10,43 @@ Lancement marché USA. Tout doit être développé et validé **en mode test** a
 
 | Sujet | Décision |
 |---|---|
-| Essai 3 jours | Géré **dans Supabase**, pas dans Stripe. Aucune carte demandée à l'inscription. |
-| Paliers | Starter 20 $/mois · Pro 39 $/mois · Premium 75 $/mois — mensuel uniquement |
+| **Essai — décidé le 2026-09-16** | **7 jours.** Carte bancaire **obligatoire** à l'inscription (Stripe `trial_period_days=7`). Prélèvement automatique au 8e jour, sauf annulation avant. |
+| **Essai — ce qu'il donne** | Fonctions de niveau **Pro**, quota de **10 crédits** — *pas* le quota du plan choisi. Volontaire, et à écrire clairement à l'utilisateur **avant** qu'il entre sa carte. Au 8e jour : le plan choisi et son quota mensuel normal. |
+| **Essai — source de vérité** | **Stripe** (`subscription_status = 'trialing'`), plus une colonne de la base. Implémentation au bloc e9. |
+| Paliers | **Non tranché — voir « À trancher avant e9 » ci-dessous.** Trois grilles de prix coexistent dans le projet. |
 | Devise | USD |
 | Source de vérité de l'abonnement | Les **webhooks Stripe**, jamais le client, jamais la page de succès |
 | Écriture des colonnes d'abonnement | **Service role uniquement** (cohérent avec le durcissement RLS de `profiles`) |
+
+---
+
+## 0 bis. À trancher avant e9 — les prix
+
+**Rien n'est décidé ici.** Trois grilles de prix coexistent dans le projet et se
+contredisent. Elles sont reproduites telles quelles ; aucune n'a été modifiée, et
+aucun prix n'a été inventé.
+
+| Source | Starter | Pro | Premium | Statut |
+|---|---|---|---|---|
+| **Page tarifs** — `messages/en\|fr\|es\|pt.json` (`pricing.plans`), `UpgradeModal.tsx`, `features.ts` (`TIER_LABELS`) | *absent* | **19,99 $/mois** | **29,99 $/mois** | **Publié** — c'est ce que le client voit aujourd'hui |
+| **CGU** — `src/content/legal/terms-of-service.md` lignes 69-72 | **11 $/mois** | **27 $/mois** | **49 $/mois** | **Contractuel** — document juridique en ligne |
+| **Ce brief** — section 0 (avant le 2026-09-16) et section 1 | **20 $/mois** | **39 $/mois** | **75 $/mois** | **Hypothèse** — jamais validée |
+
+Trois écarts à noter avant d'arbitrer :
+
+1. **Starter n'a aucun prix publié.** Il existe dans le code (`entitlements.ts` :
+   toutes les fonctions IA sauf entretien et auto-apply) et dans `admin_settings`
+   (29 crédits/mois), mais la page tarifs ne le liste pas. Tant que le prix n'est
+   pas tranché, la carte Starter de `UpgradeModal` affiche son quota et ses
+   fonctions, et renvoie vers la page tarifs.
+2. **Les CGU et le site ne disent pas la même chose.** Les CGU sont le document
+   contractuel ; c'est l'écart le plus coûteux à laisser traîner.
+3. **Les quotas, eux, ont une seule source** : `admin_settings.limits`
+   (essai 10 · Starter 29 · Pro 57 · Premium 111 crédits par mois). Ce sont les
+   nombres que la base applique réellement.
+
+Le décompte complet des endroits à changer le jour de l'arbitrage figure dans le
+rapport du bloc e8.
 
 ---
 
