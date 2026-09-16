@@ -5,17 +5,24 @@ import { timingSafeCompare } from '@/lib/timingSafe';
 //
 // Cloudflare Email Routing signs nothing: the caller is our own Worker
 // (cloudflare-email-worker/), so the signature is ours to make. It signs
-// `${timestamp}.${rawBody}` with INBOX_WEBHOOK_SECRET, HMAC-SHA256, and sends
+// `${timestamp}.${rawBody}` with INBOX_SIGNING_SECRET, HMAC-SHA256, and sends
 //   X-Inbox-Timestamp: <unix seconds>
 //   X-Inbox-Signature: v1=<hex>
 // which binds the body to the secret — a captured request cannot be replayed an
 // hour later, nor its body edited on the way.
 //
-// Transition, decided 2026-09-16: until the Worker is redeployed, a request
-// carrying the shared secret of old is still accepted. Setting
-// INBOX_REQUIRE_SIGNATURE=true closes that door, and only the signature passes.
+// Two secrets, not one. INBOX_SIGNING_SECRET is the HMAC key; the older
+// INBOX_WEBHOOK_SECRET is the bearer token of the transition, sent in
+// X-Webhook-Secret. Signing with the bearer token would mean one leak costs
+// both, and would make it impossible to rotate one without the other. Neither
+// is ever NEXT_PUBLIC_.
 //
-// Pure on purpose: the clock and the headers come in as arguments.
+// Transition, decided 2026-09-16: until the Worker is redeployed, a request
+// carrying the shared secret alone is still accepted — and the route logs it
+// every time, so the day that line stops appearing is the day the door can be
+// closed with INBOX_REQUIRE_SIGNATURE=true.
+//
+// Pure on purpose: the clock, the headers and both secrets come in as arguments.
 
 const WINDOW_SECONDS = 300;
 
@@ -67,30 +74,39 @@ export function authorizeInboxWebhook(options: {
   timestamp:         string | null;
   sharedSecret:      string | null;
   body:              string;
-  secret:            string | undefined;
+  /** INBOX_SIGNING_SECRET — the HMAC key. */
+  signingSecret:     string | undefined;
+  /** INBOX_WEBHOOK_SECRET — the bearer token of the transition. */
+  webhookSecret:     string | undefined;
   requireSignature:  boolean;
   nowSeconds:        number;
   windowSeconds?:    number;
 }): InboxAuthResult {
-  // A deployment with no secret configured refuses everything rather than
+  // A deployment with no secret at all refuses everything rather than
   // accepting anything.
-  if (!options.secret) return refuse('INBOX_WEBHOOK_SECRET is not set');
+  if (!options.signingSecret && !options.webhookSecret) return refuse('no inbox secret is configured');
 
-  const signed = verifyInboxSignature({
-    signature:     options.signature,
-    timestamp:     options.timestamp,
-    body:          options.body,
-    secret:        options.secret,
-    nowSeconds:    options.nowSeconds,
-    windowSeconds: options.windowSeconds,
-  });
-  if (signed.ok) return signed;
+  if (options.signingSecret) {
+    const signed = verifyInboxSignature({
+      signature:     options.signature,
+      timestamp:     options.timestamp,
+      body:          options.body,
+      secret:        options.signingSecret,
+      nowSeconds:    options.nowSeconds,
+      windowSeconds: options.windowSeconds,
+    });
+    if (signed.ok) return signed;
 
-  // A request that brought a signature is judged on it alone: a bad signature
-  // is never a reason to fall back on the shared secret.
-  if (options.signature !== null || options.requireSignature) return signed;
+    // A request that brought a signature is judged on it alone: a bad signature
+    // is never a reason to fall back on the shared secret.
+    if (options.signature !== null || options.requireSignature) return signed;
+  } else if (options.requireSignature) {
+    return refuse('signatures are required but INBOX_SIGNING_SECRET is not set');
+  } else if (options.signature !== null) {
+    return refuse('a signature was sent but INBOX_SIGNING_SECRET is not set');
+  }
 
-  if (timingSafeCompare(options.sharedSecret, options.secret)) {
+  if (timingSafeCompare(options.sharedSecret, options.webhookSecret)) {
     return { ok: true, method: 'shared-secret', reason: null };
   }
   return refuse('no valid signature and no valid shared secret');

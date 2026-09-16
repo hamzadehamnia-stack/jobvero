@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { readJsonObject } from '@/lib/ai/json';
 import { authorizeInboxWebhook } from '@/lib/inbox/signature';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 
@@ -12,9 +13,19 @@ const admin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
+// Two separate secrets, neither of them public: INBOX_SIGNING_SECRET is the
+// HMAC key of the signature, INBOX_WEBHOOK_SECRET the bearer token the Worker
+// sends until it is redeployed. While only the old one is configured, it also
+// serves as the signing key so nothing breaks in development — and the line
+// below says so, once, at startup.
 const WEBHOOK_SECRET     = process.env.INBOX_WEBHOOK_SECRET;
+const SIGNING_SECRET     = process.env.INBOX_SIGNING_SECRET ?? process.env.INBOX_WEBHOOK_SECRET;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const TAG                = '[inbox/webhook]';
+
+if (!process.env.INBOX_SIGNING_SECRET) {
+  console.warn(`${TAG} INBOX_SIGNING_SECRET is not set: signatures fall back to INBOX_WEBHOOK_SECRET. Set a separate signing secret before closing the transition.`);
+}
 
 // ─── AI types ────────────────────────────────────────────────────────────────
 
@@ -244,9 +255,8 @@ async function callClassifier(action: CatalogueAction, subject: string, body: st
     };
 
     const content = data.choices?.[0]?.message?.content ?? '';
-    const clean   = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     try {
-      return { ...usage, analysis: extractAiAnalysis(JSON.parse(clean) as unknown), error: null };
+      return { ...usage, analysis: extractAiAnalysis(readJsonObject(content)), error: null };
     } catch {
       // The call happened and costs money even when its answer is unusable.
       return { ...usage, analysis: null, error: 'the answer was not the JSON schema' };
@@ -581,7 +591,8 @@ export async function POST(req: Request) {
     timestamp:        req.headers.get('x-inbox-timestamp'),
     sharedSecret:     req.headers.get('x-webhook-secret'),
     body:             raw,
-    secret:           WEBHOOK_SECRET,
+    signingSecret:    SIGNING_SECRET,
+    webhookSecret:    WEBHOOK_SECRET,
     requireSignature: process.env.INBOX_REQUIRE_SIGNATURE === 'true',
     nowSeconds:       Math.floor(Date.now() / 1000),
   });
@@ -589,6 +600,13 @@ export async function POST(req: Request) {
   if (!auth.ok) {
     console.warn(`${TAG} refused: ${auth.reason}`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // The signal to watch during the transition: this line means a caller still
+  // has no signature. The day it stops appearing, the Worker is fully deployed
+  // and INBOX_REQUIRE_SIGNATURE=true can close the door.
+  if (auth.method === 'shared-secret') {
+    console.warn(`${TAG} TRANSITION: accepted on the shared secret alone, no HMAC signature — the Worker sending this is not yet redeployed`);
   }
 
   try {

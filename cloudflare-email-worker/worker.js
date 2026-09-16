@@ -36,7 +36,9 @@ export default {
 
     const body      = JSON.stringify(payload);
     const timestamp = Math.floor(Date.now() / 1000).toString();
-    const signature = await sign(env.INBOX_WEBHOOK_SECRET, `${timestamp}.${body}`);
+    // The signing key is its own secret. While it is not set, the old shared
+    // secret signs too, so this Worker works against an app that has only one.
+    const signature = await sign(env.INBOX_SIGNING_SECRET ?? env.INBOX_WEBHOOK_SECRET, `${timestamp}.${body}`);
 
     const res = await fetch('https://getjobvero.com/api/inbox/webhook', {
       method: 'POST',

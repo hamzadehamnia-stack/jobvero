@@ -79,6 +79,8 @@ async function main() {
     if (!env[name]) throw new Error(`${name} is missing from .env.local`);
   }
   const secret = env.INBOX_WEBHOOK_SECRET;
+  // The HMAC key is its own secret; while it is unset, the shared one signs.
+  const signingSecret = env.INBOX_SIGNING_SECRET || env.INBOX_WEBHOOK_SECRET;
 
   const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -116,7 +118,7 @@ async function main() {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   const sign = (body, timestamp) =>
-    `v1=${crypto.createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex')}`;
+    `v1=${crypto.createHmac('sha256', signingSecret).update(`${timestamp}.${body}`).digest('hex')}`;
 
   // How the Cloudflare worker calls us: the shared secret and, once deployed,
   // the signature. `auth` picks which of the two the request carries.

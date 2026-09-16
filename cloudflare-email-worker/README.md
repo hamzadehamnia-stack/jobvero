@@ -28,8 +28,20 @@ Il envoie, en plus du secret partagé :
 
 ```
 X-Inbox-Timestamp: <secondes unix>
-X-Inbox-Signature: v1=<hmac_sha256("<timestamp>.<corps brut>", INBOX_WEBHOOK_SECRET)>
+X-Inbox-Signature: v1=<hmac_sha256("<timestamp>.<corps brut>", INBOX_SIGNING_SECRET)>
 ```
+
+**Deux secrets distincts**, aucun en `NEXT_PUBLIC_` :
+
+| Variable | Rôle | Où la poser |
+|---|---|---|
+| `INBOX_SIGNING_SECRET` | clé HMAC de la signature | `npx wrangler secret put INBOX_SIGNING_SECRET` **et** Vercel |
+| `INBOX_WEBHOOK_SECRET` | jeton porteur de la transition (en-tête `X-Webhook-Secret`) | déjà posé des deux côtés |
+
+Signer avec le jeton porteur reviendrait à ce qu'une seule fuite coûte les deux,
+et interdirait d'en changer un sans l'autre. Tant que `INBOX_SIGNING_SECRET`
+n'est pas posée, l'ancien secret sert aussi de clé de signature des deux côtés :
+rien ne casse, mais la séparation n'est pas encore acquise.
 
 La route vérifie la signature **avant** de lire le corps, d'interroger la base ou
 d'appeler un modèle. Elle refuse une signature qui ne correspond pas au corps, et
@@ -37,8 +49,16 @@ une signature de plus de 5 minutes (rejeu).
 
 **Transition.** Tant que `INBOX_REQUIRE_SIGNATURE` n'est pas positionnée, la route
 accepte aussi l'ancien secret partagé seul : le Worker peut donc être redéployé
-avant ou après l'application, sans coupure. Une fois ce Worker déployé, poser
-`INBOX_REQUIRE_SIGNATURE=true` côté Vercel ferme la porte au secret seul.
+avant ou après l'application, sans coupure. Chaque requête acceptée de cette
+façon écrit dans les journaux :
+
+```
+[inbox/webhook] TRANSITION: accepted on the shared secret alone, no HMAC signature — the Worker sending this is not yet redeployed
+```
+
+Le jour où cette ligne n'apparaît plus, le Worker est entièrement déployé :
+poser alors `INBOX_REQUIRE_SIGNATURE=true` côté Vercel ferme la porte au secret
+seul.
 
 ## Notes
 
