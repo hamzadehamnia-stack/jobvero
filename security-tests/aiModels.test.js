@@ -21,7 +21,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 const ROOT                 = path.resolve(__dirname, '..');
 const EXPECTED_ACTIONS     = 14;   // 13 of migration 20260914120000_ai_action_letter_adapt + system_interview_report_retry
-const EXPECTED_STEP_MODELS = 2;    // interview_session stt and tts, migration 20260915120600_ai_action_interview_voice
+// interview_session stt/tts, auto_apply cv/email, system_email_finder
+// scrape/search — every step a catalogue action pins a model for.
+const EXPECTED_STEP_MODELS = 6;
 const EXPECTED_CHECKS      = 3 + EXPECTED_ACTIONS + EXPECTED_STEP_MODELS;
 
 // No preview, experimental or free model behind a billed feature — a rule, not

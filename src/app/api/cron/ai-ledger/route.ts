@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { openRouterHeaders } from '@/lib/openrouter';
+import { fetchGenerationCost } from '@/lib/ai/openrouterMetered';
 import { timingSafeCompare } from '@/lib/timingSafe';
 
 // ─── AI ledger maintenance ────────────────────────────────────────────────────
@@ -27,8 +27,7 @@ export const runtime     = 'nodejs';
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 60;
 
-const GENERATION_URL = 'https://openrouter.ai/api/v1/generation';
-const CLAIM_BATCH    = 50;
+const CLAIM_BATCH = 50;
 
 // PostgREST answers PGRST202 for a function missing from its schema cache;
 // 42883 is Postgres's own undefined_function.
@@ -81,36 +80,18 @@ export async function GET(request: Request) {
   for (const call of (claimed ?? []) as ClaimedCall[]) {
     costs.claimed++;
     try {
-      const res = await fetch(`${GENERATION_URL}?id=${encodeURIComponent(call.generation_id)}`, {
-        headers: openRouterHeaders(),
-        signal:  AbortSignal.timeout(10_000),
-      });
+      const generation = await fetchGenerationCost(call.generation_id);
 
-      if (res.status === 404) {
-        costs.notReady++;
-        continue;
-      }
-      if (!res.ok) {
-        costs.failed++;
-        console.warn(`[cron/ai-ledger] generation ${call.generation_id}: HTTP ${res.status}`);
-        continue;
-      }
-
-      const body = (await res.json()) as {
-        data?: { total_cost?: unknown; tokens_prompt?: unknown; tokens_completion?: unknown };
-      };
-      const cost = body.data?.total_cost;
-
-      if (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0) {
+      if (generation === null) {
         costs.notReady++;
         continue;
       }
 
       const { error } = await admin.rpc('complete_ai_call_cost', {
         p_call_id:           call.call_id,
-        p_prompt_tokens:     countOrNull(body.data?.tokens_prompt),
-        p_completion_tokens: countOrNull(body.data?.tokens_completion),
-        p_cost_usd:          cost,
+        p_prompt_tokens:     generation.promptTokens,
+        p_completion_tokens: generation.completionTokens,
+        p_cost_usd:          generation.costUsd,
       });
 
       if (error) {
@@ -129,8 +110,4 @@ export async function GET(request: Request) {
     refundedReservations: refundError ? null : refunded,
     costs,
   });
-}
-
-function countOrNull(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }

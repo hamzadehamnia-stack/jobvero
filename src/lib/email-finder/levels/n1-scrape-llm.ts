@@ -1,10 +1,10 @@
 import { JobContext } from '../types';
 import { isValidEmailFormat, isBlacklisted, normalizeEmail } from '../utils/email-validate';
 import { readJsonObject } from '@/lib/ai/json';
+import { callCatalogueModel } from '@/lib/ai/systemCall';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { safeFetch } from '@/lib/ssrfGuard';
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'deepseek/deepseek-chat';
 const FETCH_TIMEOUT_MS = 8000;
 const LLM_TIMEOUT_MS = 15000;
 const MAX_HTML_CHARS = 12000;
@@ -57,7 +57,7 @@ function buildCandidateUrls(ctx: JobContext): string[] {
   return [...urls].slice(0, 2);
 }
 
-async function extractWithLLM(html: string, ctx: JobContext): Promise<string | null> {
+async function extractWithLLM(html: string, ctx: JobContext, userId: string): Promise<string | null> {
   const prompt = `You are extracting recruiter/HR email addresses from a job page HTML.
 
 Company: ${ctx.companyName}
@@ -75,33 +75,16 @@ HTML content (truncated):
 ${html}`;
 
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://getjobvero.com',
-        'X-Title': 'Jobvero',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-        max_tokens: 150,
-      }),
-      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    // Model and ceiling from ai_action_costs.system_email_finder, step `scrape`.
+    // The call is free to the user and lands on a zero-credit system row.
+    const { text: content } = await callCatalogueModel(createAdminClient(), {
+      action:         'system_email_finder',
+      step:           'scrape',
+      userId,
+      messages:       [{ role: 'user', content: prompt }],
+      timeoutMs:      LLM_TIMEOUT_MS,
+      responseFormat: { type: 'json_object' },
     });
-
-    if (!res.ok) {
-      console.warn('[N1] OpenRouter non-OK:', res.status);
-      return null;
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data.choices?.[0]?.message?.content;
     if (!content) return null;
 
     // An answer that cannot be read finds no email — it never invents one.
@@ -119,14 +102,14 @@ ${html}`;
   }
 }
 
-export async function tryN1(ctx: JobContext): Promise<ExtractResult | null> {
+export async function tryN1(ctx: JobContext, userId: string): Promise<ExtractResult | null> {
   const urls = buildCandidateUrls(ctx);
 
   for (const url of urls) {
     const html = await fetchAndClean(url);
     if (!html) continue;
 
-    const email = await extractWithLLM(html, ctx);
+    const email = await extractWithLLM(html, ctx, userId);
     if (email) {
       return { email, evidenceUrl: url };
     }

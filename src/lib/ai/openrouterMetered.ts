@@ -18,6 +18,43 @@ const CHAT_COMPLETIONS_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // failure before content, which is refunded.
 const DEFAULT_FIRST_CONTENT_TIMEOUT_MS = 30_000;
 
+const GENERATION_URL = 'https://openrouter.ai/api/v1/generation';
+
+/**
+ * What a generation really cost, once OpenRouter has finished accounting for
+ * it. Used by the ai-ledger cron for calls recorded as pending — a stream the
+ * client left, a response that carried no usage. `null` means not ready yet,
+ * which is not an error: the next attempt is already booked.
+ */
+export async function fetchGenerationCost(generationId: string, timeoutMs = 10_000): Promise<{
+  costUsd:          number;
+  promptTokens:     number | null;
+  completionTokens: number | null;
+} | null> {
+  const res = await fetch(`${GENERATION_URL}?id=${encodeURIComponent(generationId)}`, {
+    headers: openRouterHeaders(),
+    signal:  AbortSignal.timeout(timeoutMs),
+  });
+
+  if (res.status === 404) return null;
+  if (!res.ok) throw new UpstreamError(`generation ${generationId}: HTTP ${res.status}`, res.status, generationId);
+
+  const body = (await res.json()) as {
+    data?: { total_cost?: unknown; tokens_prompt?: unknown; tokens_completion?: unknown };
+  };
+  const cost = body.data?.total_cost;
+  if (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0) return null;
+
+  const count = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
+
+  return {
+    costUsd:          cost,
+    promptTokens:     count(body.data?.tokens_prompt),
+    completionTokens: count(body.data?.tokens_completion),
+  };
+}
+
 export class UpstreamError extends Error {
   readonly status:       number | null;
   readonly generationId: string | null;

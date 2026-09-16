@@ -1,9 +1,9 @@
 import { JobContext } from '../types';
 import { isValidEmailFormat, isBlacklisted, normalizeEmail } from '../utils/email-validate';
 import { readJsonObject } from '@/lib/ai/json';
+import { callCatalogueModel } from '@/lib/ai/systemCall';
+import { createAdminClient } from '@/lib/supabase/admin';
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL = 'perplexity/sonar';
 const TIMEOUT_MS = 20000;
 
 interface SonarResult {
@@ -11,7 +11,7 @@ interface SonarResult {
   evidenceUrl: string;
 }
 
-export async function tryN3(ctx: JobContext): Promise<SonarResult | null> {
+export async function tryN3(ctx: JobContext, userId: string): Promise<SonarResult | null> {
   const prompt = `Find the official HR or recruiting email address at "${ctx.companyName}" (domain: ${ctx.companyDomain}).
 
 Search the company's website, LinkedIn, and other public sources. Look for emails like careers@, jobs@, recruiting@, hr@, or named recruiter emails.
@@ -22,32 +22,14 @@ Return ONLY a JSON object (no markdown, no extra text):
 Do NOT guess or fabricate. If you cannot find a verified email from a public source, return {"email": null, "source_url": null, "confidence": "low"}.`;
 
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://getjobvero.com',
-        'X-Title': 'Jobvero',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0,
-        max_tokens: 300,
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    // Model and ceiling from ai_action_costs.system_email_finder, step `search`.
+    const { text: content } = await callCatalogueModel(createAdminClient(), {
+      action:    'system_email_finder',
+      step:      'search',
+      userId,
+      messages:  [{ role: 'user', content: prompt }],
+      timeoutMs: TIMEOUT_MS,
     });
-
-    if (!res.ok) {
-      console.warn('[N3] Sonar non-OK:', res.status);
-      return null;
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data.choices?.[0]?.message?.content;
     if (!content) return null;
 
     let parsed: { email?: string | null; source_url?: string | null; confidence?: string };

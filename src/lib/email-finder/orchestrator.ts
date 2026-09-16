@@ -49,7 +49,7 @@ export async function findRecruiterEmail(
     return await finalize(n0, 'api_n0', 'high', null, userId, ctx, 0, start);
   }
 
-  const n1 = await tryN1(ctx);
+  const n1 = await tryN1(ctx, userId);
   if (n1) {
     await setCached(ctx, n1.email, 'scrape_n1', 'high', n1.evidenceUrl);
     return await finalize(n1.email, 'scrape_n1', 'high', n1.evidenceUrl, userId, ctx, 1, start);
@@ -61,7 +61,7 @@ export async function findRecruiterEmail(
     return await finalize(n2, 'pattern_n2', 'medium', null, userId, ctx, 2, start);
   }
 
-  const n3 = await tryN3(ctx);
+  const n3 = await tryN3(ctx, userId);
   if (n3) {
     await setCached(ctx, n3.email, 'sonar_n3', 'medium', n3.evidenceUrl);
     return await finalize(n3.email, 'sonar_n3', 'medium', n3.evidenceUrl, userId, ctx, 3, start);

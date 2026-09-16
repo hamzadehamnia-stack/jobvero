@@ -1,6 +1,11 @@
-import { callOpenRouter } from '@/lib/openrouter';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { callCatalogueModel } from '@/lib/ai/systemCall';
 
 export interface AdaptCVOptions {
+  admin:           SupabaseClient;
+  /** Whose application this is, and the row its cost belongs to. */
+  userId:          string;
+  usageId:         string | null;
   cvContent:       Record<string, unknown>;
   jobTitle:        string;
   company:         string;
@@ -31,6 +36,15 @@ ABSOLUTE CONSTRAINTS
 - Never remove existing content — only reorder or lightly reword.
 - Preserve every contact field, every date, every job entry exactly as provided.`;
 
+/**
+ * Rewrites a CV as an HTML document tailored to one job offer.
+ *
+ * Model and ceiling come from ai_action_costs.auto_apply, step `cv` — the id
+ * used to be written here (anthropic/claude-sonnet-4-5, which OpenRouter does
+ * not list) under a 4,000-token ceiling, against a measured 2,102. The cost
+ * goes on the application's own reserved row: a run that fails still cost us
+ * this call, and that shows.
+ */
 export async function adaptCVForJob(opts: AdaptCVOptions): Promise<string> {
   const { cvContent, jobTitle, company, jobDescription, accentColor = '#6d28d9' } = opts;
 
@@ -41,17 +55,20 @@ ${jobDescription.slice(0, 1500)}
 CANDIDATE CV DATA (JSON):
 ${JSON.stringify(cvContent, null, 2).slice(0, 4000)}`;
 
-  const raw = await callOpenRouter(
-    'anthropic/claude-sonnet-4-5',
-    [
+  const { text } = await callCatalogueModel(opts.admin, {
+    action:   'auto_apply',
+    step:     'cv',
+    userId:   opts.userId,
+    usageId:  opts.usageId,
+    messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user',   content: userMessage },
     ],
-    4000,
-  );
+    timeoutMs: 120_000,
+  });
 
   // Strip any accidental markdown code fences
-  return raw
+  return text
     .replace(/^```html\s*/i, '')
     .replace(/^```\s*/,       '')
     .replace(/\s*```$/,       '')

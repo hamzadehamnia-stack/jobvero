@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { readJsonObject } from '@/lib/ai/json';
+import { callCatalogueModel, readCatalogueAction } from '@/lib/ai/systemCall';
 import { authorizeInboxWebhook } from '@/lib/inbox/signature';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 
@@ -18,10 +19,9 @@ const admin = createClient(
 // sends until it is redeployed. While only the old one is configured, it also
 // serves as the signing key so nothing breaks in development — and the line
 // below says so, once, at startup.
-const WEBHOOK_SECRET     = process.env.INBOX_WEBHOOK_SECRET;
-const SIGNING_SECRET     = process.env.INBOX_SIGNING_SECRET ?? process.env.INBOX_WEBHOOK_SECRET;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const TAG                = '[inbox/webhook]';
+const WEBHOOK_SECRET = process.env.INBOX_WEBHOOK_SECRET;
+const SIGNING_SECRET = process.env.INBOX_SIGNING_SECRET ?? process.env.INBOX_WEBHOOK_SECRET;
+const TAG            = '[inbox/webhook]';
 
 if (!process.env.INBOX_SIGNING_SECRET) {
   console.warn(`${TAG} INBOX_SIGNING_SECRET is not set: signatures fall back to INBOX_WEBHOOK_SECRET. Set a separate signing secret before closing the transition.`);
@@ -184,88 +184,6 @@ function extractAiAnalysis(parsed: unknown): AiAnalysis | null {
   };
 }
 
-interface CatalogueAction {
-  model:          string;
-  maxTokens:      number;
-  maxInputChars:  number;
-}
-
-/** What the catalogue says an inbox classification is: model and ceilings, never an id written here. */
-async function readCatalogue(): Promise<CatalogueAction | null> {
-  const { data, error } = await admin
-    .from('ai_action_costs')
-    .select('model, max_tokens, max_input_chars, enabled')
-    .eq('action', 'system_inbox_classify')
-    .maybeSingle();
-
-  if (error || !data?.enabled || typeof data.model !== 'string'
-      || typeof data.max_tokens !== 'number' || typeof data.max_input_chars !== 'number') {
-    console.error(`${TAG} system_inbox_classify is missing or disabled in the catalogue:`, error?.message ?? data);
-    return null;
-  }
-  return { model: data.model, maxTokens: data.max_tokens, maxInputChars: data.max_input_chars };
-}
-
-interface ClassifierCall {
-  analysis:         AiAnalysis | null;
-  promptTokens:     number | null;
-  completionTokens: number | null;
-  costUsd:          number | null;
-  error:            string | null;
-}
-
-async function callClassifier(action: CatalogueAction, subject: string, body: string): Promise<ClassifierCall> {
-  const empty: ClassifierCall = { analysis: null, promptTokens: null, completionTokens: null, costUsd: null, error: null };
-  if (!OPENROUTER_API_KEY) return { ...empty, error: 'OPENROUTER_API_KEY is not set' };
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        model:       action.model,
-        messages: [
-          { role: 'system', content: AI_SYSTEM_PROMPT },
-          { role: 'user',   content: `<email_to_analyze>\nSubject: ${subject}\nBody:\n${body}\n</email_to_analyze>\n\n${AI_SCHEMA_HINT}` },
-        ],
-        max_tokens:  action.maxTokens,
-        temperature: 0.2,
-        usage:       { include: true },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      return { ...empty, error: `OpenRouter ${res.status}: ${detail.slice(0, 200)}` };
-    }
-
-    const data = await res.json() as {
-      choices?: { message?: { content?: string } }[];
-      usage?:   { prompt_tokens?: number; completion_tokens?: number; cost?: number };
-    };
-
-    const usage = {
-      promptTokens:     typeof data.usage?.prompt_tokens     === 'number' ? data.usage.prompt_tokens     : null,
-      completionTokens: typeof data.usage?.completion_tokens === 'number' ? data.usage.completion_tokens : null,
-      costUsd:          typeof data.usage?.cost              === 'number' ? data.usage.cost              : null,
-    };
-
-    const content = data.choices?.[0]?.message?.content ?? '';
-    try {
-      return { ...usage, analysis: extractAiAnalysis(readJsonObject(content)), error: null };
-    } catch {
-      // The call happened and costs money even when its answer is unusable.
-      return { ...usage, analysis: null, error: 'the answer was not the JSON schema' };
-    }
-  } catch (err) {
-    return { ...empty, error: String(err).slice(0, 200) };
-  }
-}
-
 interface Classification {
   analysis: AiAnalysis | null;
   skipped:  SkipReason | null;
@@ -281,8 +199,13 @@ interface Classification {
  * user their classification, never their mail.
  */
 async function classify(userId: string, subject: string, body: string): Promise<Classification> {
-  const action = await readCatalogue();
-  if (!action) return { analysis: null, skipped: 'ai_unavailable' };
+  let maxInputChars: number;
+  try {
+    ({ maxInputChars } = await readCatalogueAction(admin, 'system_inbox_classify'));
+  } catch (err) {
+    console.error(`${TAG} ${String(err)}`);
+    return { analysis: null, skipped: 'ai_unavailable' };
+  }
 
   const { data: settings, error: settingsError } = await admin
     .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
@@ -311,23 +234,25 @@ async function classify(userId: string, subject: string, body: string): Promise<
   }
 
   // A 2 MB email is not a bigger invoice: what leaves is the ceiling's worth.
-  const call = await callClassifier(action, subject.slice(0, 500), body.slice(0, action.maxInputChars));
+  // The model, that ceiling and the ledger row are all the gateway's business.
+  try {
+    const { text } = await callCatalogueModel(admin, {
+      action:   'system_inbox_classify',
+      userId,
+      messages: [
+        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'user',   content: `<email_to_analyze>\nSubject: ${subject.slice(0, 500)}\nBody:\n${body.slice(0, maxInputChars)}\n</email_to_analyze>\n\n${AI_SCHEMA_HINT}` },
+      ],
+    });
 
-  const { error: logError } = await admin.rpc('log_system_ai_usage', {
-    p_user_id:           userId,
-    p_action:            'system_inbox_classify',
-    p_model:             action.model,
-    p_prompt_tokens:     call.promptTokens,
-    p_completion_tokens: call.completionTokens,
-    p_cost_usd:          call.costUsd,
-    p_cost_estimated:    false,
-    p_error:             call.error,
-  });
-  if (logError) console.error(`${TAG} classification not logged for ${userId}:`, logError.message);
-
-  if (call.error) console.warn(`${TAG} classification failed for ${userId}: ${call.error}`);
-
-  return { analysis: call.analysis, skipped: call.analysis ? null : 'ai_unavailable' };
+    const analysis = extractAiAnalysis(readJsonObject(text));
+    return { analysis, skipped: analysis ? null : 'ai_unavailable' };
+  } catch (err) {
+    // The call is logged by the gateway whether it worked or not: a failed
+    // classification still cost money, and the email is already saved.
+    console.warn(`${TAG} classification failed for ${userId}: ${String(err).slice(0, 200)}`);
+    return { analysis: null, skipped: 'ai_unavailable' };
+  }
 }
 
 // ─── Shared: apply the classification and update application status ──────────
