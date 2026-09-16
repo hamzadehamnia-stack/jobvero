@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject } from '@/lib/ai/json';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -79,9 +80,7 @@ async function handler(req: Request, ai: AiActionContext) {
       content: `${DESCRIBE_PROMPT}\n\nUSER DESCRIPTION:\n"""\n${description.slice(0, 8000)}\n"""`,
     }], { timeoutMs: 150_000 });
 
-    const json = raw.trim()
-      .replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-    const data = JSON.parse(json);
+    const data = readJsonObject(raw);
 
     return NextResponse.json({ data });
   } catch (err: unknown) {

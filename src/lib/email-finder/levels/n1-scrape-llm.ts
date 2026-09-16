@@ -1,5 +1,6 @@
 import { JobContext } from '../types';
 import { isValidEmailFormat, isBlacklisted, normalizeEmail } from '../utils/email-validate';
+import { readJsonObject } from '@/lib/ai/json';
 import { safeFetch } from '@/lib/ssrfGuard';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -103,7 +104,8 @@ ${html}`;
     const content = data.choices?.[0]?.message?.content;
     if (!content) return null;
 
-    const parsed = JSON.parse(content) as { email?: string | null; confidence?: string };
+    // An answer that cannot be read finds no email — it never invents one.
+    const parsed = readJsonObject(content) as { email?: string | null; confidence?: string };
     if (!parsed.email || typeof parsed.email !== 'string') return null;
     if (parsed.confidence === 'low') return null;
 

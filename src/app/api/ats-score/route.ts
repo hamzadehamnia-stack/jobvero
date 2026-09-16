@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject, readScore } from '@/lib/ai/json';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 90;
@@ -13,25 +14,6 @@ export interface ATSResult {
   missing_keywords: string[];
   strong_points: string[];
   recommendations: string[];
-}
-
-// The answer as JSON, however the model wrapped it: a code fence, a sentence
-// before it, a word after it. Only what lies between the first { and the last }
-// is parsed. A model told "pure JSON only" still adds prose now and then, and
-// that is not worth a 500 on a call the user already paid for.
-function readJsonObject(text: string): unknown {
-  const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-  const start   = cleaned.indexOf('{');
-  const end     = cleaned.lastIndexOf('}');
-  if (start === -1 || end < start) throw new Error('no JSON object in the answer');
-  return JSON.parse(cleaned.slice(start, end + 1));
-}
-
-// A score the model did not give is not a zero: it is an answer we refuse,
-// which refunds the credit rather than showing an invented number.
-function score(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('a score is missing from the answer');
-  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 async function handler(req: Request, ai: AiActionContext) {
@@ -65,11 +47,11 @@ async function handler(req: Request, ai: AiActionContext) {
 
     const result: ATSResult = {
       ...parsed,
-      overall_score:    score(parsed.overall_score),
-      keywords_score:   score(parsed.keywords_score),
-      skills_score:     score(parsed.skills_score),
-      experience_score: score(parsed.experience_score),
-      education_score:  score(parsed.education_score),
+      overall_score:    readScore(parsed.overall_score,    'overall_score'),
+      keywords_score:   readScore(parsed.keywords_score,   'keywords_score'),
+      skills_score:     readScore(parsed.skills_score,     'skills_score'),
+      experience_score: readScore(parsed.experience_score, 'experience_score'),
+      education_score:  readScore(parsed.education_score,  'education_score'),
     };
 
     return NextResponse.json({ result });

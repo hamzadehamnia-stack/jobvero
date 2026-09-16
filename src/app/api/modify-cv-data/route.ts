@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject } from '@/lib/ai/json';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -35,10 +36,7 @@ STRICT RULES:
       },
     ], { timeoutMs: 150_000 });
 
-    const cleaned = raw.trim()
-      .replace(/^```json\n?/i, '').replace(/^```\n?/i, '').replace(/\n?```$/i, '').trim();
-
-    const modified = JSON.parse(cleaned);
+    const modified = readJsonObject(raw);
     return NextResponse.json({ formData: modified });
   } catch (err: unknown) {
     if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error

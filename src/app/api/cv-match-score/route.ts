@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject, readScore } from '@/lib/ai/json';
 import type { CVFormData } from '@/components/cv-builder/types';
 
 export const runtime     = 'nodejs';
@@ -59,15 +60,12 @@ Respond with a single JSON object — no markdown, no explanation, no extra text
 
 Scoring guide: 75-100 strong match, 50-74 partial match, 0-49 weak match.`;
 
-    const raw = (await ai.complete([
-      { role: 'user', content: prompt },
-    ]))
-      .trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    const raw    = await ai.complete([{ role: 'user', content: prompt }]);
+    const parsed = readJsonObject(raw) as Record<string, unknown>;
 
-    const result = JSON.parse(raw);
+    // The score is the number the whole screen is built on: a missing one is a
+    // refusal, never a zero the user would take for a real result.
+    const result = { ...parsed, score: readScore(parsed.score, 'score') };
     return NextResponse.json(result);
   } catch (err: unknown) {
     if (isAiRefusal(err)) throw err; // answered by withAiAction: a refusal is not an error

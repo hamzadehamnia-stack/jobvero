@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject } from '@/lib/ai/json';
 import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 
 export const runtime     = 'nodejs';
@@ -83,10 +84,7 @@ async function extractTextFromDocx(buffer: Buffer): Promise<string> {
   return result.value;
 }
 
-function parseJson(raw: string): unknown {
-  const json = raw.trim().replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-  return JSON.parse(json);
-}
+const parseJson = (raw: string): unknown => readJsonObject(raw);
 
 // The CV text gets what the catalogue's max_input_chars leaves after the
 // prompt, so a long CV is cut rather than refused.

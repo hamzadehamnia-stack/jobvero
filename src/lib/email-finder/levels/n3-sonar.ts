@@ -1,5 +1,6 @@
 import { JobContext } from '../types';
 import { isValidEmailFormat, isBlacklisted, normalizeEmail } from '../utils/email-validate';
+import { readJsonObject } from '@/lib/ai/json';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'perplexity/sonar';
@@ -49,13 +50,14 @@ Do NOT guess or fabricate. If you cannot find a verified email from a public sou
     const content = data.choices?.[0]?.message?.content;
     if (!content) return null;
 
-    const cleaned = content.replace(/```json|```/g, '').trim();
-
     let parsed: { email?: string | null; source_url?: string | null; confidence?: string };
     try {
-      parsed = JSON.parse(cleaned);
+      parsed = readJsonObject(content) as typeof parsed;
     } catch {
-      const match = cleaned.match(/"email"\s*:\s*"([^"]+)"/);
+      // Sonar answers with citations around its JSON often enough to be worth
+      // one last look for the field itself — but only for an address that is
+      // written there, never one rebuilt from pieces.
+      const match = content.match(/"email"\s*:\s*"([^"]+)"/);
       if (!match) return null;
       parsed = { email: match[1], source_url: null, confidence: 'medium' };
     }

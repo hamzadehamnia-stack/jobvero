@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAiRefusal, withAiAction, type AiActionContext } from '@/lib/ai/withAiAction';
+import { readJsonObject } from '@/lib/ai/json';
 
 export const runtime     = 'nodejs';
 export const maxDuration = 180;
@@ -69,8 +70,7 @@ Return a JSON object with exactly this structure (same field names, same array l
       { role: 'user',   content: userPrompt   },
     ], { timeoutMs: 150_000 });
 
-    const cleaned    = raw.trim().replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-    const translated = JSON.parse(cleaned);
+    const translated = readJsonObject(raw);
 
     return NextResponse.json({ translated });
   } catch (err) {
