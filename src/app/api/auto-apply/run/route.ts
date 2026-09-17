@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { RATE_LIMITS } from '@/lib/rateLimitConfig';
 import { authorizeAiRequest } from '@/lib/ai/authorize';
-import { answer } from '@/lib/ai/refusal';
-import { refusalForReserveError } from '@/lib/ai/rules';
+import { UNAVAILABLE, answer } from '@/lib/ai/refusal';
+import { refusalForAutoApplyQuota } from '@/lib/ai/rules';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  refundApplication,
-  reserveApplication,
+  claimApplication,
+  measureApplication,
+  releaseApplication,
   runAutoApplyForUser,
-  settleApplication,
 } from '@/lib/auto-apply/runForUser';
 
 export const runtime     = 'nodejs';
@@ -36,6 +36,16 @@ function testApplication(req: Request): { jobId: string; fail: boolean } | null 
   return { jobId: match[1], fail: req.headers.get('x-auto-apply-test-outcome') === 'fail' };
 }
 
+// The measurement seam: runs the paid steps of a real application against a job
+// given in the body, and stops before the send. It exists because the cost of an
+// automatic application was the last estimated line of the economics — nobody
+// had ever run one end to end. Same allowlist as above: dead code in production.
+function measurementRequest(req: Request): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  if (nodeEnv !== 'development' && nodeEnv !== 'test') return false;
+  return (req.headers.get('x-auto-apply-test') ?? '') === 'measure-one';
+}
+
 // ─── POST /api/auto-apply/run ─────────────────────────────────────────────────
 //
 // Runs one auto-apply batch for the signed-in user.
@@ -50,32 +60,72 @@ function testApplication(req: Request): { jobId: string; fail: boolean } | null 
 export async function POST(req: Request) {
   const authorized = await authorizeAiRequest(req, {
     feature:   'AUTO_APPLY',
-    action:    'auto_apply',
+    // The catalogue row an application's steps are held to. Zero credits: what
+    // it spends is its monthly quota, claimed in the database.
+    action:    'system_auto_apply',
     rateLimit: RATE_LIMITS.AI_ACTION,
     tag:       TAG,
   });
   if (authorized instanceof Response) return authorized;
-  const { user, supabase, tier, cheapestTierForFeature } = authorized;
+  const { user, supabase, tier } = authorized;
+
+  if (measurementRequest(req)) {
+    const admin = createAdminClient();
+    const body  = await req.json().catch(() => null) as {
+      job?: { id?: string; title?: string; company?: string; description?: string; url?: string };
+      candidateName?: string;
+      cv?: Record<string, unknown>;
+    } | null;
+
+    const job = body?.job;
+    if (!job?.id || !job.title || !job.company || !job.description) {
+      return NextResponse.json({ error: 'a job with id, title, company and description is required' }, { status: 400 });
+    }
+
+    // The signed-in account's own latest CV, so the measurement runs on real
+    // input rather than a toy one.
+    const { data: cv } = await supabase
+      .from('cvs').select('form_data').eq('user_id', user.id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+    const cvContent = (body?.cv ?? cv?.form_data ?? null) as Record<string, unknown> | null;
+    if (!cvContent) return NextResponse.json({ error: 'no CV to measure with' }, { status: 400 });
+
+    const measured = await measureApplication({
+      admin,
+      userId:        user.id,
+      candidateName: body?.candidateName ?? 'the applicant',
+      cvContent,
+      cvText:        JSON.stringify(cvContent).slice(0, 3000),
+      job: {
+        id:          String(job.id),
+        title:       String(job.title),
+        company:     String(job.company),
+        description: String(job.description),
+        url:         job.url ? String(job.url) : undefined,
+      },
+    });
+
+    return NextResponse.json(measured);
+  }
 
   const seam = testApplication(req);
   if (seam) {
-    const admin       = createAdminClient();
-    const reservation = await reserveApplication(admin, user.id, seam.jobId);
+    const admin = createAdminClient();
+    const claim = await claimApplication(admin, user.id, tier);
 
-    if ('refusedCode' in reservation) {
-      if (reservation.alreadyHandled) {
-        return answer({ status: 409, body: { error: 'This job was already applied to', reason: 'already_processed' } });
-      }
-      return answer(refusalForReserveError(reservation.refusedCode, { tier, cheapestTierForFeature }));
+    if ('refused' in claim) {
+      if (claim.refused === 'error') return answer(UNAVAILABLE);
+      return answer(refusalForAutoApplyQuota({ tier, used: claim.used, quota: claim.quota }));
     }
 
     if (seam.fail) {
-      await refundApplication(admin, reservation, 'injected failure before sending');
-      return NextResponse.json({ charged: false, refunded: true, usageId: reservation.usageId });
+      // The unit goes back; what the attempt cost stays on the row.
+      await releaseApplication(admin, user.id);
+      return NextResponse.json({ charged: false, released: true, usageId: claim.usageId, used: claim.used, quota: claim.quota });
     }
 
-    await settleApplication(admin, reservation);
-    return NextResponse.json({ charged: true, usageId: reservation.usageId });
+    return NextResponse.json({ charged: true, usageId: claim.usageId, used: claim.used, quota: claim.quota });
   }
 
   try {

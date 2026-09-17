@@ -5,8 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { findRecruiterEmail } from '@/lib/email-finder';
 import type { JobContext, CountryCode } from '@/lib/email-finder';
 import { Resend } from 'resend';
-import { getEffectiveTier, toFeatureTierKey } from '@/lib/subscription/access';
-import { FEATURES } from '@/lib/subscription/features';
+import { checkFeatureAccess, resolveTier, type EntitlementProfile, type Tier } from '@/lib/entitlements';
 import { renderRecapEmail } from './renderRecapEmail';
 import { emailTranslations } from '@/emails/translations';
 import type { Locale } from '@/emails/translations';
@@ -25,7 +24,7 @@ export type SkippedReason =
   | 'monthly_limit'
   | 'no_email_alias'
   | 'no_cv'
-  | 'no_credits'
+  | 'quota_exhausted'
   | 'env_not_configured';
 
 export interface JobResult {
@@ -137,57 +136,181 @@ async function generateEmailBody(
 
 // ─── What an application costs ────────────────────────────────────────────────
 //
-// One credit per application actually sent — not per model call. An application
-// takes a screening, a CV rewrite and an email body, and the user pays for the
-// outcome, once. The credit is reserved when the recruiter's address is known
-// (before that, nothing is committed), settled when the email leaves, refunded
-// if anything between the two fails.
+// Not a credit. Reference §3: an automatic application spends one unit of its
+// own monthly quota, and the two counters never eat each other. They used to:
+// one credit per application meant a Premium customer's 210 applications would
+// have eaten 210 of their 150 credits, so the quota was arithmetically
+// impossible to reach and the plan promised something it could not deliver.
 //
-// A refunded row keeps its cost rows: the user pays nothing for a failed
-// application, and what that failure cost the house stays visible in
-// cost_refunded_usd of ai_margin_weekly.
+// The unit is claimed under lock (claim_auto_apply) once the recruiter's
+// address is known — before that nothing is committed — and given back
+// (release_auto_apply) if anything between the claim and the send fails.
 //
-// The idempotency key is the job, so the same job is never charged twice —
-// whatever the cron retries.
+// What the attempt already cost us is NOT given back. It stays on a zero-credit
+// system row opened for this application, so a failed application shows as
+// absorbed cost in cost_system_usd of ai_margin_weekly rather than vanishing.
 
-export interface ApplicationCharge { usageId: string }
+export interface ApplicationCharge {
+  /** The zero-credit ai_usage row this application's model calls hang on. */
+  usageId: string;
+  /** Applications used this month, after this one, and the plan's quota. */
+  used:    number;
+  quota:   number;
+}
 
-export type ReservationRefusal = { refusedCode: string | null; alreadyHandled: boolean };
+export type QuotaRefusal = {
+  refused: 'quota_exhausted' | 'guard' | 'error';
+  used:    number;
+  quota:   number;
+};
 
-export async function reserveApplication(
+export async function claimApplication(
   admin:  SupabaseClient,
   userId: string,
-  jobId:  string,
-): Promise<ApplicationCharge | ReservationRefusal> {
-  const { data, error } = await admin.rpc('reserve_ai_credits_for', {
-    p_user_id:         userId,
-    p_action:          'auto_apply',
-    p_idempotency_key: `auto-apply:${jobId}`,
-  });
+  tier:   Tier,
+): Promise<ApplicationCharge | QuotaRefusal> {
+  const { data, error } = await admin.rpc('claim_auto_apply', { p_user_id: userId, p_tier: tier });
 
-  if (error) return { refusedCode: error.code ?? null, alreadyHandled: false };
+  if (error) {
+    console.error(`[auto-apply] quota claim failed for ${userId}:`, error.message);
+    return { refused: 'error', used: 0, quota: 0 };
+  }
 
   const row = (Array.isArray(data) ? data[0] : data) as
-    { usage_id?: string; usage_status?: string; charged_now?: boolean } | null;
-  if (!row?.usage_id) return { refusedCode: null, alreadyHandled: false };
+    { allowed?: boolean; reason?: string; used?: number; quota?: number } | null;
 
-  // Not charged now means this job already has a reservation — another run is
-  // on it, or it was applied to before. Either way, not this run's to send.
-  if (row.charged_now === false) return { refusedCode: 'duplicate', alreadyHandled: true };
+  const used  = Number(row?.used  ?? 0);
+  const quota = Number(row?.quota ?? 0);
 
-  return { usageId: String(row.usage_id) };
+  if (row?.allowed !== true) {
+    return { refused: row?.reason === 'guard' ? 'guard' : 'quota_exhausted', used, quota };
+  }
+
+  // One ai_usage row per application, opened at zero credits and already
+  // settled: every step's cost lands on it, and it reads as system cost.
+  const { data: usageId, error: openError } = await admin.rpc('open_system_ai_usage', {
+    p_user_id: userId,
+    p_action:  'system_auto_apply',
+  });
+
+  if (openError || typeof usageId !== 'string') {
+    // Rather than spend a unit on an application whose cost we could not
+    // record, the unit goes straight back.
+    await releaseApplication(admin, userId);
+    console.error(`[auto-apply] cost row could not be opened for ${userId}:`, openError?.message ?? 'no id returned');
+    return { refused: 'error', used, quota };
+  }
+
+  return { usageId: String(usageId), used, quota };
 }
 
-export async function settleApplication(admin: SupabaseClient, charge: ApplicationCharge): Promise<void> {
-  const { error } = await admin.rpc('settle_ai_usage', { p_usage_id: charge.usageId });
-  // Left reserved, the stale-reservation cron gives the credit back and the
-  // application was free. Rare, and loud.
-  if (error) console.error(`[auto-apply] settle failed for ${charge.usageId}:`, error.message);
+export async function releaseApplication(admin: SupabaseClient, userId: string): Promise<void> {
+  const { error } = await admin.rpc('release_auto_apply', { p_user_id: userId });
+  if (error) console.error(`[auto-apply] quota release failed for ${userId}:`, error.message);
 }
 
-export async function refundApplication(admin: SupabaseClient, charge: ApplicationCharge, reason: string): Promise<void> {
-  const { error } = await admin.rpc('refund_ai_usage', { p_usage_id: charge.usageId, p_error: reason.slice(0, 500) });
-  if (error) console.error(`[auto-apply] refund failed for ${charge.usageId}:`, error.message);
+// ─── Measuring what an application actually costs ─────────────────────────────
+//
+// Docs/jobvero-plans-reference.md §5 carries one estimated line: about $0.040
+// for an automatic application, extrapolated from CV generation and never
+// measured, because nobody had ever run one end to end.
+//
+// This runs the paid steps of a real application — screening, CV rewrite, email
+// body, contact hunt — against a real job description, and stops before the
+// send. Nothing is emailed, no application row, no thread, no quota unit. Every
+// call lands on the ledger, so the cost is read from ai_usage_calls rather than
+// guessed.
+//
+// Reachable only through the route's test seam, which is dead code outside
+// development.
+
+export interface MeasuredStep {
+  step:   string;
+  ok:     boolean;
+  detail?: string;
+}
+
+export interface MeasuredApplication {
+  /** The zero-credit row the CV and email steps hang on. */
+  usageId: string;
+  steps:   MeasuredStep[];
+}
+
+export async function measureApplication(opts: {
+  admin:         SupabaseClient;
+  userId:        string;
+  candidateName: string;
+  cvContent:     Record<string, unknown>;
+  cvText:        string;
+  job: {
+    id:          string;
+    title:       string;
+    company:     string;
+    description: string;
+    url?:        string;
+  };
+}): Promise<MeasuredApplication> {
+  const { admin, userId, candidateName, cvContent, cvText, job } = opts;
+  const steps: MeasuredStep[] = [];
+
+  const { data: usageId, error: openError } = await admin.rpc('open_system_ai_usage', {
+    p_user_id: userId,
+    p_action:  'system_auto_apply',
+  });
+  if (openError || typeof usageId !== 'string') {
+    throw new Error(`cost row could not be opened: ${openError?.message ?? 'no id returned'}`);
+  }
+
+  const record = async (step: string, run: () => Promise<unknown>) => {
+    try {
+      const value = await run();
+      steps.push({ step, ok: true, detail: typeof value === 'string' ? `${value.length} chars` : String(value) });
+    } catch (e) {
+      // A step that fails still cost what it cost: it is recorded, not hidden.
+      steps.push({ step, ok: false, detail: String(e).slice(0, 200) });
+    }
+  };
+
+  // 1. Screening — free to the user, on its own system row.
+  await record('screening', () =>
+    computeATSScore({ admin, userId, cvText: cvText.slice(0, 4000), jobDescription: job.description.slice(0, 2000) }));
+
+  // 2. The CV rewritten for this job.
+  await record('cv', () =>
+    adaptCVForJob({
+      admin,
+      userId,
+      usageId:        String(usageId),
+      cvContent,
+      jobTitle:       job.title,
+      company:        job.company,
+      jobDescription: job.description,
+    }));
+
+  // 3. The message that carries it.
+  await record('email', () =>
+    generateEmailBody(admin, userId, String(usageId), job.title, job.company, candidateName, cvText));
+
+  // 4. The recruiter's address: real lookups, its own system rows.
+  await record('contact', async () => {
+    const domain = guessDomain(job.company);
+    if (!domain) return 'no company domain';
+    const found = await findRecruiterEmail({
+      jobId:              job.id,
+      jobTitle:           job.title,
+      jobDescriptionHtml: job.description,
+      jobUrl:             job.url,
+      companyName:        job.company,
+      companyDomain:      domain,
+      country:            'us',
+      rawApiPayload:      {},
+      // No apiSource: this job came from a measurement, not from a job board,
+      // and inventing a source would put a lie in the email-finder's cache.
+    } as JobContext, userId);
+    return found ? `found via ${found.source}` : 'no address found';
+  });
+
+  return { usageId: String(usageId), steps };
 }
 
 // ─── Main engine ──────────────────────────────────────────────────────────────
@@ -221,15 +344,17 @@ export async function runAutoApplyForUser(
   // ── 2. Tier check (required: cron bypasses withFeatureCheck) ──────────────
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email_alias, subscription_plan, trial_ends_at, preferred_language')
+    .select('full_name, email_alias, subscription_plan, subscription_status, is_blocked, ai_credits_remaining, preferred_language')
     .eq('id', userId)
     .single();
 
-  const tierKey      = toFeatureTierKey(getEffectiveTier(profile?.subscription_plan ?? null, profile?.trial_ends_at ?? null));
-  const tierConfig   = FEATURES.AUTO_APPLY[tierKey];
-  if (!tierConfig.access) return empty('no_access', 'Auto Apply requires Pro or Premium');
+  // The one table decides. The cron calls this with no session, so the check
+  // has to happen here as well as on the route.
+  const access = checkFeatureAccess(resolveTier((profile ?? null) as EntitlementProfile | null), 'AUTO_APPLY');
+  if (!access.allowed) return empty('no_access', 'Automatic applications are part of Pro and Premium.');
 
-  const isPremium = tierKey === 'premium';
+  const tier: Tier = access.tier;
+  const isPremium  = tier === 'premium';
   const atsThreshold: number = typeof config.ats_threshold === 'number' ? config.ats_threshold : 70;
 
   // ── 3. Profile prerequisites ───────────────────────────────────────────────
@@ -282,36 +407,15 @@ export async function runAutoApplyForUser(
   const remainingToday = maxPerDay - (todayCount ?? 0);
   if (remainingToday <= 0) return empty('daily_limit', 'Daily auto-apply limit reached');
 
-  // ── 8. Monthly quota check ─────────────────────────────────────────────────
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-  const { count: sentThisMonth } = await supabase
-    .from('auto_apply_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('status', 'applied')
-    .gte('applied_at', startOfMonth.toISOString());
-
-  // The monthly ceiling is admin_settings.limits.auto_apply_monthly_guard — one
-  // number, the same for every tier, changeable without a deploy (decision of
-  // 2026-09-15). It is a guard against a runaway loop, not a plan feature: the
-  // credits bind first, one per application sent. The per-tier table in
-  // features.ts said otherwise and is gone.
-  const { data: settingsRow } = await admin
-    .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
-  const guard = Number(
-    (settingsRow?.value as { limits?: { auto_apply_monthly_guard?: unknown } } | null)?.limits?.auto_apply_monthly_guard,
-  );
-  if (!Number.isInteger(guard) || guard <= 0) {
-    console.error('[runAutoApplyForUser] admin_settings.limits.auto_apply_monthly_guard is missing or invalid');
-    return empty('env_not_configured', 'The auto-apply guard is not configured');
-  }
-
-  const remainingMonthly = guard - (sentThisMonth ?? 0);
-  if (remainingMonthly <= 0) return empty('monthly_limit', 'Monthly auto-apply limit reached');
-
-  const remaining = Math.min(remainingToday, remainingMonthly);
+  // ── 8. The month's quota ───────────────────────────────────────────────────
+  //
+  // Not counted here. claim_auto_apply counts it in the database, under lock,
+  // one unit per application at the moment it is committed — the only place
+  // that can be right when two runs happen at once. This loop stops when the
+  // claim refuses, and the refusal carries the numbers to show.
+  const remaining = remainingToday;
+  let quotaUsed  = 0;
+  let quotaTotal = 0;
 
   // ── 9. 30-day dedup sets ──────────────────────────────────────────────────
   // Two complementary checks:
@@ -513,20 +617,21 @@ export async function runAutoApplyForUser(
       continue;
     }
 
-    // ── The credit: one per application, taken here ──────────────────────────
-    const reservation = await reserveApplication(admin, userId, job.id);
-    if ('refusedCode' in reservation) {
-      if (reservation.alreadyHandled) {
-        jobs.push({ title, company, location, status: 'skipped', reason: 'already_applied' });
-        continue;
-      }
-      // JV004 is an empty balance: no later job will fare better, so the run
-      // stops here rather than repeating the same refusal for every candidate.
-      console.warn(`[runAutoApplyForUser] reservation refused (${reservation.refusedCode ?? 'unknown'}) — stopping this run`);
-      jobs.push({ title, company, location, status: 'skipped', reason: 'no_credits' });
+    // ── The quota: one unit per application, taken here ──────────────────────
+    const claim = await claimApplication(admin, userId, tier);
+    if ('refused' in claim) {
+      // The month is spent, or the guard caught a loop. No later job will fare
+      // better, so the run stops rather than repeating the refusal for every
+      // candidate.
+      console.warn(`[runAutoApplyForUser] quota refused (${claim.refused}, ${claim.used}/${claim.quota}) — stopping this run`);
+      jobs.push({ title, company, location, status: 'skipped', reason: claim.refused });
+      quotaUsed  = claim.used;
+      quotaTotal = claim.quota;
       break;
     }
-    const charge = reservation;
+    const charge = claim;
+    quotaUsed  = claim.used;
+    quotaTotal = claim.quota;
 
     // ── Full description (cache → scrape; the Adzuna excerpt otherwise) ──────
     const descResult = await getFullDescription({
@@ -587,9 +692,9 @@ export async function runAutoApplyForUser(
       ]);
     } catch (e) {
       console.error('[runAutoApplyForUser] Email body generation failed:', e);
-      // Nothing was sent: the credit goes back, the calls already made stay on
-      // the row as cost the house absorbed.
-      await refundApplication(admin, charge, 'email body generation failed');
+      // Nothing was sent: the quota unit goes back, and the calls already made
+      // stay on the row as cost the house absorbed.
+      await releaseApplication(admin, userId);
       jobs.push({ title, company, location, status: 'failed', reason: 'email_body_failed' });
       continue;
     }
@@ -639,7 +744,7 @@ export async function runAutoApplyForUser(
       }
     } catch (e) {
       console.error('[runAutoApplyForUser] Resend failed:', e);
-      await refundApplication(admin, charge, 'the application email could not be sent');
+      await releaseApplication(admin, userId);
       await supabase.from('applications').insert({
         user_id: userId, job_title: title, company_name: company, location,
         notes: desc, job_url: job.redirect_url ?? null, job_source: 'auto-apply',
@@ -650,8 +755,8 @@ export async function runAutoApplyForUser(
       continue;
     }
 
-    // The email is gone: this is what the credit was for.
-    await settleApplication(admin, charge);
+    // The email is gone: this is what the quota unit was for. Nothing to settle
+    // — the cost row was opened settled, at zero credits.
 
     await supabase.from('auto_apply_logs').insert({
       user_id: userId, job_title: title, company, location, status: 'applied', cover_letter: emailBody,
@@ -703,7 +808,7 @@ export async function runAutoApplyForUser(
           : 'en';
 
         const appliedJobs = jobs.filter(j => j.status === 'applied');
-        const remainingAfter = Math.max(0, remainingMonthly - appliedCount);
+        const remainingAfter = Math.max(0, quotaTotal - quotaUsed);
         const dashboardUrl = `https://getjobvero.com/${locale}/dashboard/auto-apply`;
         const t = emailTranslations.autoApplyRecap[locale];
 
