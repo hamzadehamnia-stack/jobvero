@@ -65,7 +65,7 @@ export default function CreditGauge() {
     ? rawLocale as keyof typeof LABELS
     : 'en';
 
-  const { effectiveTier, creditsRemaining, creditsTotal, trialDaysLeft, creditsResetAt, isLoading } =
+  const { effectiveTier, creditsRemaining, creditsTotal, creditsResetAt, isLoading } =
     useSubscription();
   const l = LABELS[locale];
 
@@ -120,9 +120,7 @@ export default function CreditGauge() {
         <div className="flex flex-col gap-0.5 min-w-[80px]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-none">
-              {effectiveTier === 'trial'
-                ? `${tierLabel} · ${trialDaysLeft}d`
-                : l.aiCredits}
+              {l.aiCredits}
             </span>
             <span className={`text-[10px] font-semibold leading-none ${isLow ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>
               {hasTotal ? `${creditsRemaining}/${creditsTotal}` : creditsRemaining}
@@ -167,8 +165,6 @@ export default function CreditGauge() {
                   ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
                   : effectiveTier === 'pro'
                   ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
-                  : effectiveTier === 'trial'
-                  ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                 }`}>
                 {tierLabel}
@@ -198,16 +194,8 @@ export default function CreditGauge() {
 
           {/* Footer info */}
           <div className="px-4 py-3 space-y-1.5">
-            {/* Trial info */}
-            {effectiveTier === 'trial' && (
-              <div className="flex items-center gap-1.5 text-xs text-cyan-600 dark:text-cyan-400">
-                <RefreshCw size={11} />
-                <span>{trialDaysLeft} {l.daysLeft}</span>
-              </div>
-            )}
-            {effectiveTier === 'free' && (
-              <div className="text-xs text-red-500 font-medium">{l.trialExpired}</div>
-            )}
+            {/* No trial line: Free is a permanent plan with its own credits,
+                not a countdown to a lockout. */}
 
             {/* Reset date */}
             {creditsResetAt && (

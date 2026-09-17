@@ -32,7 +32,7 @@ export async function GET() {
 
     const [
       { count: totalUsers  },
-      { count: trialUsers  },
+      { count: freeUsers   },
       { count: proUsers    },
       { count: premiumUsers},
       { count: totalCvs    },
@@ -51,7 +51,9 @@ export async function GET() {
     ] = await Promise.all([
       // Test accounts (profiles.is_test_account) are not users
       admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false),
-      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'trial'),
+      // 'trial' was a plan until 2026-09-17; the CHECK now forbids it, so this
+      // counted zero accounts for ever and said nothing. Free is a real plan.
+      admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'free'),
       admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'pro'),
       admin.from('profiles').select('id',  { count: 'exact', head: true }).eq('is_test_account', false).eq('subscription_plan', 'premium'),
       admin.from('cvs').select('id',       { count: 'exact', head: true }),
@@ -80,7 +82,10 @@ export async function GET() {
     const new7d    = users.filter(u => u.created_at >= days7Str).length;
     const new30d   = users.filter(u => u.created_at >= days30Str).length;
 
-    const mrr = ((proUsers ?? 0) * 27) + ((premiumUsers ?? 0) * 49);
+    // The prices of Docs/jobvero-plans-reference.md §1, in dollars. 27 and 49
+    // were euro figures from a grid nobody sells at any more, so this revenue
+    // line had been quietly wrong.
+    const mrr = ((proUsers ?? 0) * 39) + ((premiumUsers ?? 0) * 69);
 
     const labels       = last7Labels();
     const cvByDay      = groupByDay(dailyCvData   ?? []);
@@ -98,10 +103,10 @@ export async function GET() {
     return NextResponse.json({
       users: {
         total: totalUsers ?? 0,
-        trial: trialUsers ?? 0,
         pro: proUsers ?? 0,
         premium: premiumUsers ?? 0,
-        free: Math.max(0, (totalUsers ?? 0) - (trialUsers ?? 0) - (proUsers ?? 0) - (premiumUsers ?? 0)),
+        // Counted, not inferred by subtraction: Free is a plan of its own now.
+        free: freeUsers ?? 0,
         newToday, new7d, new30d, mrr,
       },
       features: {

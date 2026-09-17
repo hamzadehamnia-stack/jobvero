@@ -117,12 +117,16 @@ async function prepareTestAccount(admin) {
   const { error: passwordError } = await admin.auth.admin.updateUserById(userId, { password });
   if (passwordError) throw passwordError;
 
+  // A paid plan, explicitly. This used to lean on a running trial for its
+  // access — `subscription_plan: null` plus a future trial_ends_at — and there
+  // is no trial any more: that account would now resolve to Free, which does
+  // not include the interview or the matches, and every billed step would be
+  // refused on the feature before a single credit moved.
   const { error: resetError } = await admin.from('profiles').update({
     full_name:            TEST_NAME,
     ai_credits_remaining: 30,
-    trial_ends_at:        new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
-    subscription_plan:    null,
-    subscription_status:  null,
+    subscription_plan:    'pro',
+    subscription_status:  'active',
     is_blocked:           false,
   }).eq('id', userId);
   if (resetError) throw resetError;

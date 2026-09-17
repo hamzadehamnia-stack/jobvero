@@ -74,7 +74,9 @@ interface Props {
   voiceLanguages: string[];
 }
 
-type UpgradeReason = 'trial_expired' | 'tier_locked' | 'no_credits';
+// No 'trial_expired': there is no trial. A Free account is not an expired
+// anything — it is a plan that does not include the interview.
+type UpgradeReason = 'tier_locked' | 'no_credits';
 
 interface Upgrade {
   reason:     UpgradeReason;
@@ -152,8 +154,7 @@ async function readRefusal(res: Response, locale: string): Promise<{ message: st
   const message = aiErrorMessage(failure, locale);
 
   const reason: UpgradeReason | null =
-      failure.reason === 'trial_expired' ? 'trial_expired'
-    : failure.reason === 'tier_locked'   ? 'tier_locked'
+      failure.reason === 'tier_locked'   ? 'tier_locked'
     : failure.kind   === 'no_credits'    ? 'no_credits'
     : failure.kind   === 'feature_locked'? 'tier_locked'
     :                                      null;

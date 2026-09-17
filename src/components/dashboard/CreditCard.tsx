@@ -58,7 +58,6 @@ export default function CreditCard() {
     effectiveTier,
     creditsRemaining,
     creditsTotal,
-    trialDaysLeft,
     creditsResetAt,
     isLoading,
   } = useSubscription();
@@ -97,11 +96,9 @@ export default function CreditCard() {
     free:    'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
   }[effectiveTier] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400';
 
-  // Tiny footer text: "7d trial left" | "Resets May 14" | "Trial expired"
+  // Tiny footer text: "Resets May 14". There is no trial to count down, and no
+  // "Trial expired" to show a Free account that never had one.
   const footerText = (() => {
-    if (effectiveTier === 'free') return l.trialExpired;
-    if (effectiveTier === 'trial' && trialDaysLeft >= 0)
-      return `${trialDaysLeft}${l.daysLeft}`;
     if (creditsResetAt)
       return `${l.resetOn} ${fmtDate(creditsResetAt, locale)}`;
     return null;

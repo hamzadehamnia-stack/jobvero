@@ -20,7 +20,7 @@ import Toast from '@/components/ui/Toast';
 
 interface OverviewStats {
   users: {
-    total: number; trial: number; pro: number; premium: number; free: number;
+    total: number; pro: number; premium: number; free: number;
     newToday: number; new7d: number; new30d: number; mrr: number;
   };
   features: {
@@ -148,12 +148,12 @@ function OverviewTab({ stats, loading, onRefresh }: { stats: OverviewStats | nul
         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Utilisateurs</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard label="Total inscrits"  value={users.total}   color="bg-violet-50 border-violet-200 text-violet-900 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-100" icon={Users} />
-          <KpiCard label="Trial actifs"    value={users.trial}   color="bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-100"   icon={Zap} />
-          <KpiCard label="Pro $27"         value={users.pro}     color="bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-100"           icon={Crown} />
-          <KpiCard label="Premium $49"     value={users.premium} color="bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-100" icon={Crown} />
+          <KpiCard label="Gratuits"        value={users.free}    color="bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-100"   icon={Zap} />
+          <KpiCard label="Pro $39"         value={users.pro}     color="bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-100"           icon={Crown} />
+          <KpiCard label="Premium $69"     value={users.premium} color="bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-100" icon={Crown} />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <KpiCard label="MRR estimé"         value={`$${users.mrr.toLocaleString()}`} sub="Pro×27 + Premium×49" color="bg-green-50 border-green-200 text-green-900 dark:bg-green-950/30 dark:border-green-800 dark:text-green-100" icon={TrendingUp} />
+          <KpiCard label="MRR estimé"         value={`$${users.mrr.toLocaleString()}`} sub="Pro×39 + Premium×69" color="bg-green-50 border-green-200 text-green-900 dark:bg-green-950/30 dark:border-green-800 dark:text-green-100" icon={TrendingUp} />
           <KpiCard label="Inscrits aujourd'hui" value={users.newToday} color="bg-gray-50 border-gray-200 text-gray-900 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" icon={Users} />
           <KpiCard label="Inscrits 7 jours"  value={users.new7d}   color="bg-gray-50 border-gray-200 text-gray-900 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" icon={Users} />
           <KpiCard label="Inscrits 30 jours" value={users.new30d}  color="bg-gray-50 border-gray-200 text-gray-900 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" icon={Users} />

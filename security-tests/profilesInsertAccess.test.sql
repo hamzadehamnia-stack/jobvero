@@ -49,8 +49,8 @@ begin
 
   select value into v_settings from public.admin_settings where key = 'global';
 
-  -- Same rule as the trigger: a valid trial_credits, otherwise 10.
-  v_raw      := v_settings -> 'limits' ->> 'trial_credits';
+  -- Same rule as the trigger: a valid free_credits_monthly, otherwise 10.
+  v_raw      := v_settings -> 'limits' ->> 'free_credits_monthly';
   v_expected := case when v_raw ~ '^[0-9]{1,6}$' then v_raw::integer else 10 end;
 
   perform set_config(
@@ -163,12 +163,15 @@ begin
       v_log := v_log || format(E'\nok    T4 ai_credits_remaining = %s', v_row.ai_credits_remaining);
     end if;
 
-    if v_row.trial_ends_at is distinct from now() + interval '3 days' then
+    -- No trial date is set any more: profiles_apply_free_grant gives the Free
+    -- allowance and nothing else. A row that came back with one would mean the
+    -- retired trigger is somehow still installed.
+    if v_row.trial_ends_at is not null then
       v_fail := v_fail + 1;
-      v_log  := v_log || format(E'\nFAIL  T4 trial_ends_at = now() + %s, want now() + 3 days', v_row.trial_ends_at - now());
+      v_log  := v_log || format(E'\nFAIL  T4 trial_ends_at = %s, want null: the trial grant should be gone', v_row.trial_ends_at);
     else
       v_ok  := v_ok + 1;
-      v_log := v_log || E'\nok    T4 trial_ends_at = now() + 3 days';
+      v_log := v_log || E'\nok    T4 trial_ends_at stays null: there is no trial';
     end if;
   end if;
 
@@ -184,14 +187,13 @@ begin
 
     select * into v_row from public.profiles where id = v_uid;
 
-    if v_row.ai_credits_remaining = v_expected
-       and v_row.trial_ends_at = now() + interval '3 days' then
+    if v_row.ai_credits_remaining = v_expected and v_row.trial_ends_at is null then
       v_ok  := v_ok + 1;
-      v_log := v_log || E'\nok    T5 trigger overwrote credits=999999 and trial=+10 years';
+      v_log := v_log || E'\nok    T5 trigger overwrote credits=999999, and set no trial date';
     else
       v_fail := v_fail + 1;
-      v_log  := v_log || format(E'\nFAIL  T5 supplied values kept: credits = %s, trial_ends_at = now() + %s',
-                                 v_row.ai_credits_remaining, v_row.trial_ends_at - now());
+      v_log  := v_log || format(E'\nFAIL  T5 supplied values kept: credits = %s, trial_ends_at = %s',
+                                 v_row.ai_credits_remaining, v_row.trial_ends_at);
     end if;
   exception when others then
     v_fail := v_fail + 1;
@@ -199,7 +201,7 @@ begin
   end;
 
 
-  -- ─── T5b. A broken trial_credits never blocks profile creation ─────────────
+  -- ─── T5b. A broken free_credits_monthly never blocks profile creation ─────────────
   --
   -- Each case edits admin_settings, inserts a fresh row, and expects 10 credits
   -- and no error. The original settings are restored afterwards so the checks
@@ -212,11 +214,11 @@ begin
 
       if v_raw = '<missing>' then
         update public.admin_settings
-           set value = value #- '{limits,trial_credits}'
+           set value = value #- '{limits,free_credits_monthly}'
          where key = 'global';
       else
         update public.admin_settings
-           set value = jsonb_set(value, '{limits,trial_credits}', to_jsonb(v_raw), true)
+           set value = jsonb_set(value, '{limits,free_credits_monthly}', to_jsonb(v_raw), true)
          where key = 'global';
       end if;
 
@@ -225,14 +227,14 @@ begin
 
       if v_row.ai_credits_remaining = 10 then
         v_ok  := v_ok + 1;
-        v_log := v_log || format(E'\nok    T5b trial_credits = %s: insert accepted, 10 credits', v_raw);
+        v_log := v_log || format(E'\nok    T5b free_credits_monthly = %s: insert accepted, 10 credits', v_raw);
       else
         v_fail := v_fail + 1;
-        v_log  := v_log || format(E'\nFAIL  T5b trial_credits = %s: row got %s credits, want 10', v_raw, v_row.ai_credits_remaining);
+        v_log  := v_log || format(E'\nFAIL  T5b free_credits_monthly = %s: row got %s credits, want 10', v_raw, v_row.ai_credits_remaining);
       end if;
     exception when others then
       v_fail := v_fail + 1;
-      v_log  := v_log || format(E'\nFAIL  T5b trial_credits = %s: insert blocked: %s', v_raw, sqlerrm);
+      v_log  := v_log || format(E'\nFAIL  T5b free_credits_monthly = %s: insert blocked: %s', v_raw, sqlerrm);
     end;
   end loop;
 
