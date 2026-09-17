@@ -8,12 +8,23 @@ Lancement marché USA. Tout doit être développé et validé **en mode test** a
 
 ## 0. Décisions de conception à respecter
 
+> ### ⚠️ Ce qui suit a été tranché ailleurs
+>
+> **`Docs/jobvero-plans-reference.md` (figé le 2026-09-17) fait autorité.** En cas
+> de contradiction avec ce brief, c'est la référence qui a raison.
+>
+> - **L'essai de 7 jours décidé le 2026-09-16 est ANNULÉ** (référence §12, décision
+>   du 17/09). Il n'y a plus d'essai à durée limitée : le **plan Gratuit est
+>   permanent** et en tient lieu. Aucune carte n'est demandée à l'inscription.
+> - **Les paliers sont tranchés** : Gratuit 0 $ / Pro 39 $ / Premium 69 $, mensuel,
+>   USD. Le palier **Starter n'existe plus**, fusionné dans le Gratuit.
+> - Les lignes d'essai qui figuraient ici décrivaient un mécanisme qui n'a jamais
+>   été implémenté et ne le sera pas.
+
 | Sujet | Décision |
 |---|---|
-| **Essai — décidé le 2026-09-16** | **7 jours.** Carte bancaire **obligatoire** à l'inscription (Stripe `trial_period_days=7`). Prélèvement automatique au 8e jour, sauf annulation avant. |
-| **Essai — ce qu'il donne** | Fonctions de niveau **Pro**, quota de **10 crédits** — *pas* le quota du plan choisi. Volontaire, et à écrire clairement à l'utilisateur **avant** qu'il entre sa carte. Au 8e jour : le plan choisi et son quota mensuel normal. |
-| **Essai — source de vérité** | **Stripe** (`subscription_status = 'trialing'`), plus une colonne de la base. Implémentation au bloc e9. |
-| Paliers | **Non tranché — voir « À trancher avant e9 » ci-dessous.** Trois grilles de prix coexistent dans le projet. |
+| **Essai** | **Aucun.** Plan Gratuit permanent — voir la référence §1. |
+| **Paliers** | **0 $ / 39 $ / 69 $**, trois plans — voir la référence §1. |
 | Devise | USD |
 | Source de vérité de l'abonnement | Les **webhooks Stripe**, jamais le client, jamais la page de succès |
 | Écriture des colonnes d'abonnement | **Service role uniquement** (cohérent avec le durcissement RLS de `profiles`) |
@@ -22,9 +33,15 @@ Lancement marché USA. Tout doit être développé et validé **en mode test** a
 
 ## 0 bis. À trancher avant e9 — les prix
 
-**Rien n'est décidé ici.** Trois grilles de prix coexistent dans le projet et se
-contredisent. Elles sont reproduites telles quelles ; aucune n'a été modifiée, et
-aucun prix n'a été inventé.
+> **Tranché depuis.** `Docs/jobvero-plans-reference.md` §1 fixe 0 $ / 39 $ / 69 $ et
+> supprime Starter. Le relevé ci-dessous est conservé comme trace de la
+> contradiction qui existait, et de ce qui reste à corriger : la page tarifs et
+> `UpgradeModal` affichent toujours 19,99/29,99 $ (bloc e9b), et les CGU annoncent
+> encore 11/27/49 € avec Starter et un essai de 7 jours (à votre main).
+
+**Rien n'était décidé au moment de ce relevé.** Trois grilles de prix coexistaient
+dans le projet et se contredisaient. Elles sont reproduites telles quelles ; aucune
+n'a été modifiée, et aucun prix n'a été inventé.
 
 | Source | Starter | Pro | Premium | Statut |
 |---|---|---|---|---|

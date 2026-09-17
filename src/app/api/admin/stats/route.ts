@@ -63,7 +63,11 @@ export async function GET() {
       admin.from('interview_sessions').select('id',    { count: 'exact', head: true }),
       admin.from('ai_job_matches_cache').select('user_id', { count: 'exact', head: true }),
       admin.from('message_threads').select('id',       { count: 'exact', head: true }),
-      admin.from('feature_usage').select('user_id',    { count: 'exact', head: true }).eq('feature_key', 'ATS_SCORE'),
+      // feature_usage was the old till's journal and has held zero rows since it
+      // was retired, so this counted nothing at all. An ATS score is an ai_usage
+      // row for `match_score`, the catalogue action both /api/ats-score and
+      // /api/cv-match-score reserve.
+      admin.from('ai_usage').select('id', { count: 'exact', head: true }).eq('action', 'match_score'),
       // 7-day daily data
       admin.from('cvs').select('created_at').gte('created_at', days7Str),
       admin.from('cover_letters').select('created_at').gte('created_at', days7Str),
