@@ -28,7 +28,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 24;
+const EXPECTED_CHECKS = 28;
 const SIGNATURE_WINDOW_SECONDS = 300;
 
 let passed = 0;
@@ -99,7 +99,12 @@ async function main() {
   const previousAlias = profiles[0].email_alias;
   const today         = new Date().toISOString().slice(0, 10);
 
-  const { error: aliasError } = await admin.from('profiles').update({ email_alias: alias }).eq('id', userId);
+  // A paid plan for the run: classification now reads the tier, and Free
+  // carries a monthly ceiling of its own (15) that would refuse the emails this
+  // test sends for reasons it is not testing.
+  const { error: aliasError } = await admin.from('profiles')
+    .update({ email_alias: alias, subscription_plan: 'pro', subscription_status: 'active' })
+    .eq('id', userId);
   if (aliasError) throw aliasError;
 
   // What the ceilings were before the run, to put them back.
@@ -154,7 +159,7 @@ async function main() {
   async function state() {
     const { data: threads } = await admin
       .from('message_threads')
-      .select('id, employer_email, ai_category, ai_processed_at, ai_skipped_reason, created_at')
+      .select('id, employer_email, ai_category, ai_processed_at, ai_skipped_reason, ai_draft, ai_chips, created_at')
       .eq('user_id', userId)
       .gte('created_at', new Date(Date.now() - 3_600_000).toISOString());
     const ids = (threads ?? []).map((t) => t.id);
@@ -319,6 +324,53 @@ async function main() {
       { usage: [before7b.usage.length, after7b.usage.length], skipped: thread7b?.ai_skipped_reason });
     check('7 the counter followed the ceiling it was given', after7b.aliasCount === 1, after7b.aliasCount);
 
+    // ── 8. The Free plan: 15 a month, and no reply written for it ───────────
+    //
+    // Reference §1 and §2: Free gets the address and the sorting — it is the
+    // hook — but the secretary files the post, she does not answer it. Past 15
+    // in a month the email still arrives and is still visible, carrying a
+    // reason instead of an analysis.
+    console.log('\n8. The Free plan');
+
+    const nowUtc   = new Date();
+    const month    = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const setMonth = async (count) => {
+      const { error } = await admin.from('inbox_classify_counters')
+        .upsert({ day: month, scope: 'month', subject: userId, count }, { onConflict: 'day,scope,subject' });
+      if (error) throw error;
+    };
+
+    await admin.from('profiles')
+      .update({ subscription_plan: 'free', subscription_status: null }).eq('id', userId);
+    await setCounter('alias', userId, 0);
+    await setCounter('global', 'global', 0);
+
+    await setMonth(15);
+    const before8 = await state();
+    const over    = await post(email('Seizième du mois', 'Bonjour, nous souhaitons vous rencontrer la semaine prochaine.'));
+    await delay(1_500);
+    const after8  = await state();
+    const thread8 = after8.threads.find((t) => !before8.threads.some((b) => b.id === t.id));
+    check('8 the 16th email of the month is kept, with a readable reason, never lost',
+      over.status === 200 && Boolean(thread8) && thread8?.ai_skipped_reason === 'monthly_limit' && thread8?.ai_processed_at === null,
+      { status: over.status, skipped: thread8?.ai_skipped_reason });
+    check('8 and it cost nothing: no model call, no ledger row',
+      after8.usage.length === before8.usage.length, [before8.usage.length, after8.usage.length]);
+
+    await setMonth(0);
+    const before8b = await state();
+    const within   = await post(email('Dans le quota', 'Bonjour, seriez-vous disponible pour un entretien mercredi à 10h ?'));
+    await delay(4_000);
+    const after8b  = await state();
+    const thread8b = after8b.threads.find((t) => !before8b.threads.some((b) => b.id === t.id));
+    check('8 inside the allowance, a Free email is classified normally',
+      within.status === 200 && after8b.usage.length === before8b.usage.length + 1
+        && thread8b?.ai_skipped_reason === null && Boolean(thread8b?.ai_processed_at),
+      { status: within.status, usage: [before8b.usage.length, after8b.usage.length], skipped: thread8b?.ai_skipped_reason });
+    check('8 no reply is written for a Free account — not in ai_draft, not hidden in the chips',
+      !thread8b?.ai_draft && !thread8b?.ai_chips,
+      { draft: thread8b?.ai_draft, chips: thread8b?.ai_chips });
+
     const spent = after7b.usage.reduce((sum, u) => sum + Number(u.cost_usd ?? 0), 0);
     console.log(`\nOpenRouter cost of this run: $${spent.toFixed(6)} over ${after7b.usage.length} classification(s)`);
   } finally {
@@ -340,6 +392,15 @@ async function main() {
     const { error: globalCounter } = await admin.from('inbox_classify_counters')
       .upsert({ day: today, scope: 'global', subject: 'global', count: globalBefore }, { onConflict: 'day,scope,subject' });
     if (globalCounter) console.log(`cleanup: global counter not restored: ${globalCounter.message}`);
+
+    // Section 8 moved the account onto Free and opened a monthly counter.
+    const monthBack = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const { error: monthCounter } = await admin.from('inbox_classify_counters').delete()
+      .eq('day', monthBack).eq('scope', 'month').eq('subject', userId);
+    if (monthCounter) console.log(`cleanup: month counter not deleted: ${monthCounter.message}`);
+    const { error: planBack } = await admin.from('profiles')
+      .update({ subscription_plan: 'pro', subscription_status: 'active' }).eq('id', userId);
+    if (planBack) console.log(`cleanup: plan not restored: ${planBack.message}`);
   }
 
   const ran = passed + failed;

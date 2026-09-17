@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { readJsonObject } from '@/lib/ai/json';
 import { callCatalogueModel, readCatalogueAction } from '@/lib/ai/systemCall';
+import { checkFeatureAccess, resolveTier, type EntitlementProfile, type Tier } from '@/lib/entitlements';
 import { authorizeInboxWebhook } from '@/lib/inbox/signature';
 import { logApplicationEvent } from '@/lib/applicationEvents';
 
@@ -51,7 +52,7 @@ interface AiAnalysis {
 }
 
 /** Why an email was kept but not classified. The interface tells the user. */
-type SkipReason = 'alias_limit' | 'global_limit' | 'ai_disabled' | 'ai_unavailable';
+type SkipReason = 'alias_limit' | 'global_limit' | 'monthly_limit' | 'ai_disabled' | 'ai_unavailable';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,20 @@ interface Classification {
  * user their classification, never their mail.
  */
 async function classify(userId: string, subject: string, body: string): Promise<Classification> {
+  // What the alias owner's plan allows, decided by the one table. Free sorts
+  // 15 emails a month and gets no written reply — it is the secretary filing
+  // the post, not the one answering it (reference §2). A paid plan has neither
+  // ceiling, only the 25-a-day cap every alias carries.
+  const { data: owner } = await admin
+    .from('profiles')
+    .select('subscription_plan, subscription_status, ai_credits_remaining, is_blocked')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const resolution  = resolveTier((owner ?? null) as EntitlementProfile | null);
+  const tier: Tier  = resolution.blocked ? 'free' : resolution.tier;
+  const mayDraft    = checkFeatureAccess(resolution, 'INBOX_AI_DRAFT').allowed;
+
   let maxInputChars: number;
   try {
     ({ maxInputChars } = await readCatalogueAction(admin, 'system_inbox_classify'));
@@ -219,17 +234,21 @@ async function classify(userId: string, subject: string, body: string): Promise<
 
   // The ceilings are counted in the database, under lock: two emails arriving
   // at once cannot both take the last slot of the day.
-  const { data: claimed, error: claimError } = await admin.rpc('claim_inbox_classification', { p_user_id: userId });
+  const { data: claimed, error: claimError } = await admin.rpc('claim_inbox_classification', {
+    p_user_id: userId,
+    p_tier:    tier,
+  });
   if (claimError) {
     console.error(`${TAG} classification claim failed for ${userId}:`, claimError.message);
     return { analysis: null, skipped: 'ai_unavailable' };
   }
   const claim = firstRow(claimed) ?? {};
   if (claim.allowed !== true) {
-    const reason: SkipReason = claim.reason === 'alias_limit' || claim.reason === 'global_limit'
-      ? claim.reason
-      : 'ai_unavailable';
-    console.warn(`${TAG} classification skipped for ${userId}: ${reason} (alias ${claim.alias_used}/${claim.alias_limit}, global ${claim.global_used}/${claim.global_limit})`);
+    const reason: SkipReason =
+      claim.reason === 'alias_limit' || claim.reason === 'global_limit' || claim.reason === 'monthly_limit'
+        ? claim.reason
+        : 'ai_unavailable';
+    console.warn(`${TAG} classification skipped for ${userId}: ${reason} (alias ${claim.alias_used}/${claim.alias_limit}, global ${claim.global_used}/${claim.global_limit}, month ${claim.month_used}/${claim.month_limit})`);
     return { analysis: null, skipped: reason };
   }
 
@@ -241,12 +260,28 @@ async function classify(userId: string, subject: string, body: string): Promise<
       userId,
       messages: [
         { role: 'system', content: AI_SYSTEM_PROMPT },
-        { role: 'user',   content: `<email_to_analyze>\nSubject: ${subject.slice(0, 500)}\nBody:\n${body.slice(0, maxInputChars)}\n</email_to_analyze>\n\n${AI_SCHEMA_HINT}` },
+        {
+          role: 'user',
+          content:
+            `<email_to_analyze>\nSubject: ${subject.slice(0, 500)}\nBody:\n${body.slice(0, maxInputChars)}\n</email_to_analyze>\n\n${AI_SCHEMA_HINT}` +
+            // Asking costs nothing and saves the output tokens of a reply that
+            // would be thrown away. It is not the safeguard: that is below.
+            (mayDraft ? '' : '\n\nThis account does not receive written replies. Return "ai_draft" as an empty string and "ai_chips" as an empty array.'),
+        },
       ],
     });
 
     const analysis = extractAiAnalysis(readJsonObject(text));
-    return { analysis, skipped: analysis ? null : 'ai_unavailable' };
+
+    // The model was asked not to draft for this account; it is stripped here
+    // regardless, because an instruction a model follows is not a rule. The
+    // chips carry full reply texts of their own ({l: label, d: draft}), so a
+    // draft removed from ai_draft alone would simply come back as a button.
+    const guarded = analysis && !mayDraft
+      ? { ...analysis, ai_draft: '', ai_chips: [] }
+      : analysis;
+
+    return { analysis: guarded, skipped: guarded ? null : 'ai_unavailable' };
   } catch (err) {
     // The call is logged by the gateway whether it worked or not: a failed
     // classification still cost money, and the email is already saved.
