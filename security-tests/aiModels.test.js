@@ -20,10 +20,15 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const ROOT                 = path.resolve(__dirname, '..');
-const EXPECTED_ACTIONS     = 14;   // 13 of migration 20260914120000_ai_action_letter_adapt + system_interview_report_retry
-// interview_session stt/tts, auto_apply cv/email, system_email_finder
-// scrape/search — every step a catalogue action pins a model for.
-const EXPECTED_STEP_MODELS = 6;
+// 13 of migration 20260914120000_ai_action_letter_adapt, + system_interview_report_retry,
+// + system_auto_apply (e9a): an application's steps had to leave the action
+// `auto_apply`, which is not a system_ action, or their cost would have left
+// cost_system_usd the day applications stopped costing a credit.
+const EXPECTED_ACTIONS     = 15;
+// interview_session stt/tts, auto_apply cv/email, system_auto_apply cv/email,
+// system_email_finder scrape/search — every step a catalogue action pins a
+// model for.
+const EXPECTED_STEP_MODELS = 8;
 const EXPECTED_CHECKS      = 3 + EXPECTED_ACTIONS + EXPECTED_STEP_MODELS;
 
 // No preview, experimental or free model behind a billed feature — a rule, not
