@@ -34,7 +34,7 @@ const { createServerClient } = require('@supabase/ssr');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 15;
+const EXPECTED_CHECKS = 17;
 
 let passed = 0;
 let failed = 0;
@@ -102,12 +102,15 @@ async function main() {
   const now   = new Date();
   const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
 
+  // The plan, and only the plan. This used to reset ai_credits_remaining to 50
+  // as well, three times during the run — so the last check, the one that
+  // proves an application never touches the credit balance, was comparing a
+  // number its own helper had overwritten.
   const setPlan = async (plan) => {
     const { error: e } = await admin.from('profiles').update({
-      subscription_plan:    plan,
-      subscription_status:  plan === 'free' ? null : 'active',
-      ai_credits_remaining: 50,
-      is_blocked:           false,
+      subscription_plan:   plan,
+      subscription_status: plan === 'free' ? null : 'active',
+      is_blocked:          false,
     }).eq('id', userId);
     if (e) throw e;
   };
@@ -164,6 +167,12 @@ async function main() {
   };
 
   console.log(`\nAuto-apply quota — test account ${userId}, month ${month}, run ${runId}`);
+
+  // Seeded once here, and never written again by this test: whatever the
+  // balance is at the end, nothing in the auto-apply path put it there.
+  const { error: seedError } = await admin.from('profiles')
+    .update({ ai_credits_remaining: 50 }).eq('id', userId);
+  if (seedError) throw seedError;
   const creditsAtStart = await credits();
 
   try {
