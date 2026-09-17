@@ -99,11 +99,25 @@ async function main() {
   const previousAlias = profiles[0].email_alias;
   const today         = new Date().toISOString().slice(0, 10);
 
+  // The inbox month is keyed by the billing period, not the calendar month.
+  // Pinning it here is what makes section 8 honest: with no period set, the
+  // claim falls back to the first of the calendar month, and a test that seeded
+  // that key would pass by luck and start failing the day a renewal gives this
+  // account a period.
+  const periodStart = new Date(Date.now() - 2 * 86_400_000);
+  const periodEnd   = new Date(Date.now() + 28 * 86_400_000);
+
   // A paid plan for the run: classification now reads the tier, and Free
   // carries a monthly ceiling of its own (15) that would refuse the emails this
   // test sends for reasons it is not testing.
   const { error: aliasError } = await admin.from('profiles')
-    .update({ email_alias: alias, subscription_plan: 'pro', subscription_status: 'active' })
+    .update({
+      email_alias:          alias,
+      subscription_plan:    'pro',
+      subscription_status:  'active',
+      current_period_start: periodStart.toISOString(),
+      current_period_end:   periodEnd.toISOString(),
+    })
     .eq('id', userId);
   if (aliasError) throw aliasError;
 
@@ -332,8 +346,9 @@ async function main() {
     // reason instead of an analysis.
     console.log('\n8. The Free plan');
 
-    const nowUtc   = new Date();
-    const month    = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    // The key the claim actually uses: the period pinned at setup, exactly as
+    // claim_inbox_classification computes it from current_period_start.
+    const month    = periodStart.toISOString().slice(0, 10);
     const setMonth = async (count) => {
       const { error } = await admin.from('inbox_classify_counters')
         .upsert({ day: month, scope: 'month', subject: userId, count }, { onConflict: 'day,scope,subject' });
@@ -393,13 +408,18 @@ async function main() {
       .upsert({ day: today, scope: 'global', subject: 'global', count: globalBefore }, { onConflict: 'day,scope,subject' });
     if (globalCounter) console.log(`cleanup: global counter not restored: ${globalCounter.message}`);
 
-    // Section 8 moved the account onto Free and opened a monthly counter.
-    const monthBack = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10);
+    // Section 8 moved the account onto Free and opened a monthly counter on the
+    // pinned period's key.
     const { error: monthCounter } = await admin.from('inbox_classify_counters').delete()
-      .eq('day', monthBack).eq('scope', 'month').eq('subject', userId);
+      .eq('day', periodStart.toISOString().slice(0, 10)).eq('scope', 'month').eq('subject', userId);
     if (monthCounter) console.log(`cleanup: month counter not deleted: ${monthCounter.message}`);
     const { error: planBack } = await admin.from('profiles')
-      .update({ subscription_plan: 'pro', subscription_status: 'active' }).eq('id', userId);
+      .update({
+        subscription_plan:    'pro',
+        subscription_status:  'active',
+        current_period_start: null,
+        current_period_end:   null,
+      }).eq('id', userId);
     if (planBack) console.log(`cleanup: plan not restored: ${planBack.message}`);
   }
 
