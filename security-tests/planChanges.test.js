@@ -257,6 +257,11 @@ async function main() {
     check('8 and no paid status left behind', a8.subscription_status === null, a8.subscription_status);
   } finally {
     for (const id of disposables) {
+      // inbox_classify_counters.subject is free text -- it also holds 'global'
+      // -- so it carries no foreign key and nothing about it cascades when the
+      // account goes. Test 6 classifies an email, and the row it leaves would
+      // outlive the account it belongs to.
+      await admin.from('inbox_classify_counters').delete().eq('subject', id);
       await admin.from('profiles').delete().eq('id', id);
       const { error } = await admin.auth.admin.deleteUser(id);
       if (error) console.log(`cleanup: user ${id} not deleted: ${error.message}`);
