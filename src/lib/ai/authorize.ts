@@ -20,8 +20,8 @@ import { loadAdminSwitches } from './switches';
 //   5. catalogue row           503 when missing or disabled
 // Returns the resolved request, or the Response that refuses it.
 
-const PROFILE_COLUMNS = 'subscription_plan, subscription_status, trial_ends_at, ai_credits_remaining, is_blocked';
-const PAID_TIERS      = ['starter', 'pro', 'premium'] as const;
+const PROFILE_COLUMNS = 'subscription_plan, subscription_status, ai_credits_remaining, is_blocked';
+const PAID_TIERS      = ['pro', 'premium'] as const;
 
 /** An action's row in ai_action_costs: the model and ceilings a route is held to. */
 export interface CatalogueEntry {

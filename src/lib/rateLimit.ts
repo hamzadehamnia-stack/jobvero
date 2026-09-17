@@ -93,7 +93,7 @@ export function rateLimitKey(routeName: string, userId: string | null, req: Requ
  * left to protect at that point.
  *
  * Note this is the opposite policy to the credits check in
- * lib/subscription/access.ts, which fails CLOSED: a database it cannot read
+ * lib/entitlements.ts, which fails CLOSED: a database it cannot read
  * resolves to the free tier with zero credits, and every free-tier feature
  * costs at least one credit. Paid features therefore stay shut during an
  * outage; only the unmetered routes this limiter guards stay open.

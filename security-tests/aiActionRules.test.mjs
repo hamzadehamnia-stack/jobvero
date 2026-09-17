@@ -65,28 +65,28 @@ check('allowed → no refusal', refusalForFeature({ allowed: true, tier: 'pro' }
 check('blocked → 403 blocked, no upgrade path',
   refusalForFeature({ allowed: false, reason: 'blocked' }),
   { status: 403, body: { error: 'Account blocked', reason: 'blocked' } });
-check('free → 403 trial_expired, never no_credits',
-  refusalForFeature({ allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'starter' }),
-  { status: 403, body: { error: 'Feature locked', reason: 'trial_expired', upgradeTo: 'starter' } });
-check('starter on a Pro feature → 403 tier_locked, upgrade to pro',
-  refusalForFeature({ allowed: false, reason: 'feature_locked', tier: 'starter', upgradeTo: 'pro' }),
+check('free on a paid feature → 403 tier_locked, upgrade to pro',
+  refusalForFeature({ allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' }),
   { status: 403, body: { error: 'Feature locked', reason: 'tier_locked', upgradeTo: 'pro' } });
+check('never trial_expired: there is no trial, and Free never had one',
+  refusalForFeature({ allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' }).body.reason !== 'trial_expired',
+  true);
 
 
 // ─── 3. Reservation refusals ──────────────────────────────────────────────────
 
 console.log('\n3. Reservation refusals');
 
-const context = (tier, cheapestTierForFeature = 'starter') => ({ tier, cheapestTierForFeature });
+const context = (tier, cheapestTierForFeature = 'pro') => ({ tier, cheapestTierForFeature });
 
-check('JV004 on starter → 402 no_credits, upgrade to pro',
-  refusalForReserveError('JV004', context('starter')),
-  { status: 402, body: { error: 'Insufficient credits', reason: 'no_credits', upgradeTo: 'pro' } });
+check('JV004 on pro → 402 no_credits, upgrade to premium',
+  refusalForReserveError('JV004', context('pro')),
+  { status: 402, body: { error: 'Insufficient credits', reason: 'no_credits', upgradeTo: 'premium' } });
 check('JV004 on premium → 402, nowhere to upgrade',
   refusalForReserveError('JV004', context('premium')),
   { status: 402, body: { error: 'Insufficient credits', reason: 'no_credits', upgradeTo: null } });
-check('JV004 on a trial → the cheapest plan that has the feature',
-  refusalForReserveError('JV004', context('trial', 'pro')),
+check('JV004 on free → the cheapest plan that has the feature (Free holds credits of its own now)',
+  refusalForReserveError('JV004', context('free', 'pro')),
   { status: 402, body: { error: 'Insufficient credits', reason: 'no_credits', upgradeTo: 'pro' } });
 check('JV005 → 403 blocked',
   refusalForReserveError('JV005', context('pro')),

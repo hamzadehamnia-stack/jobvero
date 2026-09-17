@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  autoApplyQuota,
   creditAllowance,
   creditBalance,
+  featureMap,
   resolveTier,
   type CreditLimits,
   type EntitlementProfile,
@@ -31,7 +33,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('subscription_plan, subscription_status, trial_ends_at, ai_credits_remaining, ai_credits_reset_at, is_blocked')
+    .select('subscription_plan, subscription_status, ai_credits_remaining, ai_credits_reset_at, is_blocked')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -43,14 +45,25 @@ export async function GET() {
   const resolution = resolveTier((profile ?? null) as EntitlementProfile | null);
   const tier       = resolution.blocked ? 'free' : resolution.tier;
 
-  // admin_settings is service-role only: this is why the answer comes from a
-  // route rather than from the browser reading the table itself.
+  // admin_settings and auto_apply_counters are service-role only: this is why
+  // the answer comes from a route rather than from the browser reading them.
   let limits: CreditLimits | null = null;
+  let autoApplyUsed = 0;
   try {
     const admin = createAdminClient();
     const { data: settings } = await admin
       .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
     limits = ((settings?.value as { limits?: CreditLimits } | null)?.limits) ?? null;
+
+    // The month the counter uses: the first day, in UTC, as claim_auto_apply
+    // computes it. Reading it any other way would show a number that disagrees
+    // with the one being enforced.
+    const now   = new Date();
+    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const { data: counter } = await admin
+      .from('auto_apply_counters').select('count')
+      .eq('user_id', user.id).eq('month', month).maybeSingle();
+    autoApplyUsed = typeof counter?.count === 'number' ? counter.count : 0;
   } catch (err) {
     console.error('[me/entitlement] admin settings unreadable:', err);
   }
@@ -63,6 +76,13 @@ export async function GET() {
     // balance alone rather than inventing a denominator.
     creditsTotal:     creditAllowance(tier, limits),
     creditsResetAt:   (profile?.ai_credits_reset_at as string | null) ?? null,
-    trialEndsAt:      (profile?.trial_ends_at as string | null) ?? null,
+    // What this plan unlocks, decided by the one table. The browser holds no
+    // copy of it: it draws what this says.
+    features:         featureMap(tier),
+    // Automatic applications: their own counter, never the credit balance.
+    autoApply: {
+      used:  autoApplyUsed,
+      quota: autoApplyQuota(tier, limits),
+    },
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

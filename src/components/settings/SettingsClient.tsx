@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import NextLink from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useSubscription } from '@/hooks/useSubscription';
 import PhoneInput from './PhoneInput';
 import DatePicker from '@/components/ui/DatePicker';
 import {
@@ -34,7 +35,6 @@ interface ProfileRow {
   notify_job_alerts:    boolean | null;
   notify_weekly_report: boolean | null;
   subscription_plan:    string | null;
-  trial_ends_at:        string | null;
   preferred_language:   string | null;
   email_alias:          string | null;
   jobvero_id:           string | null;
@@ -47,7 +47,7 @@ interface Props {
 }
 
 type SaveState  = 'idle' | 'saving' | 'saved' | 'error';
-type DisplayTier = 'trial' | 'free' | 'pro' | 'premium';
+type DisplayTier = 'free' | 'pro' | 'premium';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -91,14 +91,11 @@ const WORK_TYPE_IDS = ['remote', 'hybrid', 'onsite'] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getDisplayTier(plan: string | null, trialEndsAt: string | null): DisplayTier {
-  const p = plan ?? 'trial';
-  if (p === 'trial') {
-    if (!trialEndsAt || new Date(trialEndsAt) < new Date()) return 'free';
-    return 'trial';
-  }
-  return p as DisplayTier;
-}
+// getDisplayTier lived here and read subscription_plan and trial_ends_at to
+// decide the tier a second time, in the browser. Two readings of the same
+// question answer differently the day one of them changes, and this one was
+// already wrong: it defaulted a null plan to 'trial'. The tier now comes from
+// the server, through useSubscription, which asks /api/me/entitlement.
 
 const inputCls =
   'w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 ' +
@@ -207,7 +204,6 @@ function ToggleRow({ id, icon: Icon, label, description, enabled, onChange }: {
 // ─── Plan badge config ────────────────────────────────────────────────────────
 
 const PLAN_STYLES: Record<DisplayTier, { badge: string; icon: React.ElementType; ring: string }> = {
-  trial:   { badge: 'bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300', icon: Sparkles, ring: 'border-violet-200 dark:border-violet-800' },
   free:    { badge: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',             icon: Shield,   ring: 'border-gray-200 dark:border-gray-700' },
   pro:     { badge: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',           icon: Crown,    ring: 'border-blue-200 dark:border-blue-800' },
   premium: { badge: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300',       icon: Crown,    ring: 'border-amber-200 dark:border-amber-800' },
@@ -364,11 +360,8 @@ export default function SettingsClient({ userId, email, profile }: Props) {
     ? fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : email.slice(0, 2).toUpperCase();
 
-  const tier = getDisplayTier(profile?.subscription_plan ?? null, profile?.trial_ends_at ?? null);
-
-  const daysRemaining = profile?.trial_ends_at
-    ? Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86_400_000))
-    : 0;
+  // One source: the server's answer, not a second reading of the plan column.
+  const { effectiveTier: tier } = useSubscription();
 
   const currencySymbol = useMemo(() => {
     const first = targetCountries[0];
@@ -932,18 +925,13 @@ export default function SettingsClient({ userId, email, profile }: Props) {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
-                      {tier === 'trial' ? 'Trial' : tier === 'free' ? 'Free' : tier === 'pro' ? 'Pro' : 'Premium'}
+                      {tier === 'free' ? 'Free' : tier === 'pro' ? 'Pro' : 'Premium'}
                     </p>
-                    {tier === 'trial' && daysRemaining > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300">
-                        {daysRemaining}d left
-                      </span>
-                    )}
                   </div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t(planDescKey)}</p>
                 </div>
               </div>
-              {(tier === 'free' || tier === 'trial') && (
+              {tier === 'free' && (
                 <a href="/en/pricing"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold
                     bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400

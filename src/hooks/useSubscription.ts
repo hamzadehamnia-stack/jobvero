@@ -2,43 +2,48 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { FEATURES, type FeatureKey, type Tier } from '@/lib/subscription/features';
-import { toFeatureTierKey } from '@/lib/subscription/access';
+import type { FeatureKey, Tier } from '@/lib/entitlements';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// What GET /api/me/entitlement answers. The server resolves the tier and reads
-// the allowance from admin_settings, which the browser cannot read itself.
+// What GET /api/me/entitlement answers.
+//
+// The browser holds no copy of the feature table. It used to: this hook
+// imported FEATURES from a second table that granted a Free account the
+// assistant while the server refused it, and indexed a 'starter' column that
+// table never had — which hid every feature from a paying Starter customer.
+// The server decides; this asks. A type import carries no decision, so `Tier`
+// and `FeatureKey` come from the source and stay in step with it.
 interface Entitlement {
   tier:             Tier;
   blocked:          boolean;
   creditsRemaining: number;
   creditsTotal:     number | null;
   creditsResetAt:   string | null;
-  trialEndsAt:      string | null;
+  /** What this tier unlocks, as the server reads its own table. */
+  features:         Record<FeatureKey, boolean>;
+  /** Automatic applications: spent this month, and the plan's monthly quota. */
+  autoApply:        { used: number; quota: number | null };
 }
 
 export interface SubscriptionState {
-  /** Raw plan stored in DB: 'trial' | 'pro' | 'premium' */
-  plan: 'trial' | 'pro' | 'premium';
-  /**
-   * Computed tier after checking trial expiry and subscription status:
-   * - 'trial'   → active trial (pro-level access)
-   * - 'free'    → trial expired (restricted access)
-   * - 'starter' | 'pro' | 'premium' → paid
-   */
+  /** The plan, as stored: 'free' | 'pro' | 'premium'. Free is permanent. */
+  plan: Tier;
+  /** Same thing, kept under its old name for the screens that read it. */
   effectiveTier: Tier;
-  trialEndsAt:     Date | null;
-  /** Days left in trial — 0 if expired, -1 if on a paid plan */
-  trialDaysLeft:   number;
   creditsRemaining: number;
   /** The tier's monthly allowance. null when it is not configured. */
   creditsTotal:     number | null;
   creditsResetAt:  Date | null;
+  /** Automatic applications used this month, and the quota. */
+  autoApplyUsed:   number;
+  autoApplyQuota:  number | null;
   isLoading: boolean;
   /**
-   * Client-side quick check. NOT authoritative — the server still validates.
-   * Use this to show or hide UI, never to enforce access.
+   * Whether the plan includes a feature, as the server says. NOT a substitute
+   * for the server's own check: use it to show or hide, never to allow.
+   * Credits are not part of this answer — what an action costs lives in
+   * ai_action_costs and is enforced when it is charged.
    */
   canUse: (feature: FeatureKey) => boolean;
   /** Re-fetch from the server */
@@ -50,7 +55,6 @@ export interface SubscriptionState {
 export function useSubscription(): SubscriptionState {
   const supabase    = useMemo(() => createClient(), []);
   const [state,     setState]     = useState<Entitlement | null>(null);
-  const [plan,      setPlan]      = useState<'trial' | 'pro' | 'premium'>('trial');
   const [isLoading, setIsLoading] = useState(true);
   const [userId,    setUserId]    = useState<string | null>(null);
 
@@ -76,12 +80,6 @@ export function useSubscription(): SubscriptionState {
       if (!mountedRef.current) return;
 
       setState(entitlement);
-      // The raw plan, for screens that label it. A trial resolves to 'trial'.
-      setPlan(
-        entitlement.tier === 'pro' || entitlement.tier === 'premium'
-          ? entitlement.tier
-          : 'trial',
-      );
     } finally {
       inProgressRef.current = false;
       if (mountedRef.current) setIsLoading(false);
@@ -125,41 +123,23 @@ export function useSubscription(): SubscriptionState {
   // ── Derived values ──────────────────────────────────────────────────────
 
   const effectiveTier: Tier = state?.tier ?? 'free';
-  const trialEndsAt = state?.trialEndsAt ? new Date(state.trialEndsAt) : null;
-
-  const trialDaysLeft = (() => {
-    if (effectiveTier !== 'trial') return -1;
-    if (!trialEndsAt) return 0;
-    const diff = trialEndsAt.getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  })();
-
-  const creditsRemaining = state?.creditsRemaining ?? 0;
-  const creditsResetAt   = state?.creditsResetAt ? new Date(state.creditsResetAt) : null;
-
-  // ── canUse (client-side quick gate) ────────────────────────────────────
+  const creditsRemaining    = state?.creditsRemaining ?? 0;
+  const creditsResetAt      = state?.creditsResetAt ? new Date(state.creditsResetAt) : null;
+  const features            = state?.features ?? null;
 
   const canUse = useCallback(
-    (feature: FeatureKey): boolean => {
-      const config = FEATURES[feature][toFeatureTierKey(effectiveTier as never)];
-      if (!config?.access) return false;
-
-      if ('credits' in config && typeof config.credits === 'number' && config.credits > 0) {
-        return creditsRemaining >= config.credits;
-      }
-      return true;
-    },
-    [effectiveTier, creditsRemaining],
+    (feature: FeatureKey): boolean => features?.[feature] === true,
+    [features],
   );
 
   return {
-    plan,
+    plan: effectiveTier,
     effectiveTier,
-    trialEndsAt,
-    trialDaysLeft,
     creditsRemaining,
-    creditsTotal: state?.creditsTotal ?? null,
+    creditsTotal:   state?.creditsTotal ?? null,
     creditsResetAt,
+    autoApplyUsed:  state?.autoApply?.used  ?? 0,
+    autoApplyQuota: state?.autoApply?.quota ?? null,
     isLoading,
     canUse,
     refresh: fetchEntitlement,

@@ -34,8 +34,11 @@ export function reservationOutcome(row: { usage_status?: unknown; charged_now?: 
 /**
  * The answer to a feature the account cannot use, or null when it can.
  *
- * A free account is told its trial has ended — never "no credits". It may still
- * hold credits, and a reason that contradicts what the user sees reads as a bug.
+ * Every refusal here is 'tier_locked': the plan does not include the feature.
+ * A free account used to be told its trial had ended, which is now false twice
+ * over — there is no trial, and Free is a permanent plan that holds its own
+ * credits. Telling someone their trial expired when they never had one reads
+ * as a bug, and sends them looking for a renewal that does not exist.
  */
 export function refusalForFeature(decision: FeatureDecision): AiRefusal | null {
   if (decision.allowed) return null;
@@ -48,13 +51,30 @@ export function refusalForFeature(decision: FeatureDecision): AiRefusal | null {
     status: 403,
     body: {
       error:     'Feature locked',
-      reason:    decision.tier === 'free' ? 'trial_expired' : 'tier_locked',
+      reason:    'tier_locked',
       upgradeTo: decision.upgradeTo,
     },
   };
 }
 
-const NEXT_PAID_TIER: Record<PaidTier, PaidTier | null> = { starter: 'pro', pro: 'premium', premium: null };
+/**
+ * An automatic application refused because the month's quota is spent. Not 402:
+ * 402 is an empty credit balance, and credits are not what an application
+ * spends. Saying "no credits left" to someone with 58 of them would send them
+ * to buy what they already have.
+ */
+export function refusalForAutoApplyQuota(context: { tier: Tier; used: number; quota: number }): AiRefusal {
+  return {
+    status: 403,
+    body: {
+      error:     `This month's automatic applications are used up (${context.used} of ${context.quota}).`,
+      reason:    'auto_apply_quota',
+      upgradeTo: context.tier === 'pro' ? 'premium' : null,
+    },
+  };
+}
+
+const NEXT_PAID_TIER: Record<PaidTier, PaidTier | null> = { pro: 'premium', premium: null };
 
 /** Maps a JVxxx refusal from reserve_ai_credits to its HTTP answer. */
 export function refusalForReserveError(
@@ -78,12 +98,12 @@ export function refusalForReserveError(
   }
 }
 
-// Out of credits on a paid plan: the next plan up. On a trial: the cheapest
-// plan that has the feature. Free never gets here — it is refused on the
-// feature, before any reservation.
+// Out of credits on a paid plan: the next plan up. On Free: the cheapest plan
+// that has the feature — Free holds credits of its own now, so it does reach
+// this, unlike the old free tier which was refused on the feature first.
 function upgradeForCredits(context: { tier: Tier; cheapestTierForFeature: PaidTier | null }): PaidTier | null {
   const { tier } = context;
-  if (tier === 'starter' || tier === 'pro' || tier === 'premium') return NEXT_PAID_TIER[tier];
+  if (tier === 'pro' || tier === 'premium') return NEXT_PAID_TIER[tier];
   return context.cheapestTierForFeature;
 }
 
@@ -166,7 +186,9 @@ export const FEATURE_SWITCH: Record<FeatureKey, string> = {
   COVER_LETTER_AI:    'cover_letter',
   ATS_SCORE:          'ats_score',
   APPLY_WITH_AI:      'apply_with_ai',
+  AI_JOB_MATCHES:     'ai_job_matches',
   INTERVIEW_AI:       'interview_coach',
+  INBOX_AI_DRAFT:     'inbox_ai_draft',
   AUTO_APPLY:         'auto_apply',
 };
 

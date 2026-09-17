@@ -34,12 +34,12 @@ export interface AiError {
    */
   reason:     string;
   /** For no_credits and feature_locked: the plan that unlocks it. */
-  upgradeTo?: 'starter' | 'pro' | 'premium';
+  upgradeTo?: 'pro' | 'premium';
   /** True when showing the upgrade window is the right answer. */
   offerUpgrade: boolean;
 }
 
-const UPGRADE_TIERS = ['starter', 'pro', 'premium'] as const;
+const UPGRADE_TIERS = ['pro', 'premium'] as const;
 
 /** Reads a failed response from an AI route. Never throws. */
 export async function readAiError(res: Response): Promise<AiError> {
@@ -49,7 +49,7 @@ export async function readAiError(res: Response): Promise<AiError> {
   const serverText = typeof body?.error === 'string' ? body.error : '';
   const reason     = typeof body?.reason === 'string' ? body.reason : '';
   const upgradeTo  = UPGRADE_TIERS.includes(body?.upgradeTo as 'pro')
-    ? (body!.upgradeTo as 'starter' | 'pro' | 'premium')
+    ? (body!.upgradeTo as 'pro' | 'premium')
     : undefined;
 
   const kind: AiErrorKind =

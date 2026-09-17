@@ -1,4 +1,4 @@
-// Regression test for src/lib/entitlements.ts.
+// Regression test for src/lib/entitlements.ts — the one place access is decided.
 //
 // Run it:  node security-tests/entitlements.test.mjs
 //
@@ -7,21 +7,28 @@
 // aliases, erasable syntax only. If it ever gains an '@/…' import this test
 // stops loading, which is the right way to find out.
 //
+// The model it holds to is Docs/jobvero-plans-reference.md, frozen 2026-09-17:
+// three plans, no trial, no Starter, and two counters that never touch —
+// credits for writing and analysing, a separate monthly quota for automatic
+// applications.
+//
 // Guarded like the SQL tests: the number of checks that ran must equal
 // EXPECTED_CHECKS, so a check lost in a refactor fails the run.
 
 import { isDeepStrictEqual } from 'node:util';
 import {
   FEATURES,
-  TRIAL_CREDITS_FALLBACK,
+  autoApplyGuard,
+  autoApplyQuota,
   checkFeatureAccess,
   creditAllowance,
   creditBalance,
+  featureMap,
+  inboxMonthlyQuota,
   resolveTier,
-  toFeatureTierKey,
 } from '../src/lib/entitlements.ts';
 
-const EXPECTED_CHECKS = 45;
+const EXPECTED_CHECKS = 44;
 
 let passed = 0;
 let failed = 0;
@@ -35,22 +42,17 @@ function check(name, actual, expected) {
   }
 }
 
-const NOW    = new Date('2026-09-13T12:00:00Z');
-const FUTURE = '2026-09-15T12:00:00Z';
-const PAST   = '2026-09-10T12:00:00Z';
-
 function profile(overrides = {}) {
   return {
     subscription_plan:    null,
     subscription_status:  null,
-    trial_ends_at:        null,
     ai_credits_remaining: 0,
     is_blocked:           false,
     ...overrides,
   };
 }
 
-const tierOf = (p) => resolveTier(p, NOW);
+const tierOf = (p) => resolveTier(p);
 const is = (tier) => ({ blocked: false, tier });
 
 
@@ -64,123 +66,135 @@ check('blocked beats an active premium subscription',
   { blocked: true });
 check('premium + active → premium',
   tierOf(profile({ subscription_plan: 'premium', subscription_status: 'active' })), is('premium'));
-check('starter + active → starter (the tier that used to crash)',
-  tierOf(profile({ subscription_plan: 'starter', subscription_status: 'active' })), is('starter'));
-check('pro + trialing → pro',
+check('pro + trialing → pro (kept in case Stripe ever sends it)',
   tierOf(profile({ subscription_plan: 'pro', subscription_status: 'trialing' })), is('pro'));
-check('pro + past_due, no trial → free',
+check('pro + past_due → free',
   tierOf(profile({ subscription_plan: 'pro', subscription_status: 'past_due' })), is('free'));
-check('pro + past_due while the trial runs → trial, not pro',
-  tierOf(profile({ subscription_plan: 'pro', subscription_status: 'past_due', trial_ends_at: FUTURE })), is('trial'));
-check('pro + canceled → free (getEffectiveTier kept it pro)',
+check('pro + canceled → free',
   tierOf(profile({ subscription_plan: 'pro', subscription_status: 'canceled' })), is('free'));
-check('premium with a null status → free (why the owner row needed D1)',
+check('premium with a null status → free (a plan set by hand is not a sale)',
   tierOf(profile({ subscription_plan: 'premium', subscription_status: null })), is('free'));
+check('an unknown plan → free',
+  tierOf(profile({ subscription_plan: 'enterprise', subscription_status: 'active' })), is('free'));
+check('the retired "trial" plan → free, not a lockout',
+  tierOf(profile({ subscription_plan: 'trial', subscription_status: 'active' })), is('free'));
+check('the retired "starter" plan → free',
+  tierOf(profile({ subscription_plan: 'starter', subscription_status: 'active' })), is('free'));
+check('free + active → free',
+  tierOf(profile({ subscription_plan: 'free', subscription_status: 'active' })), is('free'));
 
 for (const status of ['incomplete', 'incomplete_expired', 'unpaid', 'paused']) {
   check(`pro + ${status} → free`,
     tierOf(profile({ subscription_plan: 'pro', subscription_status: status })), is('free'));
 }
 
-check('active status with plan "trial" is not paid → trial while it runs',
-  tierOf(profile({ subscription_plan: 'trial', subscription_status: 'active', trial_ends_at: FUTURE })), is('trial'));
-check('active status with plan "free" → free',
-  tierOf(profile({ subscription_plan: 'free', subscription_status: 'active' })), is('free'));
-check('active status with an unknown plan → free',
-  tierOf(profile({ subscription_plan: 'enterprise', subscription_status: 'active' })), is('free'));
-check('no plan, trial running → trial',
-  tierOf(profile({ trial_ends_at: FUTURE })), is('trial'));
-check('no plan, trial ended → free',
-  tierOf(profile({ trial_ends_at: PAST })), is('free'));
-check('unparseable trial_ends_at → free',
-  tierOf(profile({ trial_ends_at: 'not-a-date' })), is('free'));
-
 
 // ─── 2. Feature access ────────────────────────────────────────────────────────
 
 console.log('\n2. Feature access');
 
-const TIER_COLUMNS = ['free', 'starter', 'pro', 'premium'];
+const TIER_COLUMNS = ['free', 'pro', 'premium'];
 
-check('a trial uses Pro features', toFeatureTierKey('trial'), 'pro');
-check('free and paid tiers map to themselves', TIER_COLUMNS.map(toFeatureTierKey), TIER_COLUMNS);
-
-check('every feature has a boolean for free, starter, pro and premium, and nothing else',
+check('every feature has a boolean for free, pro and premium, and nothing else',
   Object.values(FEATURES).every((row) =>
-    Object.keys(row).length === 4 && TIER_COLUMNS.every((t) => typeof row[t] === 'boolean')),
+    Object.keys(row).length === 3 && TIER_COLUMNS.every((t) => typeof row[t] === 'boolean')),
   true);
 
+check('no row carries a retired tier',
+  Object.values(FEATURES).some((row) => 'starter' in row || 'trial' in row), false);
+
 const unlocked = (tier) => Object.keys(FEATURES).filter((f) => FEATURES[f][tier]).sort();
-const STARTER_SET = ['AI_ASSISTANT_CHAT', 'APPLY_WITH_AI', 'ATS_SCORE', 'COVER_LETTER_AI', 'CV_BUILDER_AI', 'MODIFY_DOCUMENT_AI'];
 
-check('free unlocks no AI feature', unlocked('free'), []);
-check('starter: everything except the interview and auto-apply', unlocked('starter'), STARTER_SET);
-check('pro adds the AI interview', unlocked('pro'), [...STARTER_SET, 'INTERVIEW_AI'].sort());
-check('premium adds auto-apply', unlocked('premium'), [...STARTER_SET, 'INTERVIEW_AI', 'AUTO_APPLY'].sort());
+// Reference §2: Free writes and analyses; it does not get the secretary that
+// writes replies, the coach, the matches or auto-apply.
+const FREE_SET = ['AI_ASSISTANT_CHAT', 'APPLY_WITH_AI', 'ATS_SCORE', 'COVER_LETTER_AI', 'CV_BUILDER_AI', 'MODIFY_DOCUMENT_AI'];
+const PAID_SET = [...FREE_SET, 'AI_JOB_MATCHES', 'AUTO_APPLY', 'INBOX_AI_DRAFT', 'INTERVIEW_AI'].sort();
 
-check('starter can use the CV builder',
-  checkFeatureAccess(is('starter'), 'CV_BUILDER_AI'), { allowed: true, tier: 'starter' });
-check('starter: interview locked, upgrade to pro',
-  checkFeatureAccess(is('starter'), 'INTERVIEW_AI'),
-  { allowed: false, reason: 'feature_locked', tier: 'starter', upgradeTo: 'pro' });
-check('starter: auto-apply locked, upgrade to premium',
-  checkFeatureAccess(is('starter'), 'AUTO_APPLY'),
-  { allowed: false, reason: 'feature_locked', tier: 'starter', upgradeTo: 'premium' });
-check('trial: interview allowed',
-  checkFeatureAccess(is('trial'), 'INTERVIEW_AI'), { allowed: true, tier: 'trial' });
-check('trial: auto-apply locked, upgrade to premium',
-  checkFeatureAccess(is('trial'), 'AUTO_APPLY'),
-  { allowed: false, reason: 'feature_locked', tier: 'trial', upgradeTo: 'premium' });
-check('free: chat locked, upgrade to starter',
-  checkFeatureAccess(is('free'), 'AI_ASSISTANT_CHAT'),
-  { allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'starter' });
+check('free unlocks the six it pays for with its ten credits', unlocked('free'), FREE_SET);
+check('pro unlocks everything', unlocked('pro'), PAID_SET);
+check('premium unlocks everything', unlocked('premium'), PAID_SET);
+
+check('free may use the CV builder',
+  checkFeatureAccess(is('free'), 'CV_BUILDER_AI'), { allowed: true, tier: 'free' });
+check('free: the interview is locked, upgrade to pro',
+  checkFeatureAccess(is('free'), 'INTERVIEW_AI'),
+  { allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' });
+check('free: auto-apply is locked, upgrade to pro',
+  checkFeatureAccess(is('free'), 'AUTO_APPLY'),
+  { allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' });
+check('free: AI matches are locked, upgrade to pro',
+  checkFeatureAccess(is('free'), 'AI_JOB_MATCHES'),
+  { allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' });
+check('free: the written reply is locked — it sorts the mail, it does not answer it',
+  checkFeatureAccess(is('free'), 'INBOX_AI_DRAFT'),
+  { allowed: false, reason: 'feature_locked', tier: 'free', upgradeTo: 'pro' });
 check('blocked: refused for every feature, with no upgrade path',
   Object.keys(FEATURES).every((f) => isDeepStrictEqual(checkFeatureAccess({ blocked: true }, f), { allowed: false, reason: 'blocked' })),
   true);
 
+check('featureMap says exactly what the table says',
+  featureMap('free'),
+  Object.fromEntries(Object.keys(FEATURES).map((f) => [f, FEATURES[f].free])));
 
-// ─── 3. Credits, read apart from feature access ───────────────────────────────
+
+// ─── 3. Credits ───────────────────────────────────────────────────────────────
 
 console.log('\n3. Credits');
 
 const LIMITS = {
-  trial_credits:           10,
-  starter_credits_monthly: 29,
-  pro_credits_monthly:     57,
-  premium_credits_monthly: 111,
-  free_credits_monthly:    null,
+  free_credits_monthly:          10,
+  pro_credits_monthly:           60,
+  premium_credits_monthly:       150,
+  auto_apply_monthly:            { free: 0, pro: 100, premium: 210 },
+  auto_apply_monthly_guard:      250,
+  inbox_classify_free_per_month: 15,
 };
 
 check('the balance is the column', creditBalance(profile({ ai_credits_remaining: 7 })), 7);
 check('a null or negative balance, or no profile, reads 0',
   [creditBalance(profile({ ai_credits_remaining: null })), creditBalance(profile({ ai_credits_remaining: -3 })), creditBalance(null)],
   [0, 0, 0]);
-
-const trial = tierOf(profile({ trial_ends_at: FUTURE, ai_credits_remaining: 10 }));
-check('one trial account, two readings: Pro features, trial credits',
-  {
-    featureColumn:    toFeatureTierKey(trial.tier),
-    interviewAllowed: checkFeatureAccess(trial, 'INTERVIEW_AI').allowed,
-    allowance:        creditAllowance(trial.tier, LIMITS),
-  },
-  { featureColumn: 'pro', interviewAllowed: true, allowance: 10 });
-check('the trial allowance is not the Pro quota',
-  creditAllowance('trial', LIMITS) !== creditAllowance('pro', LIMITS), true);
-check('paid allowances come from admin_settings',
-  ['starter', 'pro', 'premium'].map((t) => creditAllowance(t, LIMITS)), [29, 57, 111]);
+check('the monthly allowances are 10 / 60 / 150',
+  TIER_COLUMNS.map((t) => creditAllowance(t, LIMITS)), [10, 60, 150]);
 check('premium is a finite number, never unlimited',
   Number.isFinite(creditAllowance('premium', LIMITS)), true);
-check('a missing paid quota is null (not configured), not unlimited',
-  creditAllowance('premium', {}), null);
-check('free with no configured quota → 0', creditAllowance('free', LIMITS), 0);
-check('a broken trial_credits falls back to 10, like the trigger',
-  [undefined, null, 'abc', -3, 10.5, 1e21].map((v) => creditAllowance('trial', { trial_credits: v })),
-  [10, 10, 10, 10, 10, 10]);
-check('trial_credits stored as a digit string is read, like the trigger',
-  creditAllowance('trial', { trial_credits: '12' }), 12);
-check('the fallback matches the trigger', TRIAL_CREDITS_FALLBACK, 10);
-check('the credit functions never reach the feature mapping',
-  [creditAllowance, creditBalance].some((fn) => /toFeatureTierKey|FEATURES/.test(fn.toString())), false);
+check('a missing quota is null (not configured), not unlimited',
+  TIER_COLUMNS.map((t) => creditAllowance(t, {})), [null, null, null]);
+check('a broken value is null, never a guess',
+  ['abc', -3, 10.5, 1e21, null, undefined].map((v) => creditAllowance('pro', { pro_credits_monthly: v })),
+  [null, null, null, null, null, null]);
+check('the credit functions never reach the feature table',
+  [creditAllowance, creditBalance].some((fn) => /FEATURES/.test(fn.toString())), false);
+
+
+// ─── 4. Auto-apply, counted on its own ────────────────────────────────────────
+
+console.log('\n4. Auto-apply');
+
+check('the monthly quotas are 0 / 100 / 210',
+  TIER_COLUMNS.map((t) => autoApplyQuota(t, LIMITS)), [0, 100, 210]);
+check('free is a configured zero, which is not the same as unconfigured',
+  [autoApplyQuota('free', LIMITS), autoApplyQuota('free', {})], [0, null]);
+check('a missing table is null, never unlimited',
+  TIER_COLUMNS.map((t) => autoApplyQuota(t, { auto_apply_monthly: null })), [null, null, null]);
+check('a broken quota is null',
+  autoApplyQuota('pro', { auto_apply_monthly: { pro: 'lots' } }), null);
+check('the guard is 250', autoApplyGuard(LIMITS), 250);
+check('the guard sits above every plan quota, so the plan always speaks first',
+  TIER_COLUMNS.every((t) => autoApplyQuota(t, LIMITS) < autoApplyGuard(LIMITS)), true);
+check('the auto-apply quota is not the credit allowance',
+  autoApplyQuota('premium', LIMITS) !== creditAllowance('premium', LIMITS), true);
+
+
+// ─── 5. Inbox ─────────────────────────────────────────────────────────────────
+
+console.log('\n5. Inbox');
+
+check('free has 15 classified emails a month', inboxMonthlyQuota('free', LIMITS), 15);
+check('paid plans have no monthly ceiling, only the daily alias cap',
+  [inboxMonthlyQuota('pro', LIMITS), inboxMonthlyQuota('premium', LIMITS)], ['unlimited', 'unlimited']);
+check('an unconfigured free quota is null, so the caller refuses rather than assumes',
+  inboxMonthlyQuota('free', {}), null);
 
 
 // ─── Report ───────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getEffectiveTier, toFeatureTierKey } from '@/lib/subscription/access';
+import { resolveTier, type EntitlementProfile } from '@/lib/entitlements';
 import AutoApplyClient from '@/components/auto-apply/AutoApplyClient';
 
 interface Props {
@@ -26,7 +26,7 @@ export default async function AutoApplyPage({ params: { locale } }: Props) {
   ] = await Promise.all([
     supabase
       .from('profiles')
-      .select('subscription_plan, trial_ends_at')
+      .select('subscription_plan, subscription_status, ai_credits_remaining, is_blocked')
       .eq('id', user.id)
       .single(),
     supabase
@@ -63,9 +63,10 @@ export default async function AutoApplyPage({ params: { locale } }: Props) {
       .limit(1),
   ]);
 
-  const tier      = getEffectiveTier(profile?.subscription_plan ?? null, profile?.trial_ends_at ?? null);
-  const tierKey   = toFeatureTierKey(tier);
-  const isPremium = tierKey === 'premium';
+  // Server component, so it reads the single source directly rather than the
+  // route the browser uses.
+  const resolution = resolveTier((profile ?? null) as EntitlementProfile | null);
+  const isPremium  = !resolution.blocked && resolution.tier === 'premium';
 
   return (
     <AutoApplyClient
