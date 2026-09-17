@@ -53,7 +53,13 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
 
-  const { data, error } = await admin.rpc('renew_due_periods', { p_limit: BATCH_SIZE });
+  // p_user_ids explicitly null: the function gained a second, defaulted
+  // parameter, and a call that leaves it out asks PostgREST to pick an overload
+  // for us. The nightly sweep means every due account, and it should say so.
+  const { data, error } = await admin.rpc('renew_due_periods', {
+    p_limit:    BATCH_SIZE,
+    p_user_ids: null,
+  });
 
   if (error) {
     if (MISSING_FUNCTION_CODES.has(error.code ?? '')) {

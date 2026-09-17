@@ -57,12 +57,31 @@ export type Resolution =
 
 const PAID_TIERS: readonly PaidTier[] = ['pro', 'premium'];
 
-// Stripe statuses that carry paid access. 'trialing' is kept although Jobvero
-// no longer runs a trial: if a Stripe-side trial is ever configured, a paying
-// customer must not be locked out by a status this app did not expect. Every
-// other status — past_due, unpaid, incomplete, incomplete_expired, canceled,
-// paused — and a null status are not paid access.
-const PAID_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing']);
+// Stripe statuses that carry paid access.
+//
+//   active, trialing  paid and current.
+//   past_due          a renewal payment failed and Stripe is retrying. The
+//                     customer keeps everything they already have. Cutting a
+//                     customer of eight months off the day their card expires
+//                     loses the customer, not the payment.
+//
+// What past_due does NOT earn is new credits: that decision belongs to
+// grant_period_credits, which accepts only active and trialing. Access and
+// allocation are two questions, and one set could not have answered both.
+//
+// Everything else is not paid access. canceled and unpaid are Stripe giving up;
+// paused is collection stopped; incomplete and incomplete_expired are a
+// subscription whose FIRST payment never cleared — that customer never had
+// access at all, which is not the same as a card that expired.
+const PAID_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing', 'past_due']);
+
+/**
+ * The statuses that earn a new monthly allocation. Deliberately narrower than
+ * PAID_STATUSES: past_due keeps the door open and the balance frozen.
+ * Enforced in the database by grant_period_credits; exported so the rule can be
+ * read and tested in one place.
+ */
+export const GRANTING_STATUSES: ReadonlySet<string> = new Set(['active', 'trialing']);
 
 function isPaidTier(plan: string | null): plan is PaidTier {
   return plan !== null && (PAID_TIERS as readonly string[]).includes(plan);
