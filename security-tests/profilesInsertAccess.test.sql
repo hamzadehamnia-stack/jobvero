@@ -97,6 +97,10 @@ begin
       ('T2', 'subscription_plan',       $v$'premium'$v$),
       ('T3', 'trial_ends_at',           $v$now() + interval '10 years'$v$),
       ('T3', 'subscription_started_at', $v$now()$v$),
+      -- The billing period. A user who could set its start or end could grant
+      -- themselves a fresh allocation whenever they liked.
+      ('T3', 'current_period_start',    $v$now() - interval '10 years'$v$),
+      ('T3', 'current_period_end',      $v$now() - interval '1 second'$v$),
       ('T3', 'ai_credits_remaining',    $v$999999$v$),
       ('T3', 'ai_credits_reset_at',     $v$now() + interval '10 years'$v$),
       ('T3', 'is_blocked',              $v$false$v$),

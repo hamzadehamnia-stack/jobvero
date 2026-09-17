@@ -34,7 +34,7 @@ const { createServerClient } = require('@supabase/ssr');
 
 const ROOT            = path.resolve(__dirname, '..');
 const BASE            = process.argv[2] || 'http://localhost:3000';
-const EXPECTED_CHECKS = 17;
+const EXPECTED_CHECKS = 20;
 
 let passed = 0;
 let failed = 0;
@@ -98,9 +98,13 @@ async function main() {
   const { error: pwError } = await admin.auth.admin.updateUserById(userId, { password });
   if (pwError) throw pwError;
 
-  // The month the counter uses, exactly as claim_auto_apply computes it.
-  const now   = new Date();
-  const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+  // The counters are keyed by the billing period, not the calendar month, so
+  // the quotas reset at the same instant as the credits. The period is pinned
+  // here to a known value: a test that guessed the key would pass while the
+  // code counted somewhere else.
+  const periodStart = new Date(Date.now() - 2 * 86_400_000);
+  const periodEnd   = new Date(Date.now() + 28 * 86_400_000);
+  const month       = periodStart.toISOString().slice(0, 10);   // the counter key
 
   // The plan, and only the plan. This used to reset ai_credits_remaining to 50
   // as well, three times during the run — so the last check, the one that
@@ -108,9 +112,11 @@ async function main() {
   // number its own helper had overwritten.
   const setPlan = async (plan) => {
     const { error: e } = await admin.from('profiles').update({
-      subscription_plan:   plan,
-      subscription_status: plan === 'free' ? null : 'active',
-      is_blocked:          false,
+      subscription_plan:    plan,
+      subscription_status:  plan === 'free' ? null : 'active',
+      is_blocked:           false,
+      current_period_start: periodStart.toISOString(),
+      current_period_end:   periodEnd.toISOString(),
     }).eq('id', userId);
     if (e) throw e;
   };
@@ -118,14 +124,17 @@ async function main() {
   const setCounter = async (count) => {
     const { error: e } = await admin
       .from('auto_apply_counters')
-      .upsert({ month, user_id: userId, count }, { onConflict: 'month,user_id' });
+      .upsert({ period_start: month, user_id: userId, count }, { onConflict: 'period_start,user_id' });
     if (e) throw e;
+    // A seeded count with no matching claims: the offers of this period are
+    // free again, which is what the quota sections mean to test.
+    await admin.from('auto_apply_claims').delete().eq('user_id', userId);
   };
 
   const counter = async () => {
     const { data } = await admin
       .from('auto_apply_counters').select('count')
-      .eq('user_id', userId).eq('month', month).maybeSingle();
+      .eq('user_id', userId).eq('period_start', month).maybeSingle();
     return data?.count ?? 0;
   };
 
@@ -240,14 +249,35 @@ async function main() {
     check('5 what it cost stays on a zero-credit system row',
       rows.length > 0 && rows.every((r) => r.credits_charged === 0 && r.action === 'system_auto_apply'), rows.slice(0, 3));
 
-    // ── 6. Credits were never involved ──────────────────────────────────────
+    // ── 6. Two applications to the SAME offer ───────────────────────────────
+    //
+    // The per-job key vanished with the credit reservation, and two runs at
+    // once could each spend a unit on the same job. Two real parallel requests
+    // carrying the same offer id: one applies, the other is told the job is
+    // taken, and exactly one unit moves.
+    await setCounter(20);
+    const sameJob   = `dup-${runId}`;
+    const beforeDup = await counter();
+    const [dupA, dupB] = await Promise.all([apply(sameJob), apply(sameJob)]);
+    const afterDup  = await counter();
+    const dupStatus = [dupA.status, dupB.status].sort();
+    console.log(`\n6. two applications, one offer\n  HTTP ${dupA.status} and ${dupB.status} · counter ${beforeDup} → ${afterDup}`);
+    check('6 one application went through, the other was refused', dupStatus[0] === 200 && dupStatus[1] === 409, dupStatus);
+    check('6 the refusal says the offer was already applied to',
+      [dupA, dupB].some((r) => r.status === 409 && r.json?.reason === 'already_applied'), [dupA.json, dupB.json]);
+    check('6 exactly one unit was spent on it, never two', afterDup === beforeDup + 1, [beforeDup, afterDup]);
+
+    // ── 7. Credits were never involved ──────────────────────────────────────
     const creditsAtEnd = await credits();
-    console.log(`\n6. credits ${creditsAtStart} → ${creditsAtEnd}`);
-    check('6 not one credit was spent on any of it', creditsAtEnd === creditsAtStart, [creditsAtStart, creditsAtEnd]);
+    console.log(`\n7. credits ${creditsAtStart} → ${creditsAtEnd}`);
+    check('7 not one credit was spent on any of it', creditsAtEnd === creditsAtStart, [creditsAtStart, creditsAtEnd]);
   } finally {
     // Leave nothing behind: the counter row and the system usage rows this run
     // created.
-    await admin.from('auto_apply_counters').delete().eq('user_id', userId).eq('month', month);
+    await admin.from('auto_apply_counters').delete().eq('user_id', userId);
+    await admin.from('auto_apply_claims').delete().eq('user_id', userId);
+    await admin.from('profiles')
+      .update({ current_period_start: null, current_period_end: null }).eq('id', userId);
     const { data: rows } = await admin
       .from('ai_usage').select('id').eq('user_id', userId).eq('action', 'system_auto_apply')
       .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString());
