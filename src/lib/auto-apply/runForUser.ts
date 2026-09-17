@@ -159,7 +159,7 @@ export interface ApplicationCharge {
 }
 
 export type QuotaRefusal = {
-  refused: 'quota_exhausted' | 'guard' | 'error';
+  refused: 'quota_exhausted' | 'guard' | 'already_applied' | 'error';
   used:    number;
   quota:   number;
 };
@@ -168,8 +168,15 @@ export async function claimApplication(
   admin:  SupabaseClient,
   userId: string,
   tier:   Tier,
+  jobId:  string,
 ): Promise<ApplicationCharge | QuotaRefusal> {
-  const { data, error } = await admin.rpc('claim_auto_apply', { p_user_id: userId, p_tier: tier });
+  // The offer's id travels with the claim: it is the key that stops two runs
+  // from each spending a unit on the same job.
+  const { data, error } = await admin.rpc('claim_auto_apply', {
+    p_user_id: userId,
+    p_tier:    tier,
+    p_job_id:  jobId,
+  });
 
   if (error) {
     console.error(`[auto-apply] quota claim failed for ${userId}:`, error.message);
@@ -183,7 +190,11 @@ export async function claimApplication(
   const quota = Number(row?.quota ?? 0);
 
   if (row?.allowed !== true) {
-    return { refused: row?.reason === 'guard' ? 'guard' : 'quota_exhausted', used, quota };
+    const refused: QuotaRefusal['refused'] =
+        row?.reason === 'guard'           ? 'guard'
+      : row?.reason === 'already_applied' ? 'already_applied'
+      :                                     'quota_exhausted';
+    return { refused, used, quota };
   }
 
   // One ai_usage row per application, opened at zero credits and already
@@ -195,8 +206,8 @@ export async function claimApplication(
 
   if (openError || typeof usageId !== 'string') {
     // Rather than spend a unit on an application whose cost we could not
-    // record, the unit goes straight back.
-    await releaseApplication(admin, userId);
+    // record, the unit — and the offer — go straight back.
+    await releaseApplication(admin, userId, jobId);
     console.error(`[auto-apply] cost row could not be opened for ${userId}:`, openError?.message ?? 'no id returned');
     return { refused: 'error', used, quota };
   }
@@ -204,8 +215,10 @@ export async function claimApplication(
   return { usageId: String(usageId), used, quota };
 }
 
-export async function releaseApplication(admin: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await admin.rpc('release_auto_apply', { p_user_id: userId });
+export async function releaseApplication(admin: SupabaseClient, userId: string, jobId?: string): Promise<void> {
+  // The offer is released with the unit: the application did not happen, so the
+  // job must be reachable again rather than locked out for the period.
+  const { error } = await admin.rpc('release_auto_apply', { p_user_id: userId, p_job_id: jobId ?? null });
   if (error) console.error(`[auto-apply] quota release failed for ${userId}:`, error.message);
 }
 
@@ -618,15 +631,23 @@ export async function runAutoApplyForUser(
     }
 
     // ── The quota: one unit per application, taken here ──────────────────────
-    const claim = await claimApplication(admin, userId, tier);
+    const claim = await claimApplication(admin, userId, tier, job.id);
     if ('refused' in claim) {
+      quotaUsed  = claim.used;
+      quotaTotal = claim.quota;
+
+      // An offer already applied to is a reason to move on, not to stop: the
+      // next candidate may well be new.
+      if (claim.refused === 'already_applied') {
+        jobs.push({ title, company, location, status: 'skipped', reason: 'already_applied' });
+        continue;
+      }
+
       // The month is spent, or the guard caught a loop. No later job will fare
       // better, so the run stops rather than repeating the refusal for every
       // candidate.
       console.warn(`[runAutoApplyForUser] quota refused (${claim.refused}, ${claim.used}/${claim.quota}) — stopping this run`);
       jobs.push({ title, company, location, status: 'skipped', reason: claim.refused });
-      quotaUsed  = claim.used;
-      quotaTotal = claim.quota;
       break;
     }
     const charge = claim;
@@ -694,7 +715,7 @@ export async function runAutoApplyForUser(
       console.error('[runAutoApplyForUser] Email body generation failed:', e);
       // Nothing was sent: the quota unit goes back, and the calls already made
       // stay on the row as cost the house absorbed.
-      await releaseApplication(admin, userId);
+      await releaseApplication(admin, userId, job.id);
       jobs.push({ title, company, location, status: 'failed', reason: 'email_body_failed' });
       continue;
     }
@@ -744,7 +765,7 @@ export async function runAutoApplyForUser(
       }
     } catch (e) {
       console.error('[runAutoApplyForUser] Resend failed:', e);
-      await releaseApplication(admin, userId);
+      await releaseApplication(admin, userId, job.id);
       await supabase.from('applications').insert({
         user_id: userId, job_title: title, company_name: company, location,
         notes: desc, job_url: job.redirect_url ?? null, job_source: 'auto-apply',

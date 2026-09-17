@@ -112,16 +112,19 @@ export async function POST(req: Request) {
   const seam = testApplication(req);
   if (seam) {
     const admin = createAdminClient();
-    const claim = await claimApplication(admin, user.id, tier);
+    const claim = await claimApplication(admin, user.id, tier, seam.jobId);
 
     if ('refused' in claim) {
       if (claim.refused === 'error') return answer(UNAVAILABLE);
+      if (claim.refused === 'already_applied') {
+        return answer({ status: 409, body: { error: 'This job was already applied to', reason: 'already_applied' } });
+      }
       return answer(refusalForAutoApplyQuota({ tier, used: claim.used, quota: claim.quota }));
     }
 
     if (seam.fail) {
-      // The unit goes back; what the attempt cost stays on the row.
-      await releaseApplication(admin, user.id);
+      // The unit goes back, and so does the offer; what the attempt cost stays.
+      await releaseApplication(admin, user.id, seam.jobId);
       return NextResponse.json({ charged: false, released: true, usageId: claim.usageId, used: claim.used, quota: claim.quota });
     }
 

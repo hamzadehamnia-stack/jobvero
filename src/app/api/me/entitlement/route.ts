@@ -33,7 +33,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('subscription_plan, subscription_status, ai_credits_remaining, ai_credits_reset_at, is_blocked')
+    .select('subscription_plan, subscription_status, ai_credits_remaining, current_period_end, is_blocked')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -75,7 +75,10 @@ export async function GET() {
     // null means "not configured" — never "unlimited". The gauge shows the
     // balance alone rather than inventing a denominator.
     creditsTotal:     creditAllowance(tier, limits),
-    creditsResetAt:   (profile?.ai_credits_reset_at as string | null) ?? null,
+    // The end of the billing period in force: one date for the credits, the
+    // application quota and the inbox month. ai_credits_reset_at was a second
+    // answer to the same question, written by nothing and read only here.
+    creditsResetAt:   (profile?.current_period_end as string | null) ?? null,
     // What this plan unlocks, decided by the one table. The browser holds no
     // copy of it: it draws what this says.
     features:         featureMap(tier),
