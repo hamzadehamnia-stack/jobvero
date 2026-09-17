@@ -18,6 +18,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import {
   FEATURES,
+  GRANTING_STATUSES,
   autoApplyGuard,
   autoApplyQuota,
   checkFeatureAccess,
@@ -28,7 +29,7 @@ import {
   resolveTier,
 } from '../src/lib/entitlements.ts';
 
-const EXPECTED_CHECKS = 44;
+const EXPECTED_CHECKS = 45;
 
 let passed = 0;
 let failed = 0;
@@ -68,8 +69,16 @@ check('premium + active → premium',
   tierOf(profile({ subscription_plan: 'premium', subscription_status: 'active' })), is('premium'));
 check('pro + trialing → pro (kept in case Stripe ever sends it)',
   tierOf(profile({ subscription_plan: 'pro', subscription_status: 'trialing' })), is('pro'));
-check('pro + past_due → free',
-  tierOf(profile({ subscription_plan: 'pro', subscription_status: 'past_due' })), is('free'));
+check('pro + past_due → pro: Stripe is retrying, and a customer of eight months does not lose access the day their card expires',
+  tierOf(profile({ subscription_plan: 'pro', subscription_status: 'past_due' })), is('pro'));
+// Access and allocation are two decisions. One set of statuses could not have
+// answered both: past_due has to open the door and withhold the credits.
+check('past_due keeps the door open but earns no allocation',
+  [tierOf(profile({ subscription_plan: 'pro', subscription_status: 'past_due' })).tier,
+   GRANTING_STATUSES.has('past_due'),
+   GRANTING_STATUSES.has('active'),
+   GRANTING_STATUSES.has('trialing')],
+  ['pro', false, true, true]);
 check('pro + canceled → free',
   tierOf(profile({ subscription_plan: 'pro', subscription_status: 'canceled' })), is('free'));
 check('premium with a null status → free (a plan set by hand is not a sale)',

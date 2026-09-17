@@ -31,7 +31,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const ROOT            = path.resolve(__dirname, '..');
-const EXPECTED_CHECKS = 18;
+const EXPECTED_CHECKS = 19;
 
 let passed = 0;
 let failed = 0;
@@ -206,8 +206,8 @@ async function main() {
     const a4 = await account();
     const g4 = await grants();
     console.log(`  granted=${r4.granted} reason=${r4.reason} · credits ${a4.ai_credits_remaining} · period end ${a4.current_period_end}`);
-    check('4 no credits are granted on a failed payment',
-      r4.granted === false && r4.reason === 'payment_not_current', r4);
+    check('4 no credits are granted while Stripe is retrying',
+      r4.granted === false && r4.reason === 'payment_retrying', r4);
     check('4 the balance is left exactly as it was — not topped up, not reset to Free',
       a4.ai_credits_remaining === 4, a4.ai_credits_remaining);
     check('4 the period is left in the past, so a successful payment can still grant it',
@@ -259,13 +259,20 @@ async function main() {
       current_period_end:   iso(days(-2)),
     });
 
-    const { data: swept, error: sweepError } = await admin.rpc('renew_due_periods', { p_limit: 200 });
+    // Scoped to this account. An earlier version of this suite swept every due
+    // account in the database and granted credits to real ones.
+    const { data: swept, error: sweepError } = await admin.rpc('renew_due_periods', {
+      p_limit:    200,
+      p_user_ids: [userId],
+    });
     if (sweepError) throw sweepError;
     const mine = (swept ?? []).find((r) => r.user_id === userId);
     const a6   = await account();
     console.log(`  swept ${(swept ?? []).length} account(s) · mine: ${JSON.stringify(mine)} · credits ${a6.ai_credits_remaining}`);
     check('6 the sweep renewed this account without being told which period',
       mine?.granted === true && a6.ai_credits_remaining === 60, { mine, credits: a6.ai_credits_remaining });
+    check('6 and it touched nothing else: scoped to the account under test',
+      (swept ?? []).length === 1, (swept ?? []).map((r) => r.user_id));
     check('6 and it set a period that ends in the future',
       new Date(a6.current_period_end) > new Date(), a6.current_period_end);
   } finally {
