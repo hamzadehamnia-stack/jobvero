@@ -280,24 +280,45 @@ export async function POST(request: Request) {
           break;
         }
 
-        // The account becomes Free and its period is marked over. The credits
-        // are granted by renew_due_periods — the one path that grants a period,
-        // already proven — rather than a second one written here.
         const { error: stateError } = await admin.from('profiles').update({
           subscription_plan:      'free',
           subscription_status:    null,
           scheduled_plan:         null,
           cancel_at_period_end:   false,
           stripe_subscription_id: null,
-          current_period_end:     new Date().toISOString(),
         }).eq('id', userId);
         if (stateError) console.error(`${TAG} downgrade not written for ${userId}:`, stateError.message);
 
-        const { data, error } = await admin.rpc('renew_due_periods', { p_limit: 1, p_user_ids: [userId] });
-        if (error) console.error(`${TAG} free period not granted for ${userId}:`, error.message);
-        else {
+        // The Free allowance is granted here, with an explicit period, rather
+        // than by asking the nightly sweep whether this account is "due".
+        //
+        // That is what this handler did first, and it failed silently: the
+        // sweep returned an empty set — its WHERE compares a date this very
+        // request had just written against the database's own clock, and its
+        // `for update skip locked` steps over any row another webhook is
+        // holding. Both are real here: the final invoice arrives three seconds
+        // earlier. The result was a cancelled customer left with 150 credits.
+        //
+        // A cancellation is a known event with a known period. It does not need
+        // to be discovered. grant_period_credits is still the only primitive
+        // that puts credits on an account, and the key makes a redelivered
+        // deletion grant once.
+        const from = new Date();
+        const to   = new Date(from);
+        to.setMonth(to.getMonth() + 1);
+
+        const { data, error } = await admin.rpc('grant_period_credits', {
+          p_user_id:      userId,
+          p_grant_key:    `cancel:${subscription.id}`,
+          p_period_start: from.toISOString(),
+          p_period_end:   to.toISOString(),
+        });
+
+        if (error) {
+          console.error(`${TAG} free allowance not granted for ${userId}:`, error.message);
+        } else {
           const row = Array.isArray(data) ? data[0] : data;
-          console.log(`${TAG} ${userId} back to Free: granted=${row?.granted} credits=${row?.credits}`);
+          console.log(`${TAG} ${userId} back to Free: granted=${row?.granted} reason=${row?.reason} credits=${row?.credits}`);
         }
         break;
       }
