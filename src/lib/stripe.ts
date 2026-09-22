@@ -12,6 +12,15 @@ import Stripe from 'stripe';
 
 export type PaidPlan = 'pro' | 'premium';
 
+/**
+ * The one API version this server speaks.
+ *
+ * It must match the version the Stripe account serialises webhook events with,
+ * or reads and events describe the same object differently. When the live
+ * webhook endpoint is created, it has to be created with this same api_version.
+ */
+export const STRIPE_API_VERSION = '2026-04-22.dahlia';
+
 const PRICE_ENV: Record<PaidPlan, string> = {
   pro:     'STRIPE_PRICE_PRO',
   premium: 'STRIPE_PRICE_PREMIUM',
@@ -39,10 +48,21 @@ export function stripeClient(): Stripe {
     );
   }
 
-  // No apiVersion pinned here on purpose: the SDK major version already pins
-  // one, and naming a different string is how a library and an account drift
-  // apart silently.
-  client = new Stripe(key);
+  // Pinned explicitly, to the version the ACCOUNT sends.
+  //
+  // This used to say "no apiVersion on purpose: the SDK already pins one". It
+  // does — a different one. Measured 2026-09-22: stripe@22.6.2 requests
+  // 2026-08-26.dahlia, while the webhook events arriving from this account
+  // carried 2026-04-22.dahlia. Reads and events were therefore two different
+  // shapes of the same object, which is how a cancellation went unnoticed: the
+  // fields that describe it are not in the same place in both.
+  //
+  // The cast is deliberate. The SDK's types describe its own default version;
+  // naming an older one is the point, and the shape differences are absorbed in
+  // src/lib/stripe/subscriptionState.ts rather than scattered through handlers.
+  client = new Stripe(key, {
+    apiVersion: STRIPE_API_VERSION as Stripe.StripeConfig['apiVersion'],
+  });
   return client;
 }
 
