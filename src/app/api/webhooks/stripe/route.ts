@@ -2,6 +2,7 @@ import type Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { priceIdForPlan, stripeClient, type PaidPlan } from '@/lib/stripe';
+import { readSubscriptionState } from '@/lib/stripe/subscriptionState';
 
 // ─── POST /api/webhooks/stripe ────────────────────────────────────────────────
 //
@@ -282,27 +283,39 @@ export async function POST(request: Request) {
         }
 
         const plan = planFromSubscription(subscription);
-        const raw  = subscription as unknown as { current_period_end?: number };
+
+        // Every question about the period, the status and the cancellation is
+        // answered by one reader. This handler used to ask the subscription
+        // object directly, and missed a real customer's cancellation: in this
+        // API version a portal cancellation sets `cancel_at` and leaves
+        // `cancel_at_period_end` false, and the period moved onto the item.
+        const state = readSubscriptionState(subscription);
 
         // Stripe is the source of truth for the status and the term.
         const { error: stateError } = await admin.from('profiles').update({
           stripe_subscription_id: subscription.id,
-          subscription_status:    subscription.status,
-          cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
-          ...(seconds(raw.current_period_end) ? { current_period_end: seconds(raw.current_period_end) } : {}),
+          subscription_status:    state.status,
+          cancel_at_period_end:   state.cancellationScheduled,
+          ...(state.periodStart ? { current_period_start: state.periodStart } : {}),
+          ...(state.periodEnd   ? { current_period_end:   state.periodEnd   } : {}),
         }).eq('id', userId);
         if (stateError) console.error(`${TAG} state not written for ${userId}:`, stateError.message);
 
         // A cancellation booked in the portal is a downgrade to Free at the
         // term — the same path a downgrade takes, so nothing is taken back
         // before the month they paid for ends.
-        if (subscription.cancel_at_period_end) {
+        if (state.cancellationScheduled) {
           const { error } = await admin.rpc('apply_plan_change', { p_user_id: userId, p_new_plan: 'free' });
           if (error) console.error(`${TAG} cancellation not scheduled for ${userId}:`, error.message);
-          else console.log(`${TAG} ${userId}: cancellation scheduled at the term`);
+          else console.log(`${TAG} ${userId}: cancellation scheduled for ${state.cancellationEffectiveAt}`);
           break;
         }
 
+        // No end is booked. Calling apply_plan_change with the plan the
+        // subscription is actually on does both jobs: it upgrades when the plan
+        // changed, and when it is the SAME plan it clears scheduled_plan and
+        // cancel_at_period_end while granting nothing — which is exactly what
+        // "don't cancel after all" has to do.
         if (plan) {
           const { data, error } = await admin.rpc('apply_plan_change', { p_user_id: userId, p_new_plan: plan });
           if (error) console.error(`${TAG} plan change failed for ${userId}:`, error.message);
