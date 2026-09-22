@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { X, Check, Zap, Crown, Lock } from 'lucide-react';
 import Link from 'next/link';
+import { PLANS } from '@/lib/plans';
 
 // ─── Locale data ──────────────────────────────────────────────────────────────
 //
@@ -16,8 +17,9 @@ import Link from 'next/link';
 // The Starter card is gone with the tier, and so is the trial: there is no
 // countdown to expire.
 //
-// The prices below are still the old ones. Setting 39 $ and 69 $ belongs to the
-// interface step, with the pricing page and the terms, and is not done here.
+// The prices are read from src/lib/plans.ts. They used to be typed into this
+// file as well as into four locale files — five places for two numbers — and
+// this window kept showing 19.99 and 29.99 long after the plans had changed.
 
 const LABELS = {
   en: {
@@ -156,7 +158,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = 'tier_locked', 
           <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 opacity-60">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Free</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">$0</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">${PLANS.free.priceUsd}</p>
             </div>
             <ul className="space-y-1.5">
               {features.free.map((f) => (
@@ -187,7 +189,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = 'tier_locked', 
                 <Zap size={14} className="text-violet-500" />
                 <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">Pro</p>
               </div>
-              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">$19.99<span className="text-sm font-normal text-gray-400">/mo</span></p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">${PLANS.pro.priceUsd}<span className="text-sm font-normal text-gray-400">/mo</span></p>
             </div>
             <ul className="space-y-1.5">
               {features.pro.map((f) => (
@@ -227,7 +229,7 @@ export default function UpgradeModal({ isOpen, onClose, reason = 'tier_locked', 
                 <Crown size={14} className="text-amber-500" />
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Premium</p>
               </div>
-              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">$29.99<span className="text-sm font-normal text-gray-400">/mo</span></p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">${PLANS.premium.priceUsd}<span className="text-sm font-normal text-gray-400">/mo</span></p>
             </div>
             <ul className="space-y-1.5">
               {features.premium.map((f) => (

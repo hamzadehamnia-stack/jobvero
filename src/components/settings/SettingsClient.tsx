@@ -932,7 +932,7 @@ export default function SettingsClient({ userId, email, profile }: Props) {
                 </div>
               </div>
               {tier === 'free' && (
-                <a href="/en/pricing"
+                <a href={`/${locale}/pricing`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold
                     bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400
                     text-white shadow-md shadow-violet-500/20 transition-all flex-shrink-0 ml-3">

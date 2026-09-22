@@ -144,9 +144,7 @@ function parseRecruiterResponse(text: string): {
 }
 
 // A route's refusal: its message, and the upgrade to offer when the refusal is
-// about the plan or the credits. The modal does not offer Starter yet: an
-// upgrade to Starter opens it on its default.
-// It reads the refusal through the one shared reader: a response body can only
+// about the plan or the credits. It reads the refusal through the one shared reader: a response body can only
 // be read once, so this delegates rather than parsing it a second time, and the
 // sentence shown here is the same one every other screen shows for that refusal.
 async function readRefusal(res: Response, locale: string): Promise<{ message: string; upgrade: Upgrade | null }> {

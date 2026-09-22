@@ -1,87 +1,130 @@
-import { Check } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+'use client';
 
-interface PricingCardProps {
-  name: string;
-  price: string;
-  currency: string;
-  period: string;
+import { Check, Minus, Loader2 } from 'lucide-react';
+
+// ─── One plan, drawn ──────────────────────────────────────────────────────────
+//
+// Presentational. Every figure it shows arrives as a formatted string from
+// PricingTable, which reads src/lib/plans.ts — the card holds no number of its
+// own, so there is nowhere for a stale price to hide.
+//
+// The two counters are deliberately two separate lines. They are two different
+// things that are never added together: AI credits buy writing and analysis,
+// automatic applications are their own monthly quota. A single "X actions a
+// month" line would be the shortest way to make a customer believe a credit and
+// an application are interchangeable.
+
+export interface PricingCardProps {
+  name:        string;
+  /** "$39", or the translated word for free. */
+  price:       string;
+  /** "/month" — omitted on the free plan, which is not per anything. */
+  period:      string | null;
   description: string;
-  features: string[];
-  cta: string;
-  disabled: boolean;
-  popular: boolean;
-  ctaHref?: string;
+  /** The AI credits line. */
+  creditsLine: string;
+  /** The automatic applications line — or the line saying there are none. */
+  autoApplyLine: string;
+  /** Whether that second counter is a quota (Check) or its absence (Minus). */
+  hasAutoApply: boolean;
+  features:    string[];
+  cta:         string;
+  onCta?:      () => void;
+  ctaHref?:    string;
+  disabled?:   boolean;
+  busy?:       boolean;
+  popular?:    boolean;
+  /** Shown instead of the button when this is the plan the customer is on. */
+  currentLabel?: string | null;
 }
 
 export default function PricingCard({
-  name,
-  price,
-  currency,
-  period,
-  description,
-  features,
-  cta,
-  popular,
-  ctaHref = '#',
+  name, price, period, description,
+  creditsLine, autoApplyLine, hasAutoApply,
+  features, cta, onCta, ctaHref, disabled, busy, popular, currentLabel,
 }: PricingCardProps) {
-  const t = useTranslations('pricingCard');
-  const isFree = price === '0';
+  const isCurrent = Boolean(currentLabel);
 
   return (
     <div
-      className={cn(
-        'relative flex flex-col p-8 rounded-2xl border transition-all duration-300',
+      className={`relative flex flex-col rounded-2xl border p-6 transition-shadow ${
         popular
-          ? 'bg-gradient-to-b from-violet-950/80 to-gray-900 border-violet-500 shadow-xl shadow-violet-900/20 scale-105'
-          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-violet-300 dark:hover:border-gray-700 shadow-sm dark:shadow-none'
-      )}
+          ? 'border-violet-500 shadow-lg shadow-violet-500/10 dark:border-violet-400'
+          : 'border-gray-200 dark:border-gray-700'
+      } bg-white dark:bg-gray-900`}
     >
       {popular && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-          <span className="bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg">
-            {t('mostPopular')}
-          </span>
-        </div>
+        <span className="absolute -top-3 left-6 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+          {name}
+        </span>
       )}
 
-      <div className="mb-6">
-        <h3 className={cn('text-xl font-bold mb-1', popular ? 'text-white' : 'text-gray-900 dark:text-white')}>
-          {name}
-        </h3>
-        <p className={cn('text-sm', popular ? 'text-gray-400' : 'text-gray-500')}>{description}</p>
-      </div>
+      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{name}</h3>
 
-      <div className="mb-8">
-        <div className="flex items-end gap-1">
-          <span className={cn('text-4xl font-extrabold', popular ? 'text-white' : 'text-gray-900 dark:text-white')}>
-            {isFree ? 'Free' : `${currency}${price}`}
-          </span>
-          <span className={cn('text-sm mb-1.5', popular ? 'text-gray-400' : 'text-gray-500')}>{period}</span>
-        </div>
-      </div>
+      <p className="mt-2 flex items-baseline gap-1">
+        <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{price}</span>
+        {period && <span className="text-sm text-gray-400">{period}</span>}
+      </p>
 
-      <ul className="space-y-3 mb-8 flex-1">
-        {features.map((f, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <Check size={16} className="text-violet-400 mt-0.5 flex-shrink-0" />
-            <span className={cn('text-sm', popular ? 'text-gray-300' : 'text-gray-600 dark:text-gray-300')}>
-              {f}
-            </span>
+      <p className="mt-3 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{description}</p>
+
+      {/* The two counters, kept apart. */}
+      <ul className="mt-5 space-y-2 border-y border-gray-100 py-4 dark:border-gray-800">
+        <li className="flex items-start gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+          <Check size={16} className="mt-0.5 flex-shrink-0 text-violet-500" />
+          <span>{creditsLine}</span>
+        </li>
+        <li
+          className={`flex items-start gap-2 text-sm font-semibold ${
+            hasAutoApply ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'
+          }`}
+        >
+          {hasAutoApply
+            ? <Check size={16} className="mt-0.5 flex-shrink-0 text-violet-500" />
+            : <Minus  size={16} className="mt-0.5 flex-shrink-0 text-gray-300 dark:text-gray-600" />}
+          <span>{autoApplyLine}</span>
+        </li>
+      </ul>
+
+      <ul className="mt-4 flex-1 space-y-2">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <Check size={15} className="mt-0.5 flex-shrink-0 text-gray-300 dark:text-gray-600" />
+            <span>{feature}</span>
           </li>
         ))}
       </ul>
 
-      <Link
-        href={ctaHref}
-        className="w-full inline-flex items-center justify-center font-semibold rounded-lg px-7 py-3.5 text-base transition-all duration-200
-          bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400
-          text-white shadow-lg shadow-violet-500/20"
-      >
-        {cta}
-      </Link>
+      {isCurrent ? (
+        <p className="mt-6 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          {currentLabel}
+        </p>
+      ) : ctaHref ? (
+        <a
+          href={ctaHref}
+          className={`mt-6 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 ${
+            popular
+              ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-violet-500/20'
+              : 'border border-gray-200 text-gray-900 dark:border-gray-700 dark:text-white'
+          }`}
+        >
+          {cta}
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={onCta}
+          disabled={disabled || busy}
+          className={`mt-6 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${
+            popular
+              ? 'bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white shadow-md shadow-violet-500/20'
+              : 'border border-gray-200 text-gray-900 dark:border-gray-700 dark:text-white'
+          }`}
+        >
+          {busy && <Loader2 size={14} className="animate-spin" />}
+          {cta}
+        </button>
+      )}
     </div>
   );
 }
