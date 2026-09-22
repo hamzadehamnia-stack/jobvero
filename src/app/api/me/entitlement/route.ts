@@ -6,6 +6,7 @@ import {
   creditAllowance,
   creditBalance,
   featureMap,
+  inboxMonthlyQuota,
   resolveTier,
   type CreditLimits,
   type EntitlementProfile,
@@ -33,7 +34,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('subscription_plan, subscription_status, ai_credits_remaining, current_period_end, is_blocked')
+    .select('subscription_plan, subscription_status, ai_credits_remaining, current_period_start, current_period_end, scheduled_plan, cancel_at_period_end, stripe_subscription_id, email_alias, is_blocked')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -49,21 +50,34 @@ export async function GET() {
   // the answer comes from a route rather than from the browser reading them.
   let limits: CreditLimits | null = null;
   let autoApplyUsed = 0;
+  let inboxUsed = 0;
   try {
     const admin = createAdminClient();
     const { data: settings } = await admin
       .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
     limits = ((settings?.value as { limits?: CreditLimits } | null)?.limits) ?? null;
 
-    // The month the counter uses: the first day, in UTC, as claim_auto_apply
-    // computes it. Reading it any other way would show a number that disagrees
-    // with the one being enforced.
-    const now   = new Date();
-    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
-    const { data: counter } = await admin
-      .from('auto_apply_counters').select('count')
-      .eq('user_id', user.id).eq('month', month).maybeSingle();
-    autoApplyUsed = typeof counter?.count === 'number' ? counter.count : 0;
+    // The key both counters are stored under is the period on the profile —
+    // claim_auto_apply and claim_inbox_classification each read
+    // coalesce(current_period_start, …)::date from that same row. This route
+    // takes the value rather than recomputing it: a date computed here would
+    // come from a clock running six seconds ahead of the database's, and on
+    // the day a period turns over those six seconds are a different key and a
+    // counter that reads zero while the real one is full.
+    const periodKey = (profile?.current_period_start as string | null)?.slice(0, 10) ?? null;
+
+    if (periodKey) {
+      const { data: counter } = await admin
+        .from('auto_apply_counters').select('count')
+        .eq('user_id', user.id).eq('period_start', periodKey).maybeSingle();
+      autoApplyUsed = typeof counter?.count === 'number' ? counter.count : 0;
+
+      // The inbox month is keyed on the same period, scope 'month'.
+      const { data: inboxCounter } = await admin
+        .from('inbox_classify_counters').select('count')
+        .eq('scope', 'month').eq('subject', user.id).eq('day', periodKey).maybeSingle();
+      inboxUsed = typeof inboxCounter?.count === 'number' ? inboxCounter.count : 0;
+    }
   } catch (err) {
     console.error('[me/entitlement] admin settings unreadable:', err);
   }
@@ -87,5 +101,20 @@ export async function GET() {
       used:  autoApplyUsed,
       quota: autoApplyQuota(tier, limits),
     },
+    // The inbox month, for the Free plan's counter. 'unlimited' on a paid plan
+    // means no MONTHLY ceiling — the 25-a-day alias cap still applies.
+    inbox: {
+      used:  inboxUsed,
+      quota: inboxMonthlyQuota(tier, limits),
+    },
+    // What the screens need to tell the truth about a subscription's state:
+    // a payment Stripe is retrying, and a downgrade or cancellation already
+    // booked for the end of the period.
+    subscriptionStatus: (profile?.subscription_status as string | null) ?? null,
+    scheduledPlan:      (profile?.scheduled_plan as string | null) ?? null,
+    cancelAtPeriodEnd:  Boolean(profile?.cancel_at_period_end),
+    hasSubscription:    Boolean(profile?.stripe_subscription_id),
+    // The address that makes the Free plan worth having.
+    emailAlias:         (profile?.email_alias as string | null) ?? null,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

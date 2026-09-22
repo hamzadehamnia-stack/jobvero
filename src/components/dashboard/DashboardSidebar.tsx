@@ -10,6 +10,36 @@ import {
   X, Zap, Crown, ChevronLeft, ChevronRight, Target, Search, Shield, LifeBuoy,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
+import { useSubscription } from '@/hooks/useSubscription';
+
+// The card at the foot of the sidebar. It used to say "Free Trial" and promise
+// "unlimited AI credits" to everyone, including customers already paying for
+// Premium — a countdown for a trial that does not exist, offering a plan they
+// were already on. It now shows only to a Free account, and names what the
+// paid plans actually add. No figure appears in it: the numbers live in
+// src/lib/plans.ts and are shown on the pricing page.
+const UPGRADE_COPY: Record<string, { badge: string; pitch: string; cta: string }> = {
+  en: {
+    badge: 'Free plan',
+    pitch: 'Automatic applications and AI-written replies come with the paid plans.',
+    cta:   'See the plans',
+  },
+  fr: {
+    badge: 'Plan Gratuit',
+    pitch: 'Les candidatures automatiques et les réponses rédigées par l’IA sont dans les plans payants.',
+    cta:   'Voir les plans',
+  },
+  es: {
+    badge: 'Plan Gratis',
+    pitch: 'Las candidaturas automáticas y las respuestas redactadas por la IA están en los planes de pago.',
+    cta:   'Ver los planes',
+  },
+  pt: {
+    badge: 'Plano Grátis',
+    pitch: 'As candidaturas automáticas e as respostas redigidas pela IA estão nos planos pagos.',
+    cta:   'Ver os planos',
+  },
+};
 
 interface Props {
   locale: string;
@@ -41,6 +71,11 @@ export default function DashboardSidebar({ locale, user, onClose }: Props) {
   const [inboxUnread,   setInboxUnread]  = useState(0);
   const [trackerCount,  setTrackerCount] = useState(0);
   const [pendingCount,  setPendingCount] = useState(0);
+
+  // The server decides the plan; this only asks. Nothing is shown until it
+  // answers, so a paying customer never sees an upgrade pitch on the way.
+  const { plan, isLoading: planLoading } = useSubscription();
+  const upgradeCopy = UPGRADE_COPY[locale] ?? UPGRADE_COPY.en;
 
   useEffect(() => {
     const supabase = createClient();
@@ -261,24 +296,26 @@ export default function DashboardSidebar({ locale, user, onClose }: Props) {
         </div>
       )}
 
-      {/* ── Trial badge + user profile (hidden when collapsed) ── */}
+      {/* ── Plan card + user profile (hidden when collapsed) ── */}
       {!collapsed && (
         <>
-          <div className="mx-3 mb-3 p-3.5 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Crown size={14} className="text-yellow-300" />
-              <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
+          {!planLoading && plan === 'free' && (
+            <div className="mx-3 mb-3 p-3.5 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown size={14} className="text-yellow-300" />
+                <span className="text-xs font-bold uppercase tracking-wide">{upgradeCopy.badge}</span>
+              </div>
+              <p className="text-xs text-white/80 mb-3 leading-relaxed">
+                {upgradeCopy.pitch}
+              </p>
+              <Link
+                href={`/${locale}/pricing`}
+                className="block w-full text-center bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-2 rounded-xl transition-colors duration-150"
+              >
+                {upgradeCopy.cta}
+              </Link>
             </div>
-            <p className="text-xs text-white/80 mb-3 leading-relaxed">
-              Upgrade to unlock unlimited AI credits and premium templates.
-            </p>
-            <Link
-              href={`/${locale}/pricing`}
-              className="block w-full text-center bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-2 rounded-xl transition-colors duration-150"
-            >
-              Upgrade to Pro
-            </Link>
-          </div>
+          )}
 
           <div className="px-3 pb-4 border-t border-gray-100 dark:border-[#1F2937] pt-3">
             <button

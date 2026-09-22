@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardTopbar from './DashboardTopbar';
 import OnboardingModal from '@/components/onboarding/OnboardingModal';
+import SubscriptionNotice from './SubscriptionNotice';
 
 interface Props {
   locale: string;
@@ -72,6 +73,9 @@ export default function DashboardShell({ locale, user, needsOnboarding, initialA
           initialEmailAlias={initialEmailAlias}
         />
         <main className="flex-1 overflow-auto">
+          {/* A failed payment or a booked plan change, on every dashboard page.
+              It renders nothing when there is nothing to say. */}
+          <SubscriptionNotice />
           {children}
         </main>
       </div>

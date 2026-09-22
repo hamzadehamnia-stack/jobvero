@@ -7,6 +7,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import StatCard from '@/components/dashboard/StatCard';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  creditAllowance,
+  resolveTier,
+  type CreditLimits,
+  type EntitlementProfile,
+} from '@/lib/entitlements';
 
 interface Props {
   params: { locale: string };
@@ -130,15 +137,6 @@ function streakSparkline(activeDays: Set<string>): number[] {
   return points;
 }
 
-// ─── Plan credit limits ───────────────────────────────────────────────────────
-function planCreditLimit(plan: string | null): number {
-  switch (plan) {
-    case 'premium': return 500;
-    case 'pro':     return 100;
-    default:        return 50;   // free / trial
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage({ params: { locale } }: Props) {
@@ -222,7 +220,7 @@ export default async function DashboardPage({ params: { locale } }: Props) {
 
     // ── Profile (credits) ─────────────────────────────────────────────────────
     Promise.resolve(supabase.from('profiles')
-      .select('ai_credits_remaining, subscription_plan')
+      .select('ai_credits_remaining, subscription_plan, subscription_status, is_blocked')
       .eq('id', uid)
       .single())
       .then(r => r.data).catch(() => null),
@@ -308,16 +306,42 @@ export default async function DashboardPage({ params: { locale } }: Props) {
   ] satisfies { label: string; value: number | string; iconName: string; color: string; data: number[]; delta: string; trend: 'up' | 'down' | 'neutral' }[];
 
   // ── Credits ────────────────────────────────────────────────────────────────
-  const plan            = (profileRow as { subscription_plan?: string | null } | null)?.subscription_plan ?? null;
   const creditsRemaining = (profileRow as { ai_credits_remaining?: number | null } | null)?.ai_credits_remaining ?? 0;
-  const creditLimit     = planCreditLimit(plan);
-  const creditsUsed     = Math.max(0, creditLimit - creditsRemaining);
+
+  // admin_settings is service-role only, so the page's own client cannot read
+  // it. If it cannot be read, the allowance stays null and the panel shows the
+  // balance alone rather than inventing a denominator.
+  let adminLimits: CreditLimits | null = null;
+  try {
+    const admin = createAdminClient();
+    const { data: settings } = await admin
+      .from('admin_settings').select('value').eq('key', 'global').maybeSingle();
+    adminLimits = ((settings?.value as { limits?: CreditLimits } | null)?.limits) ?? null;
+  } catch {
+    adminLimits = null;
+  }
+
+  // The allowance comes from the one source. This page used to carry a table of
+  // its own — 50 / 100 / 500 — that matched nothing the server enforced, and
+  // drew "∞" for any plan whose limit came back as 500. No tier is unlimited.
+  const resolution  = resolveTier((profileRow ?? null) as EntitlementProfile | null);
+  const tier        = resolution.blocked ? 'free' : resolution.tier;
+  const creditLimit = creditAllowance(tier, adminLimits);
+  const creditsUsed = creditLimit != null ? Math.max(0, creditLimit - creditsRemaining) : null;
 
   // Count feature usage this month per key
   const usageByKey: Record<string, number> = {};
   for (const row of featureRows as { feature_key: string }[]) {
     usageByKey[row.feature_key] = (usageByKey[row.feature_key] ?? 0) + 1;
   }
+
+  // How the month was spent, per feature. There is no per-feature quota: the
+  // credits are one pot, spent by whichever feature is used. This panel used to
+  // invent a denominator — creditLimit / 4 — and draw each feature against a
+  // quarter of the allowance, so a customer who wrote four cover letters saw
+  // "4 / 15" for a limit that does not exist and has never been enforced.
+  // The bar is now a share of this month's own activity, which is a fact.
+  const monthActivity = Object.values(usageByKey).reduce((sum, n) => sum + n, 0);
 
   const creditFeatures = [
     { label: 'CV Builder',    key: 'CV_BUILDER_AI',          color: '#7C3AED' },
@@ -328,7 +352,6 @@ export default async function DashboardPage({ params: { locale } }: Props) {
     label: f.label,
     color: f.color,
     used:  usageByKey[f.key] ?? 0,
-    total: Math.max(1, Math.round(creditLimit / 4)),
   }));
 
   // ── Recent activity ────────────────────────────────────────────────────────
@@ -556,10 +579,14 @@ export default async function DashboardPage({ params: { locale } }: Props) {
               <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100 dark:border-[#1F2937]">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <p className="text-3xl font-black text-gray-900 dark:text-white tabular-nums">{creditsUsed}</p>
-                    <span className="text-sm text-gray-400 font-medium">/ {creditLimit === 500 ? '∞' : creditLimit}</span>
+                    <p className="text-3xl font-black text-gray-900 dark:text-white tabular-nums">{creditsUsed ?? creditsRemaining}</p>
+                    {creditLimit != null && (
+                      <span className="text-sm text-gray-400 font-medium">/ {creditLimit}</span>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">credits used this month</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {creditsUsed != null ? 'credits used this period' : 'credits left this period'}
+                  </p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
                   <Zap size={18} className="text-[#7C3AED]" />
@@ -567,13 +594,13 @@ export default async function DashboardPage({ params: { locale } }: Props) {
               </div>
 
               <div className="space-y-3.5">
-                {creditFeatures.map(({ label, used, total, color }) => {
-                  const pct = Math.min(100, Math.round((used / total) * 100));
+                {creditFeatures.map(({ label, used, color }) => {
+                  const pct = monthActivity > 0 ? Math.round((used / monthActivity) * 100) : 0;
                   return (
                     <div key={label}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</span>
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{used} / {total}</span>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{used}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-gray-100 dark:bg-[#1F2937] overflow-hidden">
                         <div
@@ -588,7 +615,7 @@ export default async function DashboardPage({ params: { locale } }: Props) {
 
               <Link href={`/${locale}/pricing`}
                 className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#7C3AED] to-[#4F46E5] text-white text-xs font-semibold py-2.5 rounded-xl hover:opacity-90 transition-opacity duration-150 shadow-md shadow-violet-500/20">
-                <Zap size={12} /> Upgrade for unlimited credits
+                <Zap size={12} /> See the plans
               </Link>
             </div>
           </section>

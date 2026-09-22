@@ -24,6 +24,16 @@ interface Entitlement {
   features:         Record<FeatureKey, boolean>;
   /** Automatic applications: spent this month, and the plan's monthly quota. */
   autoApply:        { used: number; quota: number | null };
+  /** Emails sorted this period. 'unlimited' is a paid plan: no MONTHLY ceiling. */
+  inbox:            { used: number; quota: number | 'unlimited' | null };
+  /** What Stripe says about the subscription — 'past_due' while it retries. */
+  subscriptionStatus: string | null;
+  /** A plan change already booked for the end of the period. */
+  scheduledPlan:      Tier | null;
+  cancelAtPeriodEnd:  boolean;
+  hasSubscription:    boolean;
+  /** The @getjobvero.com address that sorts the replies. */
+  emailAlias:         string | null;
 }
 
 export interface SubscriptionState {
@@ -38,6 +48,19 @@ export interface SubscriptionState {
   /** Automatic applications used this month, and the quota. */
   autoApplyUsed:   number;
   autoApplyQuota:  number | null;
+  /** Emails sorted this period, and the monthly ceiling ('unlimited' on paid). */
+  inboxUsed:       number;
+  inboxQuota:      number | 'unlimited' | null;
+  /**
+   * The subscription's own state. 'past_due' means a payment failed and Stripe
+   * is retrying: access continues, so the screens reassure rather than lock.
+   */
+  subscriptionStatus: string | null;
+  /** A downgrade or upgrade taking effect at the end of the period. */
+  scheduledPlan:      Tier | null;
+  cancelAtPeriodEnd:  boolean;
+  hasSubscription:    boolean;
+  emailAlias:         string | null;
   isLoading: boolean;
   /**
    * Whether the plan includes a feature, as the server says. NOT a substitute
@@ -140,6 +163,13 @@ export function useSubscription(): SubscriptionState {
     creditsResetAt,
     autoApplyUsed:  state?.autoApply?.used  ?? 0,
     autoApplyQuota: state?.autoApply?.quota ?? null,
+    inboxUsed:      state?.inbox?.used      ?? 0,
+    inboxQuota:     state?.inbox?.quota     ?? null,
+    subscriptionStatus: state?.subscriptionStatus ?? null,
+    scheduledPlan:      state?.scheduledPlan      ?? null,
+    cancelAtPeriodEnd:  state?.cancelAtPeriodEnd  ?? false,
+    hasSubscription:    state?.hasSubscription    ?? false,
+    emailAlias:         state?.emailAlias         ?? null,
     isLoading,
     canUse,
     refresh: fetchEntitlement,

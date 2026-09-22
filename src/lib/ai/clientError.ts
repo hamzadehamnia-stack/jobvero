@@ -6,6 +6,10 @@
 //
 //   402  the balance is empty                  → buy credits, or change plan
 //   403  the plan does not include the feature → change plan
+//   403  reason 'auto_apply_quota'             → the month's applications are
+//        spent. The credits are NOT: they are a different counter. Telling this
+//        person the feature is not in their plan would be false — they have it,
+//        they are paying for it, and they still have credits.
 //   403  reason 'blocked'                      → contact support, not a paywall
 //   429  too many requests                     → wait
 //   413  the input is too large                → shorten it
@@ -16,6 +20,7 @@
 export type AiErrorKind =
   | 'no_credits'
   | 'feature_locked'
+  | 'quota_exhausted'
   | 'blocked'
   | 'rate_limited'
   | 'too_large'
@@ -55,6 +60,7 @@ export async function readAiError(res: Response): Promise<AiError> {
   const kind: AiErrorKind =
       res.status === 402                        ? 'no_credits'
     : res.status === 403 && reason === 'blocked' ? 'blocked'
+    : res.status === 403 && reason === 'auto_apply_quota' ? 'quota_exhausted'
     : res.status === 403                        ? 'feature_locked'
     : res.status === 429                        ? 'rate_limited'
     : res.status === 413                        ? 'too_large'
@@ -67,7 +73,7 @@ export async function readAiError(res: Response): Promise<AiError> {
     serverText,
     reason,
     upgradeTo,
-    offerUpgrade: kind === 'no_credits' || kind === 'feature_locked',
+    offerUpgrade: kind === 'no_credits' || kind === 'feature_locked' || kind === 'quota_exhausted',
   };
 }
 
@@ -75,6 +81,7 @@ const COPY = {
   en: {
     no_credits:    'You have no AI credits left. Add credits or move to a plan with a bigger monthly allowance.',
     feature_locked:'This feature is not included in your plan.',
+    quota_exhausted:"You have used this month's automatic applications. They refill on your renewal date, and your AI credits are untouched.",
     blocked:       'This account is suspended. Please contact support.',
     rate_limited:  'Too many requests in a short time. Please wait a minute and try again.',
     too_large:     'That input is too long. Please shorten it and try again.',
@@ -84,6 +91,7 @@ const COPY = {
   fr: {
     no_credits:    "Vous n'avez plus de crédits IA. Ajoutez des crédits ou passez à un plan au quota mensuel plus élevé.",
     feature_locked:"Cette fonctionnalité n'est pas incluse dans votre plan.",
+    quota_exhausted:"Vous avez utilisé les candidatures automatiques de ce mois-ci. Elles se rechargent à votre date de renouvellement, et vos crédits IA ne sont pas entamés.",
     blocked:       'Ce compte est suspendu. Contactez le support.',
     rate_limited:  'Trop de requêtes en peu de temps. Patientez une minute et réessayez.',
     too_large:     'Ce contenu est trop long. Raccourcissez-le et réessayez.',
@@ -93,6 +101,7 @@ const COPY = {
   es: {
     no_credits:    'No te quedan créditos IA. Añade créditos o cambia a un plan con más cuota mensual.',
     feature_locked:'Esta función no está incluida en tu plan.',
+    quota_exhausted:'Has usado las candidaturas automáticas de este mes. Se recargan en tu fecha de renovación, y tus créditos IA no se han tocado.',
     blocked:       'Esta cuenta está suspendida. Contacta con soporte.',
     rate_limited:  'Demasiadas solicitudes en poco tiempo. Espera un minuto e inténtalo de nuevo.',
     too_large:     'El contenido es demasiado largo. Acórtalo e inténtalo de nuevo.',
@@ -102,6 +111,7 @@ const COPY = {
   pt: {
     no_credits:    'Não tem mais créditos de IA. Adicione créditos ou mude para um plano com maior quota mensal.',
     feature_locked:'Esta funcionalidade não está incluída no seu plano.',
+    quota_exhausted:'Usou as candidaturas automáticas deste mês. Recarregam na sua data de renovação, e os seus créditos de IA não foram tocados.',
     blocked:       'Esta conta está suspensa. Contacte o suporte.',
     rate_limited:  'Demasiados pedidos em pouco tempo. Aguarde um minuto e tente novamente.',
     too_large:     'Este conteúdo é demasiado longo. Encurte-o e tente novamente.',

@@ -27,6 +27,13 @@
 //   3. There is one tier resolver. A second function turning a plan into a tier
 //      is a second source of truth with a different name.
 //   4. No client file imports the access modules. It reads the route.
+//   5. Only the source turns a plan name into an allowance. Rule 1 measured the
+//      SHAPE of a table — `free: true, pro: …, premium: …` on one line — and a
+//      switch statement is not that shape. src/app/.../dashboard/page.tsx held
+//      `case 'premium': return 500` and sailed past four rules, then drew "∞"
+//      for any plan whose limit equalled 500. The rule was too narrow, not the
+//      code too clever: deciding an allowance per plan is the thing to forbid,
+//      in whatever syntax it is written.
 //
 // Guarded: the number of checks that ran must equal EXPECTED_CHECKS.
 
@@ -37,7 +44,7 @@ const path = require('path');
 
 const ROOT            = path.resolve(__dirname, '..');
 const SRC             = path.join(ROOT, 'src');
-const EXPECTED_CHECKS = 4;
+const EXPECTED_CHECKS = 5;
 
 // The one place access is decided.
 const SOURCE = 'src/lib/entitlements.ts';
@@ -130,6 +137,18 @@ const RULES = [
     name:    'no client component imports the access modules — it reads the route',
     test:    (line) => ACCESS_MODULES.test(line) && !isTypeImport(line),
     allowed: (relative, source) => relative === SOURCE || !isClientFile(source),
+  },
+  {
+    // An allowance is a number attached to a plan name. Two syntaxes say it:
+    // a switch returning a literal per tier, and a one-line map of tier to
+    // number. src/lib/plans.ts is allowed because it is the DISPLAY copy, and
+    // security-tests/planPrices.test.js fails the day it disagrees with
+    // admin_settings — which is the only reason a second copy is tolerable.
+    name:    'only the single source turns a plan name into an allowance',
+    test:    (line) =>
+      /\bcase\s+['"](?:free|pro|premium)['"]\s*:\s*return\s+-?\d/.test(line)
+      || /\bfree\s*:\s*\d+\b.*\bpro\s*:\s*\d+\b.*\bpremium\s*:\s*\d+/.test(line),
+    allowed: (relative) => relative === SOURCE || relative === 'src/lib/plans.ts',
   },
 ];
 

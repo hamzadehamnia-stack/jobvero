@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Zap, Crown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Zap, Crown, ChevronUp, RefreshCw, Send, Inbox, AtSign } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
@@ -12,37 +12,49 @@ const LABELS = {
     aiCredits:   'AI Credits',
     remaining:   'remaining',
     resetOn:     'Resets on',
-    daysLeft:    'days left in trial',
-    trialExpired:'Trial expired',
     upgrade:     'Upgrade Plan',
-    tier:        { trial: 'Trial', free: 'Free', pro: 'Pro', premium: 'Premium' },
+    autoApply:   'Automatic applications',
+    inbox:       'Emails sorted',
+    notIncluded: 'not in this plan',
+    aliasLabel:  'Your sorting address',
+    noDrafts:    'AI-written replies come with the paid plans.',
+    tier:        { free: 'Free', pro: 'Pro', premium: 'Premium' },
   },
   fr: {
     aiCredits:   'Crédits IA',
     remaining:   'restants',
     resetOn:     'Recharge le',
-    daysLeft:    'jours d\'essai restants',
-    trialExpired:'Essai expiré',
     upgrade:     'Améliorer le plan',
-    tier:        { trial: 'Essai', free: 'Gratuit', pro: 'Pro', premium: 'Premium' },
+    autoApply:   'Candidatures automatiques',
+    inbox:       'E-mails triés',
+    notIncluded: 'pas dans ce plan',
+    aliasLabel:  'Votre adresse de tri',
+    noDrafts:    'Les réponses rédigées par l’IA sont dans les plans payants.',
+    tier:        { free: 'Gratuit', pro: 'Pro', premium: 'Premium' },
   },
   es: {
     aiCredits:   'Créditos IA',
     remaining:   'restantes',
     resetOn:     'Se reinicia el',
-    daysLeft:    'días de prueba restantes',
-    trialExpired:'Prueba expirada',
     upgrade:     'Mejorar plan',
-    tier:        { trial: 'Prueba', free: 'Gratis', pro: 'Pro', premium: 'Premium' },
+    autoApply:   'Candidaturas automáticas',
+    inbox:       'Correos clasificados',
+    notIncluded: 'no incluido en este plan',
+    aliasLabel:  'Tu dirección de clasificación',
+    noDrafts:    'Las respuestas redactadas por la IA están en los planes de pago.',
+    tier:        { free: 'Gratis', pro: 'Pro', premium: 'Premium' },
   },
   pt: {
     aiCredits:   'Créditos IA',
     remaining:   'restantes',
     resetOn:     'Recarrega em',
-    daysLeft:    'dias de teste restantes',
-    trialExpired:'Teste expirado',
     upgrade:     'Melhorar plano',
-    tier:        { trial: 'Teste', free: 'Grátis', pro: 'Pro', premium: 'Premium' },
+    autoApply:   'Candidaturas automáticas',
+    inbox:       'E-mails triados',
+    notIncluded: 'não incluído neste plano',
+    aliasLabel:  'O seu endereço de triagem',
+    noDrafts:    'As respostas redigidas pela IA estão nos planos pagos.',
+    tier:        { free: 'Grátis', pro: 'Pro', premium: 'Premium' },
   },
 } as const;
 
@@ -56,6 +68,13 @@ function fmtDate(date: Date, locale: string): string {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+//
+// TWO COUNTERS, NEVER ONE. Credits buy writing and analysis; automatic
+// applications have their own monthly quota and cost no credit. They are drawn
+// as two separate rows with two separate denominators because they are two
+// different things — a single merged number would teach a customer that
+// spending a credit costs them an application, which is false in both
+// directions. Both refill on the same date, the one this panel already shows.
 
 export default function CreditGauge() {
   const pathname  = usePathname();
@@ -65,8 +84,11 @@ export default function CreditGauge() {
     ? rawLocale as keyof typeof LABELS
     : 'en';
 
-  const { effectiveTier, creditsRemaining, creditsTotal, creditsResetAt, isLoading } =
-    useSubscription();
+  const {
+    effectiveTier, creditsRemaining, creditsTotal, creditsResetAt,
+    autoApplyUsed, autoApplyQuota, inboxUsed, inboxQuota, emailAlias,
+    isLoading,
+  } = useSubscription();
   const l = LABELS[locale];
 
   const [open, setOpen] = useState(false);
@@ -88,8 +110,8 @@ export default function CreditGauge() {
     );
   }
 
-  // No tier is unlimited: Premium has 111 credits a month like the others have
-  // theirs. `creditsTotal` is null only when the allowance is not configured —
+  // No tier is unlimited: Premium has its 150 credits a month like the others
+  // have theirs. `creditsTotal` is null only when the allowance is not configured —
   // and then the gauge shows the balance alone rather than inventing a
   // denominator or drawing a bar against a number nobody set.
   const hasTotal = typeof creditsTotal === 'number' && creditsTotal > 0;
@@ -101,6 +123,18 @@ export default function CreditGauge() {
   const zapColor = isLow ? 'text-red-400' : 'text-violet-500';
 
   const tierLabel = l.tier[effectiveTier] ?? l.tier.free;
+
+  // The application quota: its own counter, spent by auto-apply alone. 0 is a
+  // real answer — the Free plan has none — and null means unconfigured.
+  const hasAutoApply  = typeof autoApplyQuota === 'number' && autoApplyQuota > 0;
+  const autoApplyLeft = hasAutoApply ? Math.max(0, autoApplyQuota - autoApplyUsed) : 0;
+  const autoApplyPct  = hasAutoApply
+    ? Math.min(100, Math.round((autoApplyLeft / autoApplyQuota) * 100))
+    : 0;
+
+  // The inbox month exists only where there is a monthly ceiling — the Free
+  // plan. 'unlimited' means no MONTHLY limit, not no limit at all.
+  const hasInboxQuota = typeof inboxQuota === 'number' && inboxQuota > 0;
 
   return (
     <div ref={ref} className="relative hidden sm:block">
@@ -144,13 +178,13 @@ export default function CreditGauge() {
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 z-50
+        <div className="absolute right-0 top-full mt-2 w-72 z-50
           bg-white dark:bg-gray-900
           border border-gray-200 dark:border-gray-700
           rounded-2xl shadow-xl shadow-gray-200/60 dark:shadow-black/40
           overflow-hidden">
 
-          {/* Header */}
+          {/* Header — counter one: AI credits */}
           <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-1.5">
@@ -192,12 +226,72 @@ export default function CreditGauge() {
             )}
           </div>
 
+          {/* Counter two: automatic applications. A separate quota, refilled on
+              the same date, spent by nothing else. */}
+          <div className="px-4 pt-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Send size={13} className="text-sky-500" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  {l.autoApply}
+                </span>
+              </div>
+              <span className="text-xs font-semibold text-gray-900 dark:text-white tabular-nums">
+                {hasAutoApply
+                  ? `${autoApplyLeft} / ${autoApplyQuota}`
+                  : <span className="text-gray-400 dark:text-gray-500 font-normal">{l.notIncluded}</span>}
+              </span>
+            </div>
+            {hasAutoApply && (
+              <div className="mt-2 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-sky-500 transition-all duration-700"
+                  style={{ width: `${autoApplyPct}%` }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* The inbox month — shown only where a monthly ceiling exists. */}
+          {hasInboxQuota && (
+            <div className="px-4 pt-3 pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Inbox size={13} className="text-emerald-500" />
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    {l.inbox}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-gray-900 dark:text-white tabular-nums">
+                  {inboxUsed} / {inboxQuota}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400 dark:text-gray-500">
+                {l.noDrafts}
+              </p>
+            </div>
+          )}
+
+          {/* The address that does the sorting. It is what the Free plan is
+              for, and it is useless if the customer cannot read it. */}
+          {emailAlias && (
+            <div className="px-4 pt-3 pb-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                <AtSign size={11} />
+                <span>{l.aliasLabel}</span>
+              </div>
+              <p className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300 break-all">
+                {emailAlias}
+              </p>
+            </div>
+          )}
+
           {/* Footer info */}
           <div className="px-4 py-3 space-y-1.5">
             {/* No trial line: Free is a permanent plan with its own credits,
                 not a countdown to a lockout. */}
 
-            {/* Reset date */}
+            {/* Reset date — one date for both counters. */}
             {creditsResetAt && (
               <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                 <RefreshCw size={11} />
