@@ -409,13 +409,21 @@ export async function runAutoApplyForUser(
   const experienceLevel: string  = config.experience_level ?? 'any';
 
   // ── 7. Daily quota check ───────────────────────────────────────────────────
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  //
+  // This one is not a plan quota — the month's allowance is claimed under lock
+  // in the database (section 8). It spreads the day's sends out, and it stays.
+  //
+  // 'today' is evaluated by Postgres, not here: it used to be this machine's
+  // local midnight compared against applied_at, a column the database writes,
+  // and those are two clocks — measured at the same instant, this one runs 6
+  // seconds ahead. The day is therefore a UTC day now, not the machine's day.
+  // A deliberate change: a server-side quota with a boundary that depends on
+  // where the server happens to sit is not a quota anyone can reason about.
   const { count: todayCount } = await supabase
     .from('auto_apply_logs')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .gte('applied_at', today.toISOString());
+    .gte('applied_at', 'today');
 
   const remainingToday = maxPerDay - (todayCount ?? 0);
   if (remainingToday <= 0) return empty('daily_limit', 'Daily auto-apply limit reached');
