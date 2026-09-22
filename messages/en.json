@@ -111,7 +111,7 @@
     "items": [
       {
         "q": "Is Jobvero free to use?",
-        "a": "Yes! Jobvero offers a forever-free plan with essential job search features. Upgrade to Pro or Premium anytime to unlock unlimited AI matching, cover letters, interview prep, and more."
+        "a": "Yes. The free plan is permanent: a @getjobvero.com address that sorts your replies, 15 emails sorted a month, 10 AI credits, a CV builder, cover letters and an ATS score. Paid plans add automatic applications, AI-written replies and the interview coach."
       },
       {
         "q": "What languages does Jobvero support?",
@@ -133,71 +133,64 @@
   },
   "cta": {
     "headline": "Ready to land your dream job?",
-    "subheadline": "Try Jobvero free for 7 days. Card required — cancel before day 8 and you pay nothing.",
-    "ctaPrimary": "Start your free trial →",
-    "disclaimer": "Your plan starts on day 8 unless you cancel. During the trial: Pro features, 10 AI credits."
+    "subheadline": "Start free. Your @getjobvero.com address sorts your replies from day one — no card, nothing to cancel.",
+    "ctaPrimary": "Create your free account →",
+    "disclaimer": "The free plan is permanent: 10 AI credits a month and 15 emails sorted. Move up when it earns its place."
   },
   "pricing": {
     "sectionBadge": "Pricing",
-    "headline": "Simple, Transparent Pricing",
-    "subheadline": "Choose the plan that fits your job search. Upgrade or cancel anytime.",
-    "plans": [
-      {
-        "name": "Free Trial",
-        "price": "0",
-        "currency": "",
-        "period": "7 days free",
-        "description": "Card required. 7 days of Pro-level features on 10 AI credits.",
-        "cta": "Get Started",
-        "disabled": false,
-        "popular": false,
+    "headline": "One address, two counters, no surprises",
+    "subheadline": "Start free and keep the free plan as long as you like. No card, no trial that ends.",
+    "perMonth": "/month",
+    "freeLabel": "Free",
+    "creditsLine": "{n} AI credits per month",
+    "autoApplyLine": "{n} automatic applications per month",
+    "autoApplyNone": "No automatic applications",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "cta": "Create your account",
+        "description": "Your @getjobvero.com address, and your replies sorted for you.",
         "features": [
-          "Pro-level features for 7 days",
-          "10 AI credits for the whole trial",
+          "Your own @getjobvero.com address on your CV",
           "CV builder, cover letters, ATS score",
-          "Interview coach",
-          "Cancel before day 8 and pay nothing"
+          "AI assistant and application tracker",
+          "No AI-written replies"
         ]
       },
-      {
+      "pro": {
         "name": "Pro",
-        "price": "19.99",
-        "currency": "$",
-        "period": "/month",
-        "description": "For serious job seekers who want a real advantage.",
-        "cta": "Get Started",
-        "disabled": false,
-        "popular": true,
+        "cta": "Choose Pro",
+        "description": "For a real search: applications sent for you, and replies answered.",
         "features": [
-          "Unlimited AI job matches",
-          "10 resume templates",
-          "Unlimited cover letters",
-          "Advanced application tracker",
-          "Interview preparation suite",
-          "Salary insights",
-          "Priority email support"
+          "Everything in Free",
+          "AI-written reply drafts",
+          "Interview coach and AI job matches",
+          "Email sorting with no monthly limit"
         ]
       },
-      {
+      "premium": {
         "name": "Premium",
-        "price": "29.99",
-        "currency": "$",
-        "period": "/month",
-        "description": "Full power for career changers and ambitious professionals.",
-        "cta": "Get Started",
-        "disabled": false,
-        "popular": false,
+        "cta": "Choose Premium",
+        "description": "The full volume, for a search that cannot wait.",
         "features": [
           "Everything in Pro",
-          "1-on-1 career coaching / month",
-          "LinkedIn profile optimization",
-          "Personal job search strategy",
-          "Dedicated account manager",
-          "API access",
-          "24/7 priority support"
+          "More than twice the applications",
+          "Priority support"
         ]
       }
-    ],
+    },
+    "compare": {
+      "headline": "What the same thing costs elsewhere",
+      "intro": "Assembled from the published list prices of tools sold separately, compared by what they do — not by who sells them.",
+      "tools": {
+        "cv_tracking": "CV and application tracking",
+        "auto_apply": "Automatic applications",
+        "interview_prep": "Interview preparation"
+      },
+      "total": "Three subscriptions, three tools that do not talk to each other",
+      "conclusion": "And none of them answers your email. Jobvero Premium does all of it, with the inbox, for $69."
+    },
     "faq": {
       "headline": "Frequently Asked Questions",
       "items": [
@@ -206,8 +199,8 @@
           "a": "Yes. You can cancel your subscription at any time from your account settings. You will retain access until the end of your billing period."
         },
         {
-          "q": "Is there a free trial for paid plans?",
-          "a": "Yes — every paid plan starts with a 7-day free trial. A payment method is required to start, and nothing is charged before day 8. Cancel any time during the trial and you pay nothing."
+          "q": "Is there a free trial?",
+          "a": "There is no trial, because there is nothing to expire: the free plan is permanent. It gives you a @getjobvero.com address, 15 emails sorted a month and 10 AI credits, with no card. A paid plan is billed from the first day and can be cancelled at any time."
         },
         {
           "q": "What payment methods do you accept?",
@@ -218,6 +211,13 @@
           "a": "We offer a 14-day money-back guarantee on all paid plans, no questions asked."
         }
       ]
+    },
+    "currentPlan": "Your current plan",
+    "manageSubscription": "Manage my subscription",
+    "errors": {
+      "checkout": "We could not open the payment page. Nothing has been charged — please try again.",
+      "portal": "We could not open your subscription settings. Nothing has changed — please try again.",
+      "network": "We could not reach the server. Nothing has been charged — check your connection and try again."
     }
   },
   "legal": {
@@ -442,15 +442,11 @@
     "credits": {
       "title": "AI Credits",
       "remaining": "remaining",
-      "unlimited": "Unlimited",
       "resetOn": "Resets on",
-      "daysLeft": "days left in trial",
-      "trialExpired": "Trial expired — upgrade to continue using AI features",
       "upgrade": "Upgrade Plan",
       "viewPlans": "View Plans",
       "lowCredits": "Running low on credits",
       "tier": {
-        "trial": "Trial",
         "free": "Free",
         "pro": "Pro",
         "premium": "Premium"
@@ -606,11 +602,9 @@
       "pwNoMatch": "Passwords do not match",
       "currentPlan": "Current Plan",
       "upgrade": "Upgrade",
-      "planDescTrial": "7 days of Pro-level features · 10 AI credits for the whole trial",
-      "planDescFree": "Trial ended · no monthly AI credits",
-      "planDescStarter": "29 AI credits / month",
-      "planDescPro": "57 AI credits / month",
-      "planDescPremium": "111 AI credits / month · everything in Pro",
+      "planDescFree": "Permanent free plan · no card required",
+      "planDescPro": "Automatic applications and AI-written replies",
+      "planDescPremium": "The full volume · priority support",
       "deleteAccount": "Delete account",
       "deleteDesc": "Permanently delete your account and all your data. This cannot be undone.",
       "delete": "Delete",

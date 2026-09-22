@@ -111,7 +111,7 @@
     "items": [
       {
         "q": "¿Jobvero es gratuito?",
-        "a": "¡Sí! Jobvero ofrece un plan gratuito permanente con funciones esenciales de búsqueda de empleo. Actualiza al plan Pro o Premium en cualquier momento para desbloquear matching ilimitado, cartas de presentación, preparación de entrevistas y mucho más."
+        "a": "Sí. El plan gratuito es permanente: una dirección @getjobvero.com que clasifica tus respuestas, 15 correos al mes, 10 créditos IA, el CV, las cartas de presentación y la puntuación ATS. Los planes de pago añaden la candidatura automática, las respuestas redactadas por la IA y la preparación de entrevistas."
       },
       {
         "q": "¿Qué idiomas admite Jobvero?",
@@ -132,72 +132,65 @@
     ]
   },
   "cta": {
-    "headline": "¿Listo para conseguir el trabajo de tus sueños?",
-    "subheadline": "Prueba Jobvero gratis durante 7 días. Se requiere tarjeta — cancela antes del día 8 y no pagas nada.",
-    "ctaPrimary": "Empezar prueba gratuita →",
-    "disclaimer": "Tu plan empieza el día 8 salvo que canceles. Durante la prueba: funciones Pro, 10 créditos IA."
+    "headline": "¿List@ para conseguir el puesto que buscas?",
+    "subheadline": "Empieza gratis. Tu dirección @getjobvero.com clasifica tus respuestas desde el primer día — sin tarjeta, sin nada que cancelar.",
+    "ctaPrimary": "Crear mi cuenta gratis →",
+    "disclaimer": "El plan gratuito es permanente: 10 créditos IA al mes y 15 correos clasificados. Sube cuando lo merezca."
   },
   "pricing": {
     "sectionBadge": "Precios",
-    "headline": "Precios simples y transparentes",
-    "subheadline": "Elige el plan que se adapta a tu búsqueda de empleo. Mejora o cancela en cualquier momento.",
-    "plans": [
-      {
-        "name": "Prueba gratuita",
-        "price": "0",
-        "currency": "",
-        "period": "7 días gratis",
-        "description": "Se requiere tarjeta. 7 días de funciones Pro con 10 créditos IA.",
-        "cta": "Comenzar",
-        "disabled": false,
-        "popular": false,
+    "headline": "Una dirección, dos contadores, ninguna sorpresa",
+    "subheadline": "Empieza gratis y quédate en el plan gratuito el tiempo que quieras. Sin tarjeta, sin prueba que caduca.",
+    "perMonth": "/mes",
+    "freeLabel": "Gratis",
+    "creditsLine": "{n} créditos IA al mes",
+    "autoApplyLine": "{n} candidaturas automáticas al mes",
+    "autoApplyNone": "Sin candidaturas automáticas",
+    "plans": {
+      "free": {
+        "name": "Gratis",
+        "cta": "Crear mi cuenta",
+        "description": "Tu dirección @getjobvero.com, y tus respuestas clasificadas por ti.",
         "features": [
-          "Funciones de nivel Pro durante 7 días",
-          "10 créditos IA para toda la prueba",
+          "Tu dirección @getjobvero.com en tu CV",
           "CV, cartas de presentación, puntuación ATS",
-          "Preparación de entrevistas",
-          "Cancela antes del día 8 y no pagas nada"
+          "Asistente IA y seguimiento de candidaturas",
+          "Sin respuestas redactadas por la IA"
         ]
       },
-      {
+      "pro": {
         "name": "Pro",
-        "price": "19.99",
-        "currency": "$",
-        "period": "/mes",
-        "description": "Para buscadores de empleo serios que quieren una ventaja real.",
-        "cta": "Comenzar",
-        "disabled": false,
-        "popular": true,
+        "cta": "Elegir Pro",
+        "description": "Para una búsqueda de verdad: se postula por ti, y se responde.",
         "features": [
-          "Ofertas de IA ilimitadas",
-          "10 plantillas de CV",
-          "Cartas de presentación ilimitadas",
-          "Seguimiento avanzado de solicitudes",
-          "Preparación para entrevistas",
-          "Datos salariales",
-          "Soporte prioritario por email"
+          "Todo lo del plan Gratis",
+          "Borradores de respuesta redactados por la IA",
+          "Preparación de entrevistas y coincidencias IA",
+          "Clasificación de correo sin límite mensual"
         ]
       },
-      {
+      "premium": {
         "name": "Premium",
-        "price": "29.99",
-        "currency": "$",
-        "period": "/mes",
-        "description": "Todo el poder para cambios de carrera y profesionales ambiciosos.",
-        "cta": "Comenzar",
-        "disabled": false,
-        "popular": false,
+        "cta": "Elegir Premium",
+        "description": "El volumen completo, para una búsqueda que no puede esperar.",
         "features": [
-          "Todo lo de Pro",
-          "Coaching profesional 1-1 / mes",
-          "Optimización de perfil LinkedIn",
-          "Estrategia personalizada de búsqueda",
-          "Gestor de cuenta dedicado",
-          "Acceso API",
-          "Soporte prioritario 24/7"
+          "Todo lo del plan Pro",
+          "Más del doble de candidaturas",
+          "Soporte prioritario"
         ]
       }
-    ],
+    },
+    "compare": {
+      "headline": "Lo que cuesta lo mismo en otro sitio",
+      "intro": "Compuesto con los precios públicos de herramientas vendidas por separado, comparadas por lo que hacen — no por quién las vende.",
+      "tools": {
+        "cv_tracking": "CV y seguimiento de candidaturas",
+        "auto_apply": "Candidatura automática",
+        "interview_prep": "Preparación de entrevistas"
+      },
+      "total": "Tres suscripciones, tres herramientas que no se hablan",
+      "conclusion": "Y ninguna responde a tu correo. Jobvero Premium hace todo eso, con la bandeja de entrada, por 69 $."
+    },
     "faq": {
       "headline": "Preguntas frecuentes",
       "items": [
@@ -206,8 +199,8 @@
           "a": "Sí. Puedes cancelar tu suscripción en cualquier momento desde la configuración de tu cuenta. Mantendrás el acceso hasta el final de tu período de facturación."
         },
         {
-          "q": "¿Hay una prueba gratuita para los planes de pago?",
-          "a": "Sí — todos los planes de pago empiezan con una prueba gratuita de 7 días. Se pide un método de pago al registrarte y no se cobra nada antes del día 8. Cancela cuando quieras durante la prueba y no pagarás nada."
+          "q": "¿Hay una prueba gratuita?",
+          "a": "No hay prueba, porque no hay nada que caduque: el plan gratuito es permanente. Te da una dirección @getjobvero.com, 15 correos clasificados al mes y 10 créditos IA, sin tarjeta. Un plan de pago se factura desde el primer día y se puede cancelar cuando quieras."
         },
         {
           "q": "¿Qué métodos de pago aceptáis?",
@@ -218,6 +211,13 @@
           "a": "Ofrecemos una garantía de devolución de dinero de 14 días en todos los planes de pago, sin preguntas."
         }
       ]
+    },
+    "currentPlan": "Tu plan actual",
+    "manageSubscription": "Gestionar mi suscripción",
+    "errors": {
+      "checkout": "No hemos podido abrir la página de pago. No se ha cobrado nada — inténtalo de nuevo.",
+      "portal": "No hemos podido abrir la gestión de tu suscripción. No ha cambiado nada — inténtalo de nuevo.",
+      "network": "No hemos podido contactar con el servidor. No se ha cobrado nada — comprueba tu conexión e inténtalo de nuevo."
     }
   },
   "legal": {
@@ -442,15 +442,11 @@
     "credits": {
       "title": "Créditos IA",
       "remaining": "restantes",
-      "unlimited": "Ilimitado",
       "resetOn": "Se reinicia el",
-      "daysLeft": "días de prueba restantes",
-      "trialExpired": "Prueba expirada — mejora para continuar",
       "upgrade": "Mejorar plan",
       "viewPlans": "Ver planes",
       "lowCredits": "Pocos créditos restantes",
       "tier": {
-        "trial": "Prueba",
         "free": "Gratis",
         "pro": "Pro",
         "premium": "Premium"
@@ -606,11 +602,9 @@
       "pwNoMatch": "Las contraseñas no coinciden",
       "currentPlan": "Plan actual",
       "upgrade": "Mejorar",
-      "planDescTrial": "7 días de funciones Pro · 10 créditos IA para toda la prueba",
-      "planDescFree": "Prueba terminada · sin créditos IA mensuales",
-      "planDescStarter": "29 créditos IA / mes",
-      "planDescPro": "57 créditos IA / mes",
-      "planDescPremium": "111 créditos IA / mes · todo lo de Pro",
+      "planDescFree": "Plan gratuito permanente · sin tarjeta",
+      "planDescPro": "Candidaturas automáticas y respuestas redactadas por la IA",
+      "planDescPremium": "El volumen completo · soporte prioritario",
       "deleteAccount": "Eliminar cuenta",
       "deleteDesc": "Elimina permanentemente tu cuenta y todos tus datos. Esta acción no se puede deshacer.",
       "delete": "Eliminar",

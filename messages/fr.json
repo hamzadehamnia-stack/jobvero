@@ -111,7 +111,7 @@
     "items": [
       {
         "q": "Jobvero est-il gratuit ?",
-        "a": "Oui ! Jobvero propose un plan gratuit à vie avec les fonctionnalités essentielles de recherche d'emploi. Passez au Pro ou Premium à tout moment pour débloquer les correspondances IA illimitées, les lettres de motivation, la préparation aux entretiens et bien plus."
+        "a": "Oui. Le plan Gratuit est permanent : une adresse @getjobvero.com qui trie vos réponses, 15 e-mails triés par mois, 10 crédits IA, le CV, les lettres de motivation et le score ATS. Les plans payants ajoutent la candidature automatique, les réponses rédigées par l’IA et le coach d’entretien."
       },
       {
         "q": "Quelles langues Jobvero supporte-t-il ?",
@@ -132,72 +132,65 @@
     ]
   },
   "cta": {
-    "headline": "Prêt à décrocher le poste de vos rêves ?",
-    "subheadline": "Essayez Jobvero gratuitement pendant 7 jours. Carte bancaire requise — annulez avant le 8e jour et vous ne payez rien.",
-    "ctaPrimary": "Démarrer votre essai gratuit →",
-    "disclaimer": "Votre plan démarre le 8e jour, sauf annulation. Pendant l'essai : fonctions Pro, 10 crédits IA."
+    "headline": "Prêt à décrocher le poste que vous visez ?",
+    "subheadline": "Commencez gratuitement. Votre adresse @getjobvero.com trie vos réponses dès le premier jour — sans carte, sans rien à annuler.",
+    "ctaPrimary": "Créer mon compte gratuit →",
+    "disclaimer": "Le plan Gratuit est permanent : 10 crédits IA par mois et 15 e-mails triés. Vous montez quand cela le mérite."
   },
   "pricing": {
     "sectionBadge": "Tarifs",
-    "headline": "Tarifs simples et transparents",
-    "subheadline": "Choisissez le plan adapté à votre recherche d'emploi. Changez ou annulez à tout moment.",
-    "plans": [
-      {
-        "name": "Essai gratuit",
-        "price": "0",
-        "currency": "",
-        "period": "7 jours gratuits",
-        "description": "Carte bancaire requise. 7 jours de fonctions Pro avec 10 crédits IA.",
-        "cta": "Commencer",
-        "disabled": false,
-        "popular": false,
+    "headline": "Une adresse, deux compteurs, aucune surprise",
+    "subheadline": "Commencez gratuitement et restez-y aussi longtemps que vous voulez. Sans carte, sans essai qui expire.",
+    "perMonth": "/mois",
+    "freeLabel": "Gratuit",
+    "creditsLine": "{n} crédits IA par mois",
+    "autoApplyLine": "{n} candidatures automatiques par mois",
+    "autoApplyNone": "Pas de candidature automatique",
+    "plans": {
+      "free": {
+        "name": "Gratuit",
+        "cta": "Créer mon compte",
+        "description": "Votre adresse @getjobvero.com, et vos réponses triées pour vous.",
         "features": [
-          "Fonctions de niveau Pro pendant 7 jours",
-          "10 crédits IA pour tout l'essai",
+          "Votre adresse @getjobvero.com sur votre CV",
           "CV, lettres de motivation, score ATS",
-          "Préparation aux entretiens",
-          "Annulez avant le 8e jour, vous ne payez rien"
+          "Assistant IA et suivi des candidatures",
+          "Sans réponse rédigée par l’IA"
         ]
       },
-      {
+      "pro": {
         "name": "Pro",
-        "price": "19.99",
-        "currency": "$",
-        "period": "/mois",
-        "description": "Pour les candidats sérieux qui veulent un vrai avantage.",
-        "cta": "Commencer",
-        "disabled": false,
-        "popular": true,
+        "cta": "Choisir Pro",
+        "description": "Pour une vraie recherche : on postule pour vous, et on répond.",
         "features": [
-          "Correspondances IA illimitées",
-          "10 modèles de CV",
-          "Lettres de motivation illimitées",
-          "Suivi de candidatures avancé",
-          "Suite de préparation aux entretiens",
-          "Analyse des salaires",
-          "Support prioritaire par e-mail"
+          "Tout le plan Gratuit",
+          "Brouillons de réponse rédigés par l’IA",
+          "Coach d’entretien et correspondances IA",
+          "Tri des e-mails sans limite mensuelle"
         ]
       },
-      {
+      "premium": {
         "name": "Premium",
-        "price": "29.99",
-        "currency": "$",
-        "period": "/mois",
-        "description": "Puissance maximale pour les personnes en reconversion et les professionnels ambitieux.",
-        "cta": "Commencer",
-        "disabled": false,
-        "popular": false,
+        "cta": "Choisir Premium",
+        "description": "Le volume complet, pour une recherche qui ne peut pas attendre.",
         "features": [
-          "Tout ce qui est inclus dans Pro",
-          "1 coaching carrière individuel / mois",
-          "Optimisation du profil LinkedIn",
-          "Stratégie personnalisée de recherche d'emploi",
-          "Gestionnaire de compte dédié",
-          "Accès API",
-          "Support prioritaire 24h/24 7j/7"
+          "Tout le plan Pro",
+          "Plus du double de candidatures",
+          "Support prioritaire"
         ]
       }
-    ],
+    },
+    "compare": {
+      "headline": "Ce que la même chose coûte ailleurs",
+      "intro": "Assemblé à partir des tarifs publics d’outils vendus séparément, comparés par ce qu’ils font — pas par qui les vend.",
+      "tools": {
+        "cv_tracking": "CV et suivi des candidatures",
+        "auto_apply": "Candidature automatique",
+        "interview_prep": "Préparation aux entretiens"
+      },
+      "total": "Trois abonnements, trois outils qui ne se parlent pas",
+      "conclusion": "Et aucun ne répond à vos e-mails. Jobvero Premium fait tout cela, boîte de réception comprise, pour 69 $."
+    },
     "faq": {
       "headline": "Questions fréquemment posées",
       "items": [
@@ -206,8 +199,8 @@
           "a": "Oui. Vous pouvez annuler votre abonnement à tout moment depuis les paramètres de votre compte. Vous conserverez l'accès jusqu'à la fin de votre période de facturation."
         },
         {
-          "q": "Y a-t-il un essai gratuit pour les plans payants ?",
-          "a": "Oui — chaque plan payant commence par un essai gratuit de 7 jours. Une carte est demandée à l'inscription et rien n'est débité avant le 8e jour. Annulez à tout moment pendant l'essai et vous ne payez rien."
+          "q": "Y a-t-il un essai gratuit ?",
+          "a": "Il n’y a pas d’essai, parce qu’il n’y a rien qui expire : le plan Gratuit est permanent. Il vous donne une adresse @getjobvero.com, 15 e-mails triés par mois et 10 crédits IA, sans carte bancaire. Un plan payant est facturé dès le premier jour et résiliable à tout moment."
         },
         {
           "q": "Quels moyens de paiement acceptez-vous ?",
@@ -218,6 +211,13 @@
           "a": "Nous offrons une garantie de remboursement de 14 jours sur tous les plans payants, sans questions posées."
         }
       ]
+    },
+    "currentPlan": "Votre plan actuel",
+    "manageSubscription": "Gérer mon abonnement",
+    "errors": {
+      "checkout": "Nous n’avons pas pu ouvrir la page de paiement. Rien n’a été débité — réessayez.",
+      "portal": "Nous n’avons pas pu ouvrir la gestion de votre abonnement. Rien n’a changé — réessayez.",
+      "network": "Nous n’avons pas pu joindre le serveur. Rien n’a été débité — vérifiez votre connexion et réessayez."
     }
   },
   "legal": {
@@ -442,15 +442,11 @@
     "credits": {
       "title": "Crédits IA",
       "remaining": "restants",
-      "unlimited": "Illimité",
       "resetOn": "Recharge le",
-      "daysLeft": "jours d'essai restants",
-      "trialExpired": "Essai expiré — améliorez pour continuer",
       "upgrade": "Améliorer le plan",
       "viewPlans": "Voir les plans",
       "lowCredits": "Crédits bientôt épuisés",
       "tier": {
-        "trial": "Essai",
         "free": "Gratuit",
         "pro": "Pro",
         "premium": "Premium"
@@ -606,11 +602,9 @@
       "pwNoMatch": "Les mots de passe ne correspondent pas",
       "currentPlan": "Abonnement actuel",
       "upgrade": "Améliorer",
-      "planDescTrial": "7 jours de fonctions Pro · 10 crédits IA pour tout l'essai",
-      "planDescFree": "Essai terminé · aucun crédit IA mensuel",
-      "planDescStarter": "29 crédits IA / mois",
-      "planDescPro": "57 crédits IA / mois",
-      "planDescPremium": "111 crédits IA / mois · tout Pro",
+      "planDescFree": "Plan Gratuit permanent · sans carte bancaire",
+      "planDescPro": "Candidatures automatiques et réponses rédigées par l’IA",
+      "planDescPremium": "Le volume complet · support prioritaire",
       "deleteAccount": "Supprimer le compte",
       "deleteDesc": "Supprimez définitivement votre compte et toutes vos données. Cette action est irréversible.",
       "delete": "Supprimer",
