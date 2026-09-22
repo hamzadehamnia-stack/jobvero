@@ -90,6 +90,38 @@ function invoicePeriod(invoice: Stripe.Invoice): { start: string; end: string } 
   return { start, end };
 }
 
+/**
+ * The plan an invoice paid for, read from the invoice itself.
+ *
+ * This is what makes invoice.paid independent of delivery order. It used to
+ * grant from the account's current state, and on a first purchase it arrives
+ * BEFORE customer.subscription.created — so the account still read as Free and
+ * the first grant was ten credits, corrected to sixty a moment later. The
+ * balance came out right by luck of ordering, and Stripe guarantees no ordering.
+ *
+ * The price id is matched against the ones this server configured, so the plan
+ * comes from what was actually billed and not from a field anyone could set.
+ */
+function planFromInvoice(invoice: Stripe.Invoice): PaidPlan | null {
+  const line = invoice.lines?.data?.[0] as unknown as {
+    price?:   { id?: string };
+    plan?:    { id?: string };
+    pricing?: { price_details?: { price?: string } };
+  } | undefined;
+
+  const priceId = line?.price?.id ?? line?.pricing?.price_details?.price ?? line?.plan?.id ?? null;
+  if (!priceId) return null;
+
+  for (const plan of ['pro', 'premium'] as PaidPlan[]) {
+    try {
+      if (priceIdForPlan(plan) === priceId) return plan;
+    } catch {
+      // That plan has no price configured; it cannot be the match.
+    }
+  }
+  return null;
+}
+
 /** The subscription id an invoice belongs to, across API shapes. */
 function subscriptionIdOf(invoice: Stripe.Invoice): string | null {
   const raw = invoice as unknown as {
@@ -196,19 +228,34 @@ export async function POST(request: Request) {
           break;
         }
 
-        // The invoice id is the grant key: Stripe can send this event as often
-        // as it likes, and credit_grants will accept it once.
+        // The plan comes from the invoice, not from the account: this handler
+        // must be right whether it runs before or after the subscription event.
+        const billedPlan = planFromInvoice(invoice);
+        if (!billedPlan) {
+          console.warn(`${TAG} invoice ${invoice.id} is on a price this server does not sell — granting from the account's own plan`);
+        }
+
+        // The key is the period and the plan, the same key apply_plan_change
+        // builds. One purchase described by two events therefore collides on
+        // one key and grants exactly once, whichever arrives first. The invoice
+        // id is kept as the source: the key is the rule, the column is the trace.
+        const grantKey = billedPlan
+          ? `changement:${period.start.slice(0, 10)}:${billedPlan}`
+          : `stripe:${invoice.id}`;
+
         const { data, error } = await admin.rpc('grant_period_credits', {
           p_user_id:      userId,
-          p_grant_key:    `stripe:${invoice.id}`,
+          p_grant_key:    grantKey,
           p_period_start: period.start,
           p_period_end:   period.end,
+          p_plan:         billedPlan,
+          p_source:       invoice.id,
         });
 
         if (error) console.error(`${TAG} grant failed for ${userId}:`, error.message);
         else {
           const row = Array.isArray(data) ? data[0] : data;
-          console.log(`${TAG} invoice ${invoice.id} → ${userId}: granted=${row?.granted} reason=${row?.reason} credits=${row?.credits}`);
+          console.log(`${TAG} invoice ${invoice.id} (${billedPlan ?? 'plan inconnu'}) → ${userId}: granted=${row?.granted} reason=${row?.reason} credits=${row?.credits}`);
         }
 
         const subId = subscriptionIdOf(invoice);
